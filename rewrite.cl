@@ -94,15 +94,40 @@
       (return-from rewrite-headers headers))
   (multiple-value-bind (senderfunc recipfunc)
       (get-rewrite-funcs type)
-    (mapcar #'(lambda (h)
-		(cond
-		 ((recip-header-p h)
-		  (rewrite-header h recipfunc))
-		 ((sender-header-p h)
-		  (rewrite-header h senderfunc))
-		 (t
-		  h))) 
-	    headers)))
+    (let (newheaders h nextline)
+      (while headers
+	     (setf h (pop headers))
+	     (when (or (recip-header-p h) (sender-header-p h))
+	       (while (setf nextline (pop headers))
+		      (if (or (= 0 (length nextline))
+			      (not (whitespace-p (schar nextline 0))))
+			  (return)) ;; break
+		      (setf h (header-unfold h nextline)))
+	       ;; get here if nextline wasn't there.. or if it was
+	       ;; the beginning of a new header
+	       (if nextline 
+		   (push nextline headers))
+	       
+	       ;; We now have an unfolded header.  Process it.
+	       (cond
+		((recip-header-p h)
+		 (rewrite-header h recipfunc))
+		((sender-header-p h)
+		 (rewrite-header h senderfunc))
+		(t
+		 (error "This should never happen")))
+	       
+	       ;; returns a list of lines.  push them onto 
+	       
+	       (let ((newlines (header-fold h)))
+		 (while (> (length newlines) 1)
+			(push (pop newlines) newheaders))
+		 (setf h (pop newlines))))
+	     
+	     (push h newheaders))
+      (nreverse newheaders))))
+	       
+	       
 
 (defun rewrite-header (string rewritefunc)
   (let ((colonpos (position #\: string)))

@@ -112,54 +112,25 @@
 	      zonesign
 	      (* (abs zone) 100)))))
 
-;; Not used.
-(defun parse-message-headers (filename)
-  (let (res)
-    (with-open-file (f filename)
-      (loop
-	(multiple-value-bind (line colonpos)
-	    (get-unfolded-header f)
-	  (if (null line)
-	      (return))
-	  (push (cons (subseq line 0 colonpos)
-		      (subseq line (1+ colonpos)))
-		res))))
-    (reverse res)))
-    
-;; Returns nil at end of headers or end of file.
-;; Used by parse-message-headers (therefore, unused)
-(defun get-unfolded-header (f)
-  (block nil
-    (let ((line (read-line f nil nil))
-	  colonpos peek contline startpos)
-      (if (null line)
-	  (return nil))
-      (setf colonpos (position #\: line))
-      (if (or (null colonpos) (not (valid-header-name-p line colonpos)))
-	  (return nil))
-      (loop
-	;; see if we need to read in a continuation line.
-	(setf peek (peek-char nil f nil nil))
-	(if (not (member peek '(#\space #\tab)))
-	    (return (values line colonpos)))
-	;; Read the continuation line
-	(setf contline (read-line f nil nil))
-	(if (null contline)
-	    (error "get-unfolded-line: This should never happen!"))
-	(setf startpos (position-of-first-nonspace-character contline))
-	;; if startpos is null, we've just read a continuation
-	;; line that consists of all white space.  This is
-	;; allowed by RFC822 but not by RFC2822.  
-	(if startpos
-	    (setf line 
-	      (concatenate 'string line " " (subseq contline startpos))))))))
-
 ;;; nil means it's all whitespace (or null) past startpos
 (defun position-of-first-nonspace-character (string &optional (startpos 0))
   (position-if-not 
    #'(lambda (char) (member char '(#\space #\tab)))
    string
    :start startpos))
+
+(defun header-unfold (curr next)
+  (let ((startpos (position-of-first-nonspace-character next)))
+    (if startpos
+	(concatenate 'string curr " " (subseq next startpos))
+      curr)))
+
+(defun header-fold (string)
+  (let ((words (split-regexp "\\b+" string))
+	(h (make-header)))
+    (dolist (word words)
+      (add-header-word h word))
+    (split-regexp *newline-string* (header-buffer h))))
 
 
 (defun valid-header-name-p (string stoppos)
