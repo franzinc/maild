@@ -1,3 +1,8 @@
+2003-06-25  Kevin Layer  <layer@relay.known.net>
+
+	* Makefile: fix install's chown; parameterize `lisp'; cp -p on
+	  init script
+
 2003-06-25  root  <root@gills.dancysoft.com>
 
 	* Changed the DNS blacklisting to a rcpt-to checker so that sender
