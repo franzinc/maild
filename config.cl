@@ -54,6 +54,15 @@
 (defparameter *dns-blacklisted-response-type* :transient)
 ;; List of recipients that are never subject to DNS blacklisting
 (defparameter *dns-blacklist-recipient-exceptions* nil)
+;; Message to give if connection is DNS blacklisted, when 
+;; *dns-blacklisted-response-type* is :permanent.  The value should be a
+;; string acceptable to `format', which takes one argument, a string which
+;; was the host that blacklisted the connection.  A value of `nil' means
+;; using the default of "Blacklisted by ~A".
+(defparameter *dns-blacklist-failure-response* nil)
+;; Similar to *dns-blacklist-failure-response*, except used when 
+;; *dns-blacklisted-response-type* is :transient.  
+(defparameter *dns-blacklist-temp-failure-response* nil)
 
 ;;;;;;
 

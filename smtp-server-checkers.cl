@@ -126,9 +126,24 @@
       (ecase *dns-blacklisted-response-type*
 	(:transient
 	 (return 
-	   (values :transient 
-		   (format nil "Please try again later (~A)" domain))))
+	   (values
+	    :transient
+	    (let ((default-msg
+		      (format nil "Please try again later (~A)" domain)))
+	      (if* *dns-blacklist-temp-failure-response*
+		 then (or (ignore-errors
+			   (format nil *dns-blacklist-temp-failure-response*
+				   domain))
+			  default-msg)
+		 else default-msg)))))
 	(:permanent
 	 (return 
-	   (values :err 
-		   (format nil "Blacklisted by ~A" domain))))))))
+	   (values
+	    :err
+	    (let ((default-msg (format nil "Blacklisted by ~A" domain)))
+	      (if* *dns-blacklist-failure-response*
+		 then (or (ignore-errors
+			   (format nil *dns-blacklist-failure-response*
+				   domain))
+			  default-msg)
+		 else default-msg)))))))))

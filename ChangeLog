@@ -1,3 +1,10 @@
+2003-07-02  Kevin Layer  <layer@relay.known.net>
+
+	* config.cl,
+	* smtp-server-checkers.cl: added *dns-blacklist-failure-response*
+	  and *dns-blacklist-temp-failure-response*.  See comments in
+	  config.cl for more info.
+
 2003-07-02  root  <root@gills.dancysoft.com>
 
 	* Added new *dns-blacklist-recipient-exceptions* parameter for
