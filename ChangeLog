@@ -1,3 +1,30 @@
+2003-05-15  root  <root@gills.dancysoft.com>
+
+	* aliases.cl:  Make sure that only one thread reparses the aliases
+	file.   Removed a bunch of stuff that became redundant with the
+	new recips code.
+
+	* emailaddr.cl:  Added some extra utility functions (for use in
+	recips.cl, mainly).
+
+	* input.cl:  send-from-smtp:  Accept emailaddr or recip struct
+	type recips.   use new get-good-recips-from-string function in
+	grab-recips-from-headers.  
+
+	* load.cl:  Load recips.cl before aliases.cl.
+
+	* maild.cl:  Added -bv mode for testing address parsing.
+	Simplified command line recipient processing by using new
+	get-good-recips-from-string function.
+
+	* queue.cl:  queue-finalize:  Accept emailaddr or recip type
+	recips.
+
+	* recips.cl:  Added 'orig' slot to recip struct for recording the
+	string that was originally parsed.    get-recipient-disposition
+	accepts emailaddr or recip struct arg now.   Improved address list
+	parsing.  
+
 2003-05-14  Ahmon Dancy  <dancy@dancy>
 
 	* queue.cl:  In queue-finalize, call expand-addresses w/ the queue

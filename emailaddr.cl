@@ -26,6 +26,21 @@
 ;; Front ends to the complex stuff below.
 ;; This is intended to be used for envelope addresses.
 
+(defun sep-tokens-by-comma (tokens)
+  (let (res)
+    (while tokens
+	   (let (tmp)
+	     ;; skip any leading whitespace
+	     (if (whitespace-token-p (first tokens))
+		 (pop tokens))
+	     (while (and tokens (not (comma-token-p (first tokens))))
+		    (push (pop tokens) tmp))
+	     (if tmp ;; don't add blank entries
+		 (push (nreverse tmp) res)))
+	   ;; we're at a comma or done w/ tokens.
+	   (pop tokens)) 
+    (nreverse res)))
+
 ;; returns values:
 ;;   list of accepted, parsed addresses.
 ;;   list of ("rejected-address" "reason")
@@ -51,10 +66,7 @@
 	    (push (list string "User address required") 
 		  bads))
 	   (t
-	    (push (make-emailaddr :user (addrspec-user addr)
-				  :domain (addrspec-domain addr)
-				  :orig (printable-from-addrspec addr))
-		  goods))))
+	    (push (addrspec-to-emailaddr addr) goods))))
 	(setf cruft 
 	  (with-output-to-string (s) (print-token-list remainder s)))
 	(if (match-regexp "^\\b*$" cruft)
@@ -80,6 +92,13 @@
      (t
       (error "Unexpected mailbox subtype: ~S" thing)))))
 
+(defun addrspec-to-emailaddr (addr)
+  (make-emailaddr :user (addrspec-user addr)
+		  :domain (addrspec-domain addr)
+		  :orig (printable-from-addrspec addr)))
+
+(defun mailbox-to-emailaddr (mailbox)
+  (addrspec-to-emailaddr (mailbox-to-addrspec mailbox)))
 
 (defun parse-email-addr (string &key (pos 0) (max (length string))
 				     allow-null)
@@ -648,3 +667,25 @@
        (write-char (second token) stream))
       (t
        (error "token ~S not handled yet." token)))))
+
+;; unquotes quoted strings
+(defun tokens-to-string (tokens &key strip-trailing-white)
+  (let ((string
+	 (with-output-to-string (s)
+	   (dolist (token tokens)
+	     (case (first token)
+	       ((:comment :whitespace :atom)
+		(write-string (second token) s))
+	       (:special
+		(write-char (second token) s))
+	       (:quoted-string
+		(write-string 
+		 (subseq (second token) 1 (1- (length (second token))))
+		 s))
+	       (t
+		(error "token ~S not handled by tokens-to-string yet." 
+		       token)))))))
+    (if strip-trailing-white
+	(replace-regexp string "\\b+$" "")
+      string)))
+

@@ -49,6 +49,7 @@
      (pwent-name pwent))))
   
 
+;; 'recips' is a (possibly empty) list of recip structs
 (defun send-from-stdin (recips &key (dot t) gecos from verbose grab-recips)
   (multiple-value-bind (fromaddr gecos authwarn realuser)
       (compute-sender-info from gecos)
@@ -63,6 +64,9 @@
 	  (if grab-recips
 	      (setf recips 
 		(append recips (grab-recips-from-headers headers))))
+	  
+	  (if (null recips)
+	   (error "No recipient addresses found in header"))
 	  
 	  (if authwarn
 	      (setf headers 
@@ -99,22 +103,13 @@
 
 ;; Works right even if there are multiple To:, Cc: or Bcc: headers
 (defun grab-recips-from-headers (headers)
-  (let (recips pos)
+  (let (good-recips pos)
     (dolist (header headers)
       (setf pos (recip-header-p header))
       (when pos
-	(multiple-value-bind (accepted rejected cruft)
-	    (parse-email-addr-list header :pos pos)
-	  (if accepted
-	      (setf recips (nconc recips accepted)))
-	  (if rejected
-	      (dolist (rej rejected)
-		(format t "~A...~A~%" (first rej) (second rej))))
-	  (if (string/= cruft "")
-	      (format t "Unrecognized data: ~A~%" cruft)))))
-    recips))
-	
-
+	(setf good-recips
+	  (nconc good-recips (get-good-recips-from-string header :pos pos)))))
+    good-recips))
 
 (defun read-message-stream (s bodystream &key smtp dot)
   (let ((res (multiple-value-list 

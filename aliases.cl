@@ -1,36 +1,28 @@
 (in-package :user)
 
 (defstruct aliases-info
-  mtime
-  aliases)
+  (mtime 0)
+  aliases
+  (lock (mp:make-process-lock))) ;; so only one thread will reparse
 
 (defparameter *aliases* nil)
 
-(defstruct alias-rhs
-  type ;; :prog, :file, :error, :include.  nil means normal
-  addr ;; parsed
-  file ;; for :file, :prog, and :include aliases
-  prog-user ;; for :prog aliases
-  errmsg ;; for :error aliases
-  expanded-from ;; string
-  escaped) ;; prefixed by a backslash?
-
-(defstruct alias-exp
-  rhs
-  owner)
-  
-
 (defun update-aliases-info ()
-  (if (null *aliases*)
-      (setf *aliases* (make-aliases-info :mtime 0)))
-  (let ((mtime (file-write-date *aliasesfile*)))
-    (if* (> mtime (aliases-info-mtime *aliases*))
-       then
-	    (verify-root-only-file *aliasesfile*)
-	    (if *debug* (maild-log "Reparsing aliases"))
-	    (setf (aliases-info-aliases *aliases*)
-	      (parse-aliases-file))
-	    (setf (aliases-info-mtime *aliases*) mtime))))
+  ;; Make sure only one thread creates the aliases-info
+  (without-interrupts 
+    (if (null *aliases*) (setf *aliases* (make-aliases-info))))
+  
+  ;; Make sure only one thread reparses the aliases.
+  (mp:with-process-lock ((aliases-info-lock *aliases*) 
+			 :whostate "Waiting for aliases lock")
+    (let ((mtime (file-write-date *aliasesfile*)))
+      (if* (> mtime (aliases-info-mtime *aliases*))
+	 then
+	      (verify-root-only-file *aliasesfile*)
+	      (if *debug* (maild-log "Reparsing aliases"))
+	      (setf (aliases-info-aliases *aliases*)
+		(parse-aliases-file))
+	      (setf (aliases-info-mtime *aliases*) mtime)))))
 
 (defun parse-aliases-file ()
   (let ((ht (make-hash-table :test #'equalp)))
@@ -51,79 +43,24 @@
 	(aliases-get-next-word #\: line 0 len :delim-required t)
       (if (null lhs)
 	  (error "Invalid aliases line: ~A" line))
-      (values lhs (parse-alias-right-hand-side lhs line pos len)))))
+      (values lhs (parse-alias-right-hand-side lhs line pos)))))
 
-(defmacro include-alias-p (string)
-  `(prefix-of-p ":include:" ,string))
-
-(defmacro error-alias-p (string)
-  `(prefix-of-p ":error:" ,string))
-
-(defun file-alias-p (string)
-  (and (> (length string) 0)
-       (char= (schar string 0) #\/)))
-
-(defun program-alias-p (string)
-  (and (> (length string) 0)
-       (char= (schar string 0) #\|)))
-
-(defun escaped-alias-p (string)
-  (and (> (length string) 0)
-       (char= (schar string 0) #\\)))
-
-(defun parse-alias-right-hand-side (lhs line pos len)
-  (let (expansion ali have-error-type)
-    (loop
-      (multiple-value-bind (word newpos)
-	  (aliases-get-next-word #\, line pos len)
-	(if (null word)
-	    (return))
-	(setf ali (make-alias-rhs :expanded-from lhs))
-
-	;; See what we're dealing with:
-	(cond
-	 ((include-alias-p word)
-	  (setf (alias-rhs-type ali) :include)
-	  (setf (alias-rhs-file ali) (subseq word #.(length ":include:"))))
-	 ((error-alias-p word)
-	  (setf have-error-type t)
-	  (setf (alias-rhs-type ali) :error)
-	  (setf (alias-rhs-errmsg ali) (subseq word #.(length ":error:")))
-	  (if (string= (alias-rhs-errmsg ali) "")
-	      (setf (alias-rhs-errmsg ali) nil)))
-	 ((file-alias-p word)
-	  (setf (alias-rhs-type ali) :file)
-	  (setf (alias-rhs-file ali) word))
-	 ((program-alias-p word)
-	  (setf (alias-rhs-type ali) :prog)
-	  (multiple-value-bind (found whole prog-user prog)
-	      (match-regexp "^|(\\([^)]+\\))\\(.*\\)" word)
-	    (declare (ignore whole))
-	    (if* found
-	       then
-		    (setf (alias-rhs-file ali) prog)
-		    (setf (alias-rhs-prog-user ali) prog-user)
-	       else
-		    (setf (alias-rhs-file ali) (subseq word 1)))))
-	 (t 
-	  ;; Wasn't one of the special types.  It must be a regular
-	  ;; (possibly escaped) email address.  Parse it and complain
-	  ;; if it isn't proper.
-	  (when (escaped-alias-p word)
-	    (setf (alias-rhs-escaped ali) t)
-	    (setf word (subseq word 1)))
-	  (let ((parsed (parse-email-addr word)))
-	    (if (null parsed)
-		(error "Invalid email address ~S in aliases file" word))
-	    (setf (alias-rhs-addr ali) parsed))))
-	(push ali expansion)
-	(setf pos newpos)))
-    (if (null expansion)
+(defun parse-alias-right-hand-side (lhs line pos)
+  (let ((recips (parse-recip-list line :pos pos)))
+    (if (null recips)
 	(error "Alias ~A has blank expansion" lhs))
-    (if (and have-error-type (> (length expansion) 1))
-	(error "Error in alias ~A: :error: must be the only thing on the right hand side" lhs))
-    expansion))
-
+    (if (and (>= (count-if #'error-recip-p recips) 1)
+	     (> (length recips) 1))
+	(error "Problem with alias ~A:  :error: expansions must be alone" lhs))
+    (when (find-if #'bad-recip-p recips)
+      (format *error-output* "Problem with alias ~A:~%" lhs)
+      (dolist (recip recips)
+	(if (bad-recip-p recip)
+	    (format *error-output* " ~A... ~A~%" 
+		    (recip-orig recip)
+		    (recip-errmsg recip))))
+      (error "Aborting..."))
+    recips))
   
 (defun aliases-get-next-word (delim line pos len &key delim-required)
   (block nil
@@ -204,7 +141,7 @@
 	       (char/= (schar line 0) #\#))
 	  (return line)))))
 
-;; :include: files should be treated as a big multi-line left hand side.
+;; :include: files should be treated as a big multi-line right hand side.
 ;; This function returns a bigass string.
 (defun aliases-get-include-file (filename)
   (verify-security filename)
@@ -220,13 +157,13 @@
 
 (defun aliases-parse-include-file (filename)
   (let ((line (aliases-get-include-file filename)))
-    (parse-alias-right-hand-side filename line 0 (length line))))
+    (parse-alias-right-hand-side filename line 0)))
 
 ;;; end parsing stuff... 
 
 ;;; begin expansion stuff...
 
-;; returns a list of alias-exp structs.
+;; returns a list of recip structs
 ;; may include duplicates.
 (defun expand-alias (alias-orig)
   ;;; XXX - may want to move this out for performance reasons
@@ -240,6 +177,7 @@
 
 ;; tries long match (w/ full domain) first.. 
 ;; then short match (just user part)
+;; this behavior may go away.
 (defun expand-alias-inner (alias ht seen owner)
   (block nil
     (if (not (local-domain-p alias))
@@ -255,7 +193,7 @@
 	  (if members
 	      (alias-expand-member-list alias members ht seen owner)))))))
 
-;; 'members' is a list of alias-rhs structs.
+;; 'members' is a list of recip structs
 (defun alias-expand-member-list (lhs members ht seen owner &key in-include)
   (let (res type ownerstring ownerparsed)
     (setf ownerstring (concatenate 'string "owner-" (emailaddr-orig lhs)))
@@ -264,7 +202,7 @@
 	(setf owner ownerparsed))
 
     (dolist (member members)
-      (setf type (alias-rhs-type member))
+      (setf type (recip-type member))
       (cond
        ;; sanity checks first
        ((and in-include (eq type :prog))
@@ -277,7 +215,7 @@
 	(when in-include
 	  (error "While processing :include: file ~A: :include: is not allowed within an :include: file"
 		 in-include))
-	(let* ((includefile (alias-rhs-file member))
+	(let* ((includefile (recip-file member))
 	       (newmembers (aliases-parse-include-file includefile)))
 	  ;; recurse
 	  (setf res 
@@ -287,15 +225,21 @@
 	     res))))
        ;; definite terminals
        ((or (member type '(:prog :file :error))
-	    (alias-rhs-escaped member)
-	    (not (local-domain-p (alias-rhs-addr member)))
-	    (equalp (emailaddr-user (alias-rhs-addr member))
+	    (recip-escaped member)
+	    (not (local-domain-p (recip-addr member)))
+	    (equalp (emailaddr-user (recip-addr member))
 		    (emailaddr-user lhs)))
-	(push (make-alias-exp :rhs member :owner owner) res))
+	(push (aliases-set-recip-owner member owner) res))
        (t
-	(let ((exp (expand-alias-inner (alias-rhs-addr member) ht seen owner)))
+	(let ((exp (expand-alias-inner (recip-addr member) ht seen owner)))
 	  (if (null exp)
-	      (push (make-alias-exp :rhs member :owner owner) res)
+	      (push (aliases-set-recip-owner member owner) res)
 	    (setf res (append exp res)))))))
     res))
 
+(defun aliases-set-recip-owner (recip owner)
+  (when owner
+    (setf recip (copy-recip recip))
+    (setf (recip-owner recip) owner))
+  recip)
+      

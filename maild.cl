@@ -20,7 +20,7 @@
 	 ("q" :short processqueue :optional)
 	 ("v" :short verbose nil)
 	 ("t" :short grab-recips nil))
-      (recips :command-line-arguments args)
+      (cmdline-recips :command-line-arguments args)
 
       (establish-signal-handlers)
 
@@ -42,6 +42,9 @@
 	  (verify-real-user-is-root)
 	  (queue-list)
 	  (exit 0 :quiet t))
+	 ((string= runmode "v")
+	  (verify-cmdline-addrs cmdline-recips)
+	  (exit 0 :quiet t))
 	 (t
 	  (error "-b~A option invalid" runmode)))) 
       
@@ -50,23 +53,17 @@
 	(queue-process-all :verbose verbose)
 	(exit 0 :quiet t))
 
-      (if (and (not grab-recips) (null recips))
+      (if (and (not grab-recips) (null cmdline-recips))
 	  (error "Recipient names must be specified"))
 
-      (let (parsed-recips)
-	(dolist (reciplist recips)
-	  (multiple-value-bind (parsedlist badlist cruft)
-	      (parse-email-addr-list reciplist)
-	    (setf parsed-recips (nconc parsed-recips parsedlist))
-	    (dolist (bad badlist)
-	      (format t "~A... ~A~%" (first bad) (second bad)))
-	    (if (string/= cruft "")
-		(format t "~A... Ignored~%" cruft))))
+      (let (good-recips)
+	(dolist (string cmdline-recips)
+	  (setf good-recips 
+	    (nconc good-recips
+		   (get-good-recips-from-string string))))
 	
-	(setf parsed-recips (weed-bogus-local-recips parsed-recips))
-	
-	(if (or parsed-recips grab-recips)
-	    (send-from-stdin parsed-recips
+	(if (or good-recips grab-recips)
+	    (send-from-stdin good-recips
 			     :dot (if ignoredot nil t)
 			     :gecos fullname
 			     :from from
@@ -75,20 +72,6 @@
 	  (error "~a: No valid recipients specified." prgname))))))
 
 
-(defun weed-bogus-local-recips (recips)
-  (let (goodrecips)
-    (dolist (recip recips)
-      (multiple-value-bind (disp errmsg)
-	  (get-recipient-disposition recip)
-	(cond
-	 ((eq disp :local-unknown)
-	  (format t "~A... User unknown~%" (emailaddr-orig recip)))
-	 ((eq disp :error)
-	  (format t "~A... ~A~%" (emailaddr-orig recip) errmsg))
-	 (t
-	  (push recip goodrecips)))))
-    (nreverse goodrecips)))
-	  
 
 ;; s = seconds
 ;; m = minutes (default if no tag specified)
@@ -138,3 +121,12 @@
 (defun establish-signal-handlers ()
   (dolist (sig `(,*sigint* ,*sigterm*))
     (set-signal-handler sig #'maild-signal-handler)))
+
+;; XXX -- sendmail shows the expansions.  Will do that
+;; later.
+(defun verify-cmdline-addrs (strings)
+  (dolist (string strings)
+    (get-good-recips-from-string string :verbose t)))
+
+	
+	

@@ -4,7 +4,7 @@
     '(
       "utils" "security" "lex"
       "emailaddr" "log" "ipaddr" "blacklist" 
-      "aliases" "recips" "headers" "rewrite" 
+      "recips" "aliases" "headers" "rewrite" 
       "lock" "smtp" "queue" "deliver" "deliver-smtp" 
       "queue-process" 
       "input" "smtp-server"

@@ -1,6 +1,4 @@
-:include: files are allowed to have full header-style email addresses
-(comments, display names).. parse-email-addr handles these right.. so
-if I'm not adding any additional restrictions, it should be fine.
+Fix parse-email-addr so it doesn't use parse-email-addr-list.
 
 Sort queue items by id in queue-process-all
 

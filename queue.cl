@@ -81,9 +81,16 @@
   (queue-unlock q))
 
 
+;; recips is a list of email addresses or a list of recip structs
 (defun queue-finalize (q recips headers cliaddr &key date add-from from-gecos)
-  (setf (queue-orig-recips q) recips)
-  (setf (queue-recips q) (expand-addresses recips (queue-from q)))
+  (let ((emailaddrs 
+	 (if (emailaddr-p (first recips))
+	     recips
+	   (mapcar #'recip-addr recips))))
+    
+    (setf (queue-orig-recips q) emailaddrs)
+    (setf (queue-recips q) 
+      (expand-addresses emailaddrs (queue-from q))))
   
   ;; Add in any necessary headers.
   (setf (queue-headers q)
