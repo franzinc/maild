@@ -1,0 +1,81 @@
+#!/bin/sh
+# $Id: maild.init.suse9,v 1.1 2004/04/01 06:38:17 layer Exp $
+### BEGIN INIT INFO
+# Provides:       maild
+# Required-Start: $remote_fs $time $syslog $named
+# Required-Stop:  
+# X-UnitedLinux-Should-Start: ypbind
+# X-UnitedLinux-Should-Stop:
+# Default-Start:  3 5
+# Default-Stop:   
+# Description:    Start the Maild MTA.
+### END INIT INFO
+
+MAILD=/usr/local/sbin/maild
+MAILD_CONF="/etc/maild.cl"
+MAILD_ARGS="-bd -q1h"
+
+GREYADMIN=/usr/local/sbin/greyadmin
+
+if [ ! -f ${MAILD} ]; then
+	echo -n "${MAILD} does not exist."
+	# Tell the user this has skipped
+	rc_status -s
+	exit 6
+fi
+
+if [ ! -f ${MAILD_CONF} ]; then
+	echo -n "Maild server configuration file, ${MAILD_CONF} does not exist."
+	# Tell the user this has skipped
+	rc_status -s
+	exit 6
+fi
+
+. /etc/rc.status
+rc_reset
+case "$1" in
+	start)
+		echo -n "Starting maild. "
+		startproc $MAILD $MAILD_ARGS
+        rc_status -v
+		if [ -f ${GREYADMIN} ]; then
+			echo -n "Starting greyadmin. "
+			startproc $GREYADMIN
+	        rc_status -v
+		fi
+		;;
+
+	stop)
+		echo -n "Shutting down maild: "
+        killproc -TERM $MAILD
+        rc_status -v
+		if [ -f ${GREYADMIN} ]; then
+			echo -n "Shutting down greyadmin: "
+			killproc $GREYADMIN
+	        rc_status -v
+		fi
+		;;
+
+	restart|reload)
+		$0 stop
+		$0 start
+		rc_status
+		;;
+
+	try-restart)
+        $0 status >/dev/null &&  $0 restart
+        rc_status
+		;;
+
+	status)
+        echo -n "Checking for service maild: "
+        checkproc $MAILD
+        rc_status -v
+		;;
+
+	*)	echo "Usage: $0 {start|stop|status|restart|reload|try-restart}"
+		exit 1
+		;;
+esac
+
+rc_exit
