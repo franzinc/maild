@@ -1,3 +1,9 @@
+2003-10-14  root  <root@gills.dancysoft.com>
+
+	* Added (setf (mp::process-interruptible-p process) nil) to the
+	code that creates the lock refresher thread so that the thread is
+	invisible to control-c's.
+
 2003-09-30  root  <root@gills.dancysoft.com>
 
 	* version.cl: 1.1.10

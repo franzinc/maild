@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: queue.cl,v 1.17 2003/09/30 17:56:42 dancy Exp $
+;; $Id: queue.cl,v 1.18 2003/10/14 22:50:08 dancy Exp $
 
 (in-package :user)
 
@@ -207,6 +207,8 @@
   (let ((process (gensym)))
     `(let ((,process (mp:process-run-function "Queue lock refresher"
 		       #'queue-lock-refresher ,q)))
+       ;;Make the thread invisible to control-C's
+       (setf (mp::process-interruptible-p ,process) nil)
        (unwind-protect
 	   (progn
 	     ,@body)
