@@ -17,7 +17,7 @@ Off
 </form>
 
 <hr>
-<b>Statistics</b><br>
+<b>Greylisting statistics</b><br>
 
 <ul>
 <li> For <ga_domain/> </li>
