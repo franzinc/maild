@@ -1,5 +1,7 @@
 2003-06-23  Ahmon Dancy  <dancy@dancy>
 
+	* utils.cl:  Make short-host-name really return a short host name.
+
 	* config.cl:  Removed franz-specific stuff.
 
 2003-06-18  root  <root@gills.dancysoft.com>

@@ -13,7 +13,7 @@
 
 ;; Other names by which this host is known (Besides *fqdn* and
 ;; *short-host-name*).
-(defparameter *host-aliases* nil)
+(defparameter *host-aliases* '("localhost"))
 
 ;; Domains for which we receive mail. Add your domain name here.
 ;; *short-host-name*, *fqdn*, and *host-aliases* are included

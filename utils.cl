@@ -188,7 +188,10 @@
 (defun short-host-name ()
   (if *short-host-name*
       *short-host-name*
-    (setf *short-host-name* (gethostname))))
+    (let* ((hostname (gethostname))
+	   (dot-pos (position #\. hostname)))
+      (setf *short-host-name* (subseq hostname 0 dot-pos)))))
+    
 
 (defmacro with-socket-timeout ((sock type timeout) &body body)
   (let* ((types '((:read . excl::stream-read-timeout)
