@@ -1,3 +1,5 @@
+(in-package :user)
+
 ;; return codes:
 ;;  0 -- okay
 ;;  1 -- transient
