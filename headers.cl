@@ -183,15 +183,26 @@
 	  (return nil))
       (valid-header-name-p string colonpos))))
 
+;; Returns the first matching header.  
 (defun locate-header (header headers)
   (dolist (h headers nil)
     (if (prefix-of-p header h)
 	(return h))))
 
-(defun replace-header (name newheader headers)
-  (substitute-if newheader 
-		 #'(lambda (oldheader) (prefix-of-p name oldheader))
-		 headers))
-
+;; Removes all instances
 (defun remove-header (header headers)
   (remove-if #'(lambda (h) (prefix-of-p header h)) headers))
+
+;; Returns the position of the header data
+(defun recip-header-p (header)
+  (cond 
+   ((or (prefix-of-p "To:" header) (prefix-of-p "Cc:" header))
+    3)
+   ((prefix-of-p "Bcc:" header)
+    4)
+   (t
+    nil)))
+
+(defun sender-header-p (header)
+  (if (prefix-of-p "From:" header)
+      5))

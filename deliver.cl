@@ -18,42 +18,30 @@
   (gate (mp:make-gate nil))
   (status :ok)) ;; :ok or an error condition
 
-
-(defun local-delivery-type (user)
-  (if (< (length user) 1)
-      :normal ;; not all that normal, really.
-    (case (schar user 0)
-      (#\|
-       :to-program)
-      (#\/
-       :to-file)
-      (t
-       :normal))))
-
 ;;; called when a recipient has been determined to be a local user
 ;;; that exists.  Also includes program and file recipients.
-(defun deliver-local (user q &key verbose)
-  (if verbose
-      (format t "~A..." user))
-  (let ((res 
-	 (multiple-value-list
-	  (ecase (local-delivery-type user)
-	    (:normal
-	     (if verbose
-		 (format t " Connecting to local...~%"))
-	     (deliver-to-program-help 
-	      (funcall *deliver-local-command* user q) q
-	      :user user))
-	    (:to-file
-	     (if verbose
-		 (format t " Writing to file...~%"))
-	     (deliver-to-file user q))
-	    (:to-program
-	     (if verbose
-		 (format t " Connecting to prog...~%"))
-	     (deliver-to-program (subseq user 1) q))))))
+(defun deliver-local (recip q &key verbose)
+  (let* ((type (recip-type recip))
+	 (file (recip-file recip))
+	 (user (if (recip-addr recip) (emailaddr-user (recip-addr recip))))
+	 (res (multiple-value-list
+	       (cond
+		((null type)
+		 (if verbose
+		     (format t "~A... Connecting to local...~%" user))
+		 (deliver-to-program-help 
+		  (funcall *deliver-local-command* user q) q
+		  :user user))
+		((eq type :file)
+		 (if verbose
+		     (format t "~A... Writing to file...~%" file))
+		 (deliver-to-file file q))
+		((eq type :prog)
+		 (if verbose
+		     (format t "~A... Connecting to prog...~%" file))
+		 (deliver-to-program file (recip-prog-user recip) q))))))
     (when verbose
-      (format t "~A... " user)
+      (format t "~A... " (recip-printable recip))
       (case (first res)
 	(:delivered
 	 (format t "Sent~%"))
@@ -63,7 +51,7 @@
 	 (format t "Error~%"))))
     
     (values-list res)))
-    
+
        
 ;; Since with-stream-lock only locks out other processes, we need to
 ;; do internal locking as well.
@@ -110,23 +98,12 @@
 	(maild-log "Delivered to file ~A" file)
 	:delivered))))
 
-;; (dancy)/usr/bin/id  means run /usr/bin/id as user 'dancy'
-(defun deliver-to-program (cmdline q)
-  (let ((run-as *program-alias-user*))
-    ;; Check for special syntax for user to run the program as.
-    (multiple-value-bind (found whole user realcmdline)
-	(match-regexp "^(\\([^)]+\\))\\(.*\\)" cmdline)
-      (declare (ignore whole))
-      (when found
-	;; Make sure the user exists.
-	(if (null (getpwnam (string-downcase user)))
-	    (error 
-	     "Alias left hand side: ~A: User ~A doesn't exist"
-	     cmdline user))
-	(setf run-as user)
-	(setf cmdline realcmdline)))
-    (deliver-to-program-help (split-regexp "\\b+" cmdline) 
-			     q :run-as run-as)))
+(defun deliver-to-program (cmdline run-as q)
+  (deliver-to-program-help (split-regexp "\\b+" cmdline) q
+			   :run-as (if run-as 
+				       run-as
+				     *local-delivery-user*)))
+
 
 (defun deliver-to-program-help (prglist q &key (run-as *local-delivery-user*)
 					       (rewrite :local)

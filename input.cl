@@ -97,13 +97,14 @@
 		    (detach-from-terminal))
 		(queue-process-single (queue-id q) :wait t :verbose t))))))
 
+;; Works right even if there are multiple To:, Cc: or Bcc: headers
 (defun grab-recips-from-headers (headers)
-  (let (header recips)
-    (dolist (hname '("To:" "Cc:" "Bcc:"))
-      (setf header (locate-header hname headers))
-      (when header
+  (let (recips pos)
+    (dolist (header headers)
+      (setf pos (recip-header-p header))
+      (when pos
 	(multiple-value-bind (accepted rejected cruft)
-	    (parse-email-addr-list header :pos (length hname))
+	    (parse-email-addr-list header :pos pos)
 	  (if accepted
 	      (setf recips (nconc recips accepted)))
 	  (if rejected
@@ -112,6 +113,8 @@
 	  (if (string/= cruft "")
 	      (format t "Unrecognized data: ~A~%" cruft)))))
     recips))
+	
+
 
 (defun read-message-stream (s bodystream &key smtp dot)
   (let ((res (multiple-value-list 

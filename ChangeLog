@@ -1,3 +1,23 @@
+2003-05-12  root  <root@dancy>
+
+	* deliver.cl:  Use new recip struct. 
+
+	* headers.cl:  Removed replace-header function.  It was unsafe
+	because it would replace too much if there were multiple headers
+	of the same type (for example, two To: headers).  Added
+	recip-header-p and sender-header-p utility functions.  
+
+	* input.cl:  Fixed grab-recips-from-headers function so that it
+	works for multiple instances of the same header type..
+
+	* queue-process.cl:  Additional recip struct fixes.
+
+	* recips.cl:  Added recip-printable utility function.  
+
+	* rewrite.cl:  Fixed the rewrite-headers function so that it works
+	for multiple instances of the same header type.
+
+
 2003-05-12  root  <root@gills.dancysoft.com>
 
 	* aliases.cl:  Only allow one :error: thing on a right hand side

@@ -9,14 +9,9 @@ Allow SIGHUP to make the config reload on a running server.
 Parameterize the blacklist SMTP response.  If it is multiline, make
 sure the SMTP multiline response happens properly.
 
-OMeToo... can I make this work w/o breaking stuff?
-
-If there are bounces due to mailing to an :include: alias, check for
-an owner-* alias for bounce redirection.  Does this work for any
-general alias?  There's no reason why it shouldn't.  Notes: if the
-right hand side of an owner-alias is a single, non-expandable thing,
-then the envelope sender of messages is the right hand
-side.. otherwise it's the owner-* address.  
+OMeToo.  This requires thinking about equality of addresses.  Should
+all addresses be expanded and rewritten before comparison?   Does this
+work via SMTP?
 
 
 Optionally honor Errors-To header.

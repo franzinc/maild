@@ -89,18 +89,16 @@
       (:smtp
        (setf senderfunc #'rewrite-smtp-header-sender)
        (setf recipfunc #'rewrite-smtp-header-recip)))
-    (dolist (pair (list (cons "From:" senderfunc)
-			(cons "To:" recipfunc)
-			(cons "Cc:" recipfunc)))
-      (let* ((name (car pair))
-	     (header (locate-header name headers)))
-	(if header
-	    (setf headers
-	      (replace-header 
-	       name
-	       (rewrite-header header (cdr pair))
-	       headers))))))
-  headers)
+    
+    (mapcar #'(lambda (h)
+		(cond
+		 ((recip-header-p h)
+		  (rewrite-header h recipfunc))
+		 ((sender-header-p h)
+		  (rewrite-header h senderfunc))
+		 (t
+		  h))) 
+	    headers)))
 
 (defun rewrite-header (string rewritefunc)
   (let ((colonpos (position #\: string)))

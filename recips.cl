@@ -13,6 +13,23 @@
   owner ;; nil means just use the original envelope sender
   status) 
 
+(defun recip-printable (r)
+  (let ((type (recip-type r)))
+    (if (null type)
+	(emailaddr-orig (recip-addr r))
+      (ecase type
+	(:prog
+	    (with-output-to-string (s)
+	      (write-char #\| s)
+	      (if (recip-prog-user r)
+		  (format s "(~A)" (recip-prog-user r)))
+	      (write-string (recip-file r) s)))
+	(:file
+	 (recip-file r))
+	(:error
+	 (format nil "\":error:~A\"" (recip-errmsg r)))))))
+  
+
 (defun local-domain-p (address)
   (let ((domain (emailaddr-domain address)))
     (or (null domain) 

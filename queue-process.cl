@@ -27,10 +27,11 @@
     
     ;; XXX --  This needs work.   We want to take advantage of 
     ;; multiple recips per SMTP session.
-    (let (failed-recips recip-addr recip-printable)
+    (let (failed-recips recip-addr recip-printable recip-type)
       (dolist (recip (queue-recips q))
 	(setf recip-addr (recip-addr recip))
-	(setf recip-printable (emailaddr-orig recip-addr))
+	(setf recip-printable (recip-printable recip))
+	(setf recip-type (recip-type recip))
 	(if (null (recip-owner recip))
 	    (setf (recip-owner recip) (queue-from q)))
 	(setf (queue-status q)
@@ -41,9 +42,9 @@
 	(update-queue-file q)
 	  
 	(multiple-value-bind (status response)
-	    (if (local-domain-p recip-addr)
-		(deliver-local (emailaddr-user recip-addr) q 
-			       :verbose verbose)
+	    (if (or (member recip-type '(:file :prog))
+		    (local-domain-p recip-addr))
+		(deliver-local recip q :verbose verbose)
 	      (deliver-smtp recip q :verbose verbose))
 	  (case status
 	    (:delivered
@@ -78,7 +79,7 @@
       
       (when (queue-undeliverable-timeout-p q)
 	(maild-log "Bouncing queue id ~A due to queue timeout" (queue-id q))
-	(bounce q (queue-recips q) :wait wait :timeout t)
+	(bounce q (queue-recips q) :wait wait :undeliverable t)
 	(remove-queue-file q)
 	(return))
       
@@ -120,8 +121,7 @@
 	(format t " Sender: ~A~%" (emailaddr-orig (queue-from q)))
 	(format t " Remaining recips: ~A~%"
 		(list-to-delimited-string
-		 (mapcar #'(lambda (r) (emailaddr-orig (recip-addr r)))
-				   (queue-recips q))
+		 (mapcar #'recip-printable (queue-recips q))
 		 #\,))
 	(format t " Status: ~A~%" (queue-status q))))))
 
