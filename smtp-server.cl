@@ -14,6 +14,7 @@
   helo ;; did the client already say HELO ?
   from
   to ;; a list
+  verbose
   fork) 
 
 (defun smtp-server-daemon (&key queue-interval)
@@ -58,14 +59,14 @@
 					 newsock))))
       (ignore-errors (close sock)))))
 
-(defun do-smtp (sock &key fork)
+(defun do-smtp (sock &key fork verbose)
   (unwind-protect
       (with-socket-timeout (sock :write *datatimeout*)
 	(let* ((dotted (if (socketp sock) 
 			   (ipaddr-to-dotted (remote-host sock))
 			 "localhost"))
 	       (sess (make-session :sock sock :dotted dotted
-				   :fork fork))
+				   :fork fork :verbose verbose))
 	       bl cmd)
 	
 	  (if (socketp sock)
@@ -293,7 +294,7 @@
   (declare (ignore text))
   (let* ((sock (session-sock sess))
 	 (dotted (session-dotted sess))
-	 q status headers msgsize err rejected f)
+	 q status headers msgsize err rejected)
     ;; Sanity checks first
     (if (null (session-from sess))
 	(return-from smtp-data 
@@ -301,41 +302,8 @@
     (if (null (session-to sess))
 	(return-from smtp-data 
 	  (outline sock "503 5.0.0 Need RCPT (recipient)")))
-    
-    ;; Returns a locked queue struct
-    (setf q (make-queue-file (session-from sess) (session-to sess)))
-    ;; XXX -- at this point we could use an unwind protect
-    ;; to unlock the queue file in case of unexpected error...
-    ;; on the other hand, if an unexpected error does occur, we may
-    ;; not want to process this queue item until it is fixed.  It
-    ;; depends on what the error is... this is related to the bloc
-    ;; of comments below.  They are the same issue.
-    
-    (handler-case 
-	(setf f (open (queue-datafile q) 
-		      :direction :output
-		      :if-does-not-exist :create))
-      (error (c)
-	(maild-log "Failed to open queue datafile ~A: ~A"
-		   (queue-datafile q)
-		   c)
-	;; report a transient error to the client
-	(setf err :transient)
-	(setf f nil))) ;; for good measure
-    
-    ;; doesn't execute if f is null
-    (with-already-open-file (f)
-      (fchmod f #o0600) ;; prevent folks from lookin' in
 
-      ;; XXX -- In the unlikely (but possible) event of an error
-      ;; during this call to outline, we'd be left with a locked
-      ;; invalid queue file.  Need to think about this and find a clean
-      ;; way to take care of things... perhaps some kind of 'comitted'
-      ;; status slot in the queue struct (which would be set after
-      ;; the call to fsync.  If we had an unwind-protect, we could check
-      ;; that the committed slot was set.. if it wasn't we assume that means
-      ;; the queue item is bogus and should be deleted and unlocked.
-
+    (with-new-queue (q f err (session-from sess) (session-to sess))
       (outline sock "354 Enter mail, end with \".\" on a line by itself")
       (handler-case 
 	  (multiple-value-setq (status headers msgsize)
@@ -344,80 +312,79 @@
 	  (if (eq (stream-error-identifier c) :read-timeout)
 	      (maild-log "Client from ~A stopped transmitting." dotted)
 	    (maild-log "Client from ~A: socket error: ~A" dotted c))
-	  (setf err :quit)
-	  (return)) ;; break from with-already-open-file
+	  (return-from smtp-data :quit))
 	(error (c)
 	  (maild-log "Unexpected error during read-message-stream: ~A" c)
 	  (setf err :transient)
-	  (return))) ;; break from with-already-open-file
-
+	  (return))) ;; break from with-new-queue
+      
       (ecase status
 	(:eof
 	 (maild-log "Client ~A disconnected during SMTP data transmission"
 		    dotted)
-	 (setf err :quit)
-	 (return)) ;; break from with-already-open-file
+	 (return-from smtp-data :quit))
 	(:dot  ;;okay
 	 ))
+
+      (when (and (null err) 
+		 *maxmsgsize* 
+		 (> *maxmsgsize* 0) 
+		 (>= msgsize *maxmsgsize*))
+	(maild-log 
+	 "Big (> ~D characters) message from ~A rejected during SMTP session"
+	 *maxmsgsize*
+	 (emailaddr-orig (session-from sess)))
+	(outline sock "552 5.2.3 Message exceeds maximum fixed size (~D)"
+		 *maxmsgsize*)
+	(setf rejected t))
       
-      (finish-output f)
-      (fsync f) ;; Try to make sure the data file is really on disk.
+      ;; Run through checkers.
+      (when (and (not err) (not rejected))
+	(dolist (checker *smtp-data-checkers*)
+	  (let ((res (funcall (second checker) q)))
+	    (case res
+	      (:reject
+	       (maild-log "Rejecting message from ~A (~A)"
+			  (emailaddr-orig (session-from sess))
+			  (first checker))
+	       (outline sock "552 Message rejected")
+	       (setf rejected t)
+	       (return)) ;; break out of the dolist
+	      (:transient
+	       (maild-log "Checker ~a reported a transient error."
+			  (first checker))
+	       (setf err :transient)
+	       (return)) ;; break out of the dolist
+	      (:ok
+	       ) 
+	      (t
+	       (maild-log "Unexpected return code from ~A: ~S"
+			  (first checker) res)
+	       (setf err :transient)
+	       (return)))))) ;; break from the dolist
       
-      (queue-init-headers q headers 
-			  (if (socketp sock)
-			      (socket:remote-host sock)
-			    (dotted-to-ipaddr "127.0.0.1"))))
+      (when (and (not err) (not rejected))
+	;; This finalizes and unlocks the queue item.
+	(queue-init-headers q headers 
+			    (if (socketp sock)
+				(socket:remote-host sock)
+			      (dotted-to-ipaddr "127.0.0.1")))))
     
-    ;; Run through checkers.
-    (unless err
-      (dolist (checker *smtp-data-checkers*)
-	(let ((res (funcall (second checker) q)))
-	  (case res
-	    (:reject
-	     (maild-log "Rejecting message from ~A (~A)"
-			(emailaddr-orig (session-from sess))
-			(first checker))
-	     (setf rejected t)
-	     (return)) ;; break out of the dolist
-	    (:transient
-	     (maild-log "Checker ~a reported a transient error."
-			(first checker))
-	     (setf err :transient)
-	     (return)) ;; break out of the dolist
-	    (:ok
-	     ) 
-	    (t
-	     (maild-log "Unexpected return code from ~A: ~S"
-			(first checker) res)
-	     (setf err :transient)
-	     (return))))))
+    ;; At this point, the queue file is saved on disk.. or it has been
+    ;; deleted due to an error/rejection in processing.
     
-    ;; Handle final message disposition
-    (cond
-     ((or rejected err)
-      ;; removes queue file, data file, and lock
-      (remove-queue-file q)
-      (if rejected 
-	  (outline sock "552 Message rejected"))
-      (when err
-	(ecase err
-	  (:quit
-	   (return-from smtp-data :quit))
-	  (:transient
-	   (outline 
-	    sock "451 Requested action aborted: local error in processing")))))
-     
-     ((and *maxmsgsize* (> *maxmsgsize* 0) (>= msgsize *maxmsgsize*))
-      (maild-log 
-       "Big (> ~D characters) message from ~A rejected during SMTP session"
-       *maxmsgsize*
-       (emailaddr-orig (session-from sess)))
-      (remove-queue-file q)
-      (outline sock "552 5.2.3 Message exceeds maximum fixed size (~D)"
-	       *maxmsgsize*))
-     
-     ;; Normal case
-     (t
+    ;; Rejected messages have already been reported to the client.
+    ;; Report transient errors now.
+    
+    (when (or (eq err :transient)
+	      (and (listp err) (eq (first err) :transient)))
+      (outline 
+       sock "451 Requested action aborted: local error in processing"))
+    
+    ;; If we have a good message, report it to the client and
+    ;; begin delivering it.
+
+    (when (and (not err) (not rejected))
       (maild-log "Accepted SMTP message from client ~A: from ~A to ~A"
 		 dotted
 		 (emailaddr-orig (session-from sess))
@@ -426,16 +393,15 @@
 		  #\,))
       (outline sock "250 2.0.0 ~A Message accepted for delivery"
 	       (queue-id q))
-      (queue-unlock q)
       
       ;; Deliver in another process
-      (if (session-fork sess)
+      (if (and (session-fork sess) (not (session-verbose sess)))
 	  (let ((pid (fork)))
 	    (case pid
 	      (0 ;; child
 	       (detach-from-terminal)
 	       (queue-process-single (queue-id q) :wait t)
-	       (exit))
+	       (exit 0 :quiet t))
 	      (-1  ;; error
 	       (error "Fork failed!")))
 	    ;; parent.. just keep on truckin'
@@ -443,6 +409,6 @@
 	;; else.. we must be running in daemon mode already..
 	(mp:process-run-function 
 	    (format nil "Processing id ~A" (queue-id q)) 
-	  #'queue-process-single (queue-id q)))))
+	  #'queue-process-single (queue-id q))))
     
     (reset-smtp-session sess)))

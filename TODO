@@ -1,12 +1,3 @@
-Anything that makes a queue lock needs an unwind protect to unlock it
-due to the process being killed or something.  Also, if the program is
-shut down during reception of an email, the queue file needs to be
-deleted.  Need to various testings to make sure this holds true.  The
-worst that should happen in such cases is redelivery of a message.
-
-Make sure that non-root users can't specify certain command line
- arguments.
-
 Need to work on the '-t' command line arg.
 
 If there are bounces due to mailing to an :include: alias, check for

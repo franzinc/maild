@@ -36,7 +36,7 @@
 	  (smtp-server-daemon :queue-interval processqueue)
 	  (exit 0 :quiet t)) ;; parent gets here.
 	 ((string= runmode "s")
-	  (do-smtp *terminal-io* :fork t)
+	  (do-smtp *terminal-io* :fork t :verbose verbose)
 	  (exit 0 :quiet t))
 	 ((string= runmode "p")
 	  (verify-root)
@@ -71,7 +71,8 @@
 	    (send-from-stdin parsed-recips
 			     :dot (if ignoredot nil t)
 			     :gecos fullname
-			     :from from)
+			     :from from
+			     :verbose verbose)
 	  (error "~a: No valid recipients specified." prgname))))))
 
 

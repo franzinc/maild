@@ -32,16 +32,39 @@
 
 ;;; called when a recipient has been determined to be a local user
 ;;; that exists.  Also includes program and file recipients.
-(defun deliver-local (user q)
-  (ecase (local-delivery-type user)
-    (:normal
-     (deliver-to-program-help (funcall *deliver-local-command* user q) q
-			      :user user))
-    (:to-file
-     (deliver-to-file user q))
-    (:to-program
-     (deliver-to-program (subseq user 1) q))))
-
+(defun deliver-local (user q &key verbose)
+  (if verbose
+      (format t "~A..." user))
+  (let ((res 
+	 (multiple-value-list
+	  (ecase (local-delivery-type user)
+	    (:normal
+	     (if verbose
+		 (format t " Connecting to local...~%"))
+	     (deliver-to-program-help 
+	      (funcall *deliver-local-command* user q) q
+	      :user user))
+	    (:to-file
+	     (if verbose
+		 (format t " Writing to file...~%"))
+	     (deliver-to-file user q))
+	    (:to-program
+	     (if verbose
+		 (format t " Connecting to prog...~%"))
+	     (deliver-to-program (subseq user 1) q))))))
+    (when verbose
+      (format t "~A... " user)
+      (case (first res)
+	(:delivered
+	 (format t "Sent~%"))
+	(:transient
+	 (format t "Transient error~%"))
+	(t
+	 (format t "Error~%"))))
+    
+    (values-list res)))
+    
+       
 ;; Since with-stream-lock only locks out other processes, we need to
 ;; do internal locking as well.
 (defvar *file-delivery-locks* nil)
@@ -121,10 +144,10 @@
 	    (maild-log "~A stderr: ~A~%" prgname errput))
 	(when (/= status 0)
 	  (maild-log "~A exited w/ status: ~D" prgname status)
-	  (return :transient))
+	  (return (values :transient errput)))
 	(when (not (eq writerstatus :ok))
 	  ;; the writer logs its own errors.
-	  (return :transient))
+	  (return (values :transient (format nil "~A" writerstatus))))
 	(maild-log "Successful local delivery to ~A" 
 		   (if user user prgname))
 	:delivered))))

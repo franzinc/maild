@@ -1,3 +1,23 @@
+2003-04-30  root  <root@gills.dancysoft.com>
+
+	* Makefile:  Make maild/maild depend on *.cl
+
+	* bounce.cl: Use new with-new-queue macro.
+
+	* deliver.cl:  Add verbosity to deliver-local function.  In
+	send-message-to-program, return stderr along w/ the :transient
+	error code if the delivery program exited w/ non-zero
+	status... and do the same for the error condition from the message
+	stream writer.
+
+	* input.cl:  Had a call to string-downcase in the wrong place.
+	Moved.    Updated send-from-stdin.  read-message-stream now calls
+	finish-output and fsync on the datafile on behalf of the caller.
+
+	* queue.cl:  Updated with-new-queue macro.
+
+	* smtp-server.cl:  Updated to use with-new-queue macro.  
+
 2003-04-30  root  <root@dancy>
 
 	* deliver.cl:  write-message-to-stream:  headers that spanned

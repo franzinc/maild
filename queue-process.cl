@@ -37,7 +37,7 @@
 
 	(multiple-value-bind (status response)
 	    (if (local-domain-p recip)
-		(deliver-local (emailaddr-user recip) q)
+		(deliver-local (emailaddr-user recip) q :verbose verbose)
 	      (deliver-smtp recip q :verbose verbose))
 	  (case status
 	    (:delivered

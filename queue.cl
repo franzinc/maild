@@ -167,8 +167,9 @@
 	   (let ((,qvar (queue-read ,idvar)))
 	     ,@body))))))
 
-;; Don't look at this!
-(defmacro with-new-queue ((q streamvar statusvar from recips) &body body)
+;; 'q' and 'errvar' should be variables that are already in scope.  
+;; shame on me.
+(defmacro with-new-queue ((q streamvar errvar from recips) &body body)
   `(let (,streamvar)
      (setf ,q (make-queue-file ,from ,recips))
      (unwind-protect
@@ -181,13 +182,13 @@
 	     (error (c)
 	       (maild-log "Failed to open queue datafile ~A: ~A"
 			  (queue-datafile q) c)
-	       (setf ,statusvar :transient)
+	       (setf ,errvar (list :transient c))
 	       (return)))
 	   
-	   ;; file is open now.  Make sure it always gets closed.
-	   (with-already-open-file (,streamvar)
-	     (fchmod f #o0600) 
-	     ,@body))
+	     ;; file is open now.  Make sure it always gets closed.
+	     (with-already-open-file (,streamvar)
+	       (fchmod ,streamvar #o0600) 
+	       ,@body))
        ;; cleanup forms
        (queue-unlock ,q)
        (if (not (queue-valid ,q))

@@ -29,7 +29,8 @@
     ;; don't need to look up gecos info if the fromaddr
     ;; is not local.. or if user-gecos is specified.
     (if (and (local-domain-p parsedfromaddr) (null user-gecos))
-	(let ((newpwent (string-downcase (getpwnam (emailaddr-user parsedfromaddr)))))
+	(let ((newpwent 
+	       (getpwnam (string-downcase (emailaddr-user parsedfromaddr)))))
 	  (if* newpwent
 	     then
 		  (setf gecos (pwent-gecos newpwent))
@@ -48,46 +49,60 @@
      (pwent-name pwent))))
   
 
-(defun send-from-stdin (recips &key (dot t) gecos from)
+(defun send-from-stdin (recips &key (dot t) gecos from verbose)
   (multiple-value-bind (fromaddr gecos authwarn realuser)
       (compute-sender-info from gecos)
-    (let (q status headers msgsize)
-      (with-new-queue (q f status fromaddr recips)
-	(multiple-value-setq (status headers msgsize)
-	  (read-message-stream t f :dot dot))
-	(if (not (member status '(:eof :dot)))
-	    (error "got status ~s from read-message-stream" status))
-	(finish-output f)
-	(fsync f)
-	
-	(if authwarn
-	    (setf headers 
-	      (append headers 
-		      (list (make-x-auth-warning-header realuser fromaddr)))))
-	
-	(if (and *maxmsgsize* (> *maxmsgsize* 0) (>= msgsize *maxmsgsize*))
-	    (error "Message exceeded max message size (~D)" *maxmsgsize*))
-	
-	;; This marks the message as complete.
-	(queue-init-headers q headers (dotted-to-ipaddr "127.0.0.1")
-			    :date t
-			    :add-from t 
-			    :from-gecos gecos))
+    (let (q errstatus)
+      (with-new-queue (q f errstatus fromaddr recips)
+	;; body doesn't execute if datafile open failed.
+	(multiple-value-bind (status headers msgsize)
+	    (read-message-stream *standard-input* f :dot dot)
+	  (if (not (member status '(:eof :dot)))
+	      (error "got status ~s from read-message-stream" status))
+	  
+	  (if authwarn
+	      (setf headers 
+		(append headers 
+			(list (make-x-auth-warning-header realuser fromaddr)))))
+	  
+	  (if (and *maxmsgsize* (> *maxmsgsize* 0) (>= msgsize *maxmsgsize*))
+	      (error "Message exceeded max message size (~D)" *maxmsgsize*))
+	  
+	  ;; This marks the message as complete.
+	  (queue-init-headers q headers (dotted-to-ipaddr "127.0.0.1")
+			      :date t
+			      :add-from t 
+			      :from-gecos gecos)))
+      
+      (when errstatus
+	;; somethin' went wrong.  It should already have been logged.
+	;; Report it to the user and bail out.
+	(error (second errstatus)))
       
       ;; XXX -- this might need changing.
       ;; I think sendmail goes through and processes local recips
       ;; and returns immediate errors (dead.letter).. then forks
       ;; to handle the rest.. which may potentially be slower.
       ;; For now, we're going to fork for any type of message.
-      (let ((pid (if *debug* 0 (fork))))
+      
+      ;; Verbosity implies no fork.
+      (let ((pid (if (or verbose *debug*) 0 (fork))))
 	(if* (= pid 0)
 	   then
-		(if (not *debug*)
+		(if (and (not *debug*) (not verbose))
 		    (detach-from-terminal))
-		(queue-process-single (queue-id q) :wait t))))))
+		(queue-process-single (queue-id q) :wait t :verbose t))))))
 		  
 
 (defun read-message-stream (s bodystream &key smtp dot)
+  (let ((res (multiple-value-list 
+	      (read-message-stream-inner s bodystream :smtp smtp :dot dot))))
+    (finish-output bodystream)
+    (fsync bodystream) ;; Try to make sure the data file is really on disk.
+    (values-list res)))
+  
+
+(defun read-message-stream-inner (s bodystream &key smtp dot)
   (let ((count 0)
 	(doingheaders t)
 	(firstline t)
