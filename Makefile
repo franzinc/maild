@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.8 2003/06/25 23:07:08 layer Exp $
+# $Id: Makefile,v 1.9 2003/06/25 23:57:56 dancy Exp $
 
 lisp=$(shell if test -x /storage1/acl/mlisp; then \
 		echo /storage1/acl/mlisp; \
@@ -7,9 +7,6 @@ lisp=$(shell if test -x /storage1/acl/mlisp; then \
 	     fi)
 libdir=/usr/local/lib
 bindir=/usr/local/sbin
-
-foo:
-	echo $(lisp)
 
 maild/maild: *.cl
 	rm -fr maild
