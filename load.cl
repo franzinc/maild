@@ -2,14 +2,12 @@
 
 (defparameter *source-files*
     '(
-      ;;"acldns" 
-      "error"
-      "utils" "security" "lex"
-      "emailaddr" "log"  "maild"
+      "error" "utils" "security" "lex"
+      "emailaddr" "log"  
       "ipaddr" "blacklist" 
       "aliases" "recips" "headers" "rewrite" 
-      "lock" "queue" "input" "bounce" "smtp" "smtp-server"
-      "deliver" "deliver-smtp"
+      "lock" "queue" "input" "smtp" "smtp-server"
+      "deliver" "deliver-smtp" "queue-process" "maild"
       "localmods"))
 
 (defun compile-sources (&key load)

@@ -1,22 +1,5 @@
 (in-package :user)
 
-;; XXX -- This will probably need some work
-;; Should we use the c-library resolver only?  It allows
-;; opportunity for /etc/hosts lookups, etc... controlled by the
-;; sysadmin  [this will be done 
-(defun compute-fqdn ()
-  (dns-ipaddr-to-hostname (dns-lookup-hostname (gethostname))))
-
-(defun fqdn ()
-  (if *fqdn*
-      *fqdn*
-    (setf *fqdn* (compute-fqdn))))
-
-(defun short-host-name ()
-  (if *short-host-name*
-      *short-host-name*
-    (setf *short-host-name* (gethostname))))
-
 (defun main (&rest args)
   (if (probe-file "/etc/maild.cl")
       (load "/etc/maild.cl" :verbose nil))
