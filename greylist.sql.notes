@@ -1,0 +1,29 @@
+Greylisting makes use of mysql so you'll need to have mysql installed
+and running on your system.  Included in this distribution is a sql
+script (greylist.sql) to create the greylist database for you.  You
+will definitely want to edit at least the last line of the script to
+adjust the password for the greylist mysql user.
+
+To run the script, issue the following commands as root:
+
+mysql
+source greylist.sql;
+quit
+
+Some default installations of mysql have access permissions set up in
+such a way that maild's login using the greylist account fail.  If you
+see errors in the mail log about mysql connection failures, try this:
+
+mysql mysql
+delete from user where user is null or user = "";
+flush privileges;
+quit
+
+Please read the Mysql documentation for more information on how the
+privilege systems works.
+
+
+
+
+
+
