@@ -1,10 +1,12 @@
-;; $Id: config.cl,v 1.21 2003/07/08 18:05:24 layer Exp $
+;; $Id: config.cl,v 1.22 2003/07/09 16:15:27 dancy Exp $
 
 (in-package :user)
 
 (defparameter *debug* nil)
 
-(defparameter *aliasesfile* "/etc/aliases")
+(defparameter *aliases-file* "/etc/aliases")
+
+(defparameter *stats-file* "/var/state/maild")
 
 ;; If this is nil, it is determined by calling (gethostname)
 (defparameter *short-host-name* nil)
@@ -81,7 +83,9 @@
 ;; If the value is t, then the result of a DNS lookup on the name
 ;; specified in the HELO command must match the IP address of the connected
 ;; client.  If non-nil and not t, then just log connections that would be
-;; rejected if the value of this variable were t.
+;; rejected if the value of this variable were t.  Use of this option
+;; is discouraged.  Plenty of legitimate sending hosts will not pass
+;; this test.
 (defparameter *helo-must-match-ip* nil)
 
 
@@ -134,7 +138,7 @@
     '(("Blacklisted sender checker" smtp-mail-from-blacklist-checker)
       ("Sender domain required checker" 
        smtp-mail-from-domain-required-checker)
-      ("Sender domain checker" smtp-mail-from-domain-checker)))
+      ("Sender domain exists checker" smtp-mail-from-domain-checker)))
 
 ;; Same idea as the above.  Checkers are called with
 ;; client ip address, sender, recip-type, new recipient, existing recipients.

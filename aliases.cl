@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: aliases.cl,v 1.10 2003/07/08 18:15:52 layer Exp $
+;; $Id: aliases.cl,v 1.11 2003/07/09 16:15:27 dancy Exp $
 
 (in-package :user)
 
@@ -33,10 +33,10 @@
   ;; Make sure only one thread reparses the aliases.
   (mp:with-process-lock ((aliases-info-lock *aliases*) 
 			 :whostate "Waiting for aliases lock")
-    (let ((mtime (file-write-date *aliasesfile*)))
+    (let ((mtime (file-write-date *aliases-file*)))
       (if* (> mtime (aliases-info-mtime *aliases*))
 	 then
-	      (verify-root-only-file *aliasesfile*)
+	      (verify-root-only-file *aliases-file*)
 	      (if *debug* (maild-log "Reparsing aliases"))
 	      (setf (aliases-info-aliases *aliases*)
 		(parse-aliases-file))
@@ -44,7 +44,7 @@
 
 (defun parse-aliases-file ()
   (let ((ht (make-hash-table :test #'equalp)))
-    (with-open-file (f *aliasesfile*)
+    (with-open-file (f *aliases-file*)
       (let (ali)
 	(while (setf ali (aliases-get-alias f))
 	  (multiple-value-bind (alias expansion)

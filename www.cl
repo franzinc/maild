@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: www.cl,v 1.3 2003/07/08 18:15:53 layer Exp $
+;; $Id: www.cl,v 1.4 2003/07/09 16:15:27 dancy Exp $
 
 (in-package :user)
 
@@ -79,8 +79,8 @@
 	(:head (:title "Allegro maild"))
 	(:body
 	 (:h3 "Allegro maild")
-	 "Server started at "
-	 (:princ-safe (ctime (get-smtp-stat server-start))) :br
+	 "Statistics collection started at "
+	 (:princ-safe (ctime (get-smtp-stat stats-start))) :br
 	 (:ul
 	  (:li "Client connections made: " (:princ (get-smtp-stat num-connections)))
 	  (:li "Client connections accepted: " (:princ (get-smtp-stat connections-accepted))))

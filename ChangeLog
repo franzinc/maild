@@ -1,3 +1,8 @@
+2003-07-09  root  <root@gills.dancysoft.com>
+
+	* SMTP server statistics are stored in a file so they can be read
+	back in during future server restarts.
+
 2003-07-08  Kevin Layer  <layer@relay.known.net>
 
 	* smtp-server.cl:

@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: smtp-server.cl,v 1.16 2003/07/08 18:15:53 layer Exp $
+;; $Id: smtp-server.cl,v 1.17 2003/07/09 16:15:27 dancy Exp $
 
 (in-package :user)
 
@@ -36,7 +36,7 @@
   fork)
 
 (defstruct statistics
-  server-start
+  (stats-start (get-universal-time))
   (num-connections 0)
   connections-rejected-permanently ;; list of checker/count pairs
   connections-rejected-temporarily ;; list of checker/count pairs
@@ -110,9 +110,18 @@
 	(maild-log "Exiting.")
 	(return-from smtp-server)))
     
-    (setf *smtp-server-stats* 
-      (make-statistics
-       :server-start (get-universal-time)))
+    (if (probe-file *stats-file*)
+	(if* (world-or-group-writable-p *stats-file*)
+	   then
+		(maild-log 
+		 "Not reading ~A since it is world or group writable"
+		 *stats-file*)
+		(setf *smtp-server-stats* (make-statistics))
+	   else
+		(with-open-file (f *stats-file*)
+		  (setf *smtp-server-stats* (read f))))
+      ;; no file. start fresh
+      (setf *smtp-server-stats* (make-statistics)))
        
     (start-webserver)
   
@@ -203,8 +212,22 @@
 	  (maild-log "SMTP server error: ~A" c)))
     ;; cleanup forms
     (maild-log "Closing SMTP session with ~A" (smtp-remote-dotted sock))
-    (if (socketp sock)
-	(ignore-errors (close sock :abort t)))))
+    (when (socketp sock)
+      (update-smtp-stats)
+      (ignore-errors (close sock :abort t)))))
+
+
+(defparameter *smtp-stats-lock* nil)
+
+;; don't do this if we're running with -bs
+(defun update-smtp-stats ()
+  (without-interrupts 
+    (if (null *smtp-stats-lock*)
+	(setf *smtp-stats-lock* (mp:make-process-lock))))
+  (mp:with-process-lock (*smtp-stats-lock*)
+    (with-os-open-file (f *stats-file* (logior *o-wronly* *o-creat* *o-trunc*) 
+			  #o600)
+      (write *smtp-server-stats* :stream f))))
 
 
 (defparameter *smtpcmdlist*
