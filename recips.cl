@@ -2,6 +2,16 @@
 
 ;;; Functions to locate/categorize recipients
 
+;; see aliases.cl for alias-rhs and alias-exp info as well.
+(defstruct recip
+  type ;; :prog, :file, :error.  nil means normal
+  addr ;; parsed
+  file ;; for :file and :prog recips
+  prog-user ;; for :prog recips
+  errmsg ;; for :error recips
+  expanded-from ;; string  (information only)
+  owner) ;; nil means just use the original envelope sender
+
 (defun local-domain-p (address)
   (let ((domain (emailaddr-domain address)))
     (or (null domain) 
@@ -34,26 +44,23 @@
 	(if found
 	    (return :local-ok))))))
 
-;;; This is an attempt to improve on the virtusertable idea from
-;;; sendmail.  virtusertable is simply another less-functional aliases
-;;; file... so I'm expanding the function of the aliases file to work
-;;; like virtusertable.  The aliases are first checked using the fully
-;;; qualified address (assuming the sender specified one).  If that
-;;; finds something, it'll be used.  Otherwise, a lookup is done w/o
-;;; the domain portion.  This should be acceptable because this
-;;; function is only called when we've determined that a "local"
-;;; domain name was specified.
+;; this stuff below needs to be updated to use the new stuff from
+;; aliases.cl
 
-;; called by queue-expand-aliases and get-recipient-disposition
-(defun lookup-recip-in-aliases (address &key parsed)
-  (multiple-value-bind (exp errmsg)
-      (lookup-recip-in-aliases-help address :parsed parsed)
-    (if exp
-	(values exp errmsg)
-      (multiple-value-bind (exp errmsg)
-	  (lookup-recip-in-aliases-help (emailaddr-user address) 
-					:parsed parsed)
-	(values exp errmsg)))))
+(defun lookup-recip-in-aliases (orig-address &key parsed)
+  (let ((address (if (stringp orig-address)
+		     (parse-email-addr orig-address)
+		   orig-address)))
+    (if (null address)
+	(error "lookup-recip-in-aliases: Invalid address: ~S" orig-address))
+    (multiple-value-bind (exp errmsg)
+	(lookup-recip-in-aliases-help address :parsed parsed)
+      (if exp
+	  (values exp errmsg)
+	(multiple-value-bind (exp errmsg)
+	    (lookup-recip-in-aliases-help (emailaddr-user address) 
+					  :parsed parsed)
+	  (values exp errmsg))))))
     
 (defun lookup-recip-in-aliases-help (addr &key parsed)
   (block nil
@@ -68,22 +75,27 @@
 			    (subseq exp2 #.(length ":error:")))))
 	(return exp)))))
 
-(defun expand-recip (recip)
+;; Takes a parsed email addr and returns a list of recip structs.
+
+(defun expand-recip (addr expanded-from)
   (block nil
-    (if (not (local-domain-p recip))
-	(return (list recip)))
-    (let ((expansion (lookup-recip-in-aliases recip :parsed t))
+    (if (not (local-domain-p addr))
+	(return (list (make-recip :addr addr :owner owner))))
+    (let ((expansion (lookup-recip-in-aliases addr :parsed t))
 	  res)
       (if (null expansion)
-	  (return (list recip)))
+	  (return (list (make-recip :addr addr :owner owner)))) 
       (dolist (exp expansion)
 	(if (or (not (local-domain-p exp))
 		(equalp (emailaddr-user recip) (emailaddr-user exp)))
-	    (push exp res)
+	    (push 
+	     exp
+		  
+		  res)
 	  (setf res (append res (expand-recip exp)))))
       res)))
 
-;; De-dupes as well.
+;; Duplicate-free
 (defun expand-recips (recips)
   (let (res)
     (dolist (recip recips)

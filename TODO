@@ -13,7 +13,11 @@ OMeToo... can I make this work w/o breaking stuff?
 
 If there are bounces due to mailing to an :include: alias, check for
 an owner-* alias for bounce redirection.  Does this work for any
-general alias?
+general alias?  There's no reason why it shouldn't.  Notes: if the
+right hand side of an owner-alias is a single, non-expandable thing,
+then the envelope sender of messages is the right hand
+side.. otherwise it's the owner-* address.  
+
 
 Optionally honor Errors-To header.
 

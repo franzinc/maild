@@ -1,17 +1,12 @@
 (in-package :user)
 
-(defstruct recip
-  addr ;; parsed email addr
-  expanded-from ;; string? probably only for diagnostics
-  owner) ;; parse email addr
-
 (defstruct queue 
   id
   (ctime (get-universal-time)) ;; when this message was queued
   (status "Reading message data...
 ")
   from
-  recips ;; remaining recipients to be processed 
+  recips ;; remaining recipients to be processed (list of recip structs)
   orig-recips ;; parsed email addrs, pre-alias expansion
   headers
   valid) ;; not valid until the data file has been written
