@@ -72,9 +72,16 @@
 	      (setf headers 
 		(append headers 
 			(list (make-x-auth-warning-header realuser fromaddr)))))
-	  
-	  (if (and *maxmsgsize* (> *maxmsgsize* 0) (>= msgsize *maxmsgsize*))
-	      (error "Message exceeded max message size (~D)" *maxmsgsize*))
+	  ;; Run messgae checkers.
+	  (multiple-value-bind (res text checker)
+	      (check-message-checkers q headers msgsize)
+	    (declare (ignore checker))
+	    (ecase res
+	      (:ok 
+	       ) ;; all is well
+	      ((:transient :reject)
+	       (error "Message rejected: ~A" text))))
+
 	  
 	  ;; This marks the message as complete.
 	  (queue-finalize q recips headers (dotted-to-ipaddr "127.0.0.1")

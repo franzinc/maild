@@ -6,7 +6,7 @@
       "emailaddr" "log" "ipaddr" "blacklist" 
       "recips" "aliases" "headers" "rewrite" 
       "lock" "smtp" "queue" "deliver" "deliver-smtp" 
-      "queue-process" 
+      "queue-process" "checkers"
       "input" "smtp-server"
       "bounce" 
       "maild"

@@ -76,8 +76,8 @@
 	
 	  (if* bl
 	     then
-		  (outline sock "221 ~a We do not accept mail from you (~A)"
-			   (fqdn) bl)
+		  (outline sock "221 ~A ~A (~A)"
+			   (fqdn) *blacklisted-response* bl)
 		  (maild-log "Rejecting blacklisted SMTP client (~A)"
 			     dotted)
 		  (return-from do-smtp))
@@ -329,42 +329,24 @@
 	(:dot  ;;okay
 	 ))
 
-      (when (and (null err) 
-		 *maxmsgsize* 
-		 (> *maxmsgsize* 0) 
-		 (>= msgsize *maxmsgsize*))
-	(maild-log 
-	 "Big (> ~D characters) message from ~A rejected during SMTP session"
-	 *maxmsgsize*
-	 (emailaddr-orig (session-from sess)))
-	(outline sock "552 5.2.3 Message exceeds maximum fixed size (~D)"
-		 *maxmsgsize*)
-	(setf rejected t))
-      
       ;; Run through checkers.
       (when (and (not err) (not rejected))
-	(dolist (checker *smtp-data-checkers*)
-	  (let ((res (funcall (second checker) q)))
-	    (case res
-	      (:reject
-	       (maild-log "Rejecting message from ~A (~A)"
-			  (emailaddr-orig (session-from sess))
-			  (first checker))
-	       (outline sock "552 Message rejected")
-	       (setf rejected t)
-	       (return)) ;; break out of the dolist
-	      (:transient
-	       (maild-log "Checker ~a reported a transient error."
-			  (first checker))
-	       (setf err :transient)
-	       (return)) ;; break out of the dolist
-	      (:ok
-	       ) 
-	      (t
-	       (maild-log "Unexpected return code from ~A: ~S"
-			  (first checker) res)
-	       (setf err :transient)
-	       (return)))))) ;; break from the dolist
+	(multiple-value-bind (res text checker)
+	    (check-message-checkers q headers msgsize)
+	  (ecase res
+	    (:ok
+	     ) ;; all is well
+	    (:reject
+	     (maild-log "Rejecting message from ~A" 
+			(emailaddr-orig (session-from sess)))
+	     (maild-log "Checker ~S said: ~A" checker text)
+	     
+	     (outline sock "552 ~A" text)
+	     (setf rejected t))
+	    (:transient
+	     (maild-log "Checker ~s reported a transient error: ~A"
+			checker text)
+	     (setf err :transient)))))
       
       (when (and (not err) (not rejected))
 	;; This finalizes and unlocks the queue item.

@@ -206,3 +206,6 @@
 (defun sender-header-p (header)
   (if (prefix-of-p "From:" header)
       5))
+
+(defun count-received-headers (headers)
+  (count-if #'(lambda (h) (prefix-of-p "Received:" h)) headers))

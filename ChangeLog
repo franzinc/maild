@@ -1,3 +1,26 @@
+2003-05-19  root  <root@dancy>
+
+	* config.cl:  Parameterized the blacklisted host message in a new
+	*blacklisted-response* variable.  Added a new *maximum-hop-count*
+	parameter as well.   Changed *smtp-data-checkers* to
+	*message-data-checkers* since they are used during stdin reciption
+	and smtp reception.  The default list of checkers is the size
+	check and the max hop count check.
+
+	* checkers.cl:  New.  Has hop count and message size checkers.
+
+	* headers.cl:  New count-received-headers function.
+
+	* input.cl:  Run message checks before accepting a message.  Error
+	out if we get back reject or transient status.
+
+	* load.cl:  Added "checkers" to the file list.
+
+	* smtp-server.cl:  Use parameterized blacklisted client text now.
+	Moved out message checking stuff into check-message-checkers in
+	checkers.cl.  
+
+
 2003-05-16  root  <root@dancy>
 
 	* aliasees.cl:  Always copy recip structs before returning them

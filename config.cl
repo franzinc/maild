@@ -31,6 +31,11 @@
 ;; on to work properly.
 (defparameter *blacklist-connections* nil)
 
+;; This is the message that is sent immediately after connection from
+;; a blacklisted client.  
+(defparameter *blacklisted-response* "We do not accept mail from you")
+
+
 ;; Addresses to reject during the MAIL FROM: transaction
 (defparameter *blacklist-from* '("big@boss.com"))
 
@@ -70,6 +75,10 @@
 ;; Bounce undeliverable messages after *bounce-days* days.
 (defparameter *bounce-days* 5)
 
+;; Maximum number of "Received" headers that may be found in a message
+;; before we assume there's a mail loop and bounce the message.
+(defparameter *maximum-hop-count* 17)
+
 ;; User to run local delivery programs as
 (defparameter *local-delivery-user* "root")
 
@@ -79,16 +88,18 @@
 (defparameter *program-alias-user* "mailnull")
 
 
-
+;; List of checkers to be called after a message body has been
+;; received.  A checker entry is a list with two elements.  The first
+;; element is a string which describes the checker.  The second
+;; element is the checker function (or a symbol naming the function.
+;; All listed checkers must return :ok before the message is accepted.
+;; see checker.cl for more details.
+(defparameter *message-data-checkers* 
+    '(("Message size checker" message-size-checker)
+      ("Hop count checker" hop-count-checker)))
 
 ;;;;;;;;
 ;;; Stuff that will need to be moved out to generalize the program.
-
-(defparameter *smtp-data-checkers* 
-    ;; turned off until this goes to an external mail server.
-    ;; it just generates a bunch of junk bounces
-    ;;'(("SpamAssassin checker" spamassn-check)))
-    nil)
 
 (defun my-deliver-local-command (user queue)
   (list

@@ -1,7 +1,14 @@
-Allow SIGHUP to make the config reload on a running server.
+Make sure that maild never tries to make an SMTP connection to itself.
+It should immediately bounce in that case.  or should it just hold it
+and log a complaint?  I prefer to err on the side of not bouncing.. so
+that a sysadmin can make fixes and get a message to go through after
+discovering the problem.
 
-Parameterize the blacklist SMTP response.  If it is multiline, make
-sure the SMTP multiline response happens properly.
+
+When sending messages via SMTP, use a single session for sending to
+multiple recipients in the same domain.
+
+Allow SIGHUP to make the config reload on a running server.
 
 Optionally honor Errors-To header.
 
@@ -25,20 +32,6 @@ recompile will be necessary for user changes.  Just need to describe
 how the external programs should report their status.  I only use one
 status, though..  good==0, bad==nonzero.
 
-Need loop detection.  RFC2821 says that counting Received: headers is
-a somewhat bogus bogus method for detecting loops.. but if it is used,
-the threshold should be at least 100.  I think sendmail uses 25.
-
-Do I want to make it so that it rarely runs as root?  Situations where
-root is required:
-    local delivery (to setuid to the user)
-    checkers which might require running as a different user.
-    getting port 25.
-    that it?
- newer versions of sendmail seem to run in two or more processes to
- do this.  
- [maybe: Have program drop privs and run as user/group 'maild']
-
 sendmail has a connect timeout (defaults to the kernel's timeout) and
 an iconnect timeout.  The latter is used to immediately send mail to
 responsive hosts.  It is a short timeout (a few seconds).  If it times
@@ -49,4 +42,4 @@ less than 'x' blocks free.  The error message:
    452 4.4.5 Insufficient disk space; try again later  
  Waiting for osi mods from Kevin
 
-Limit the number of threads.
+Limit the number of threads.  
