@@ -34,6 +34,23 @@
 	    (values :err 
 		    (format nil "~A (~A)" *blacklisted-response* bl)))))
 
+(defun smtp-connection-reverse-dns-checker (ip)
+  (block nil
+    (if (not *reverse-dns-required*)
+	(return :ok))
+    (let ((exists (domain-exists-p 
+		   (concatenate 'string (flip-ip ip) ".in-addr.arpa"))))
+      (when (eq exists :unknown)
+	(return 
+	  (values :transient "Domain resolution error")))
+      
+      (when (null exists)
+	(return
+	  (values :err "Client reverse DNS record must exist")))
+      
+      :ok)))
+
+
 ;; MAIL FROM:
 
 (defun smtp-mail-from-blacklist-checker (ip addr)

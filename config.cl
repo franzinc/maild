@@ -56,6 +56,12 @@
 ;; a domain name part.
 (defparameter *sender-domain-required* nil)
 
+;; If non-nil, then a reverse DNS lookup on the client's IP
+;; address must succeed before mail is accepted.
+(defparameter *reverse-dns-required* nil)
+
+
+
 (defparameter *queuedir* "/var/spool/maild")
 
 ;; Users who can use the -f command line argument without generating
@@ -127,7 +133,8 @@
 ;; Initial connection checkers.  Checkers are called with the 
 ;; client ip address.
 (defparameter *smtp-connection-checkers* 
-    '(("Connection blacklist checker" smtp-connection-blacklist-checker)))
+    '(("Blacklist checker" smtp-connection-blacklist-checker)
+      ("Reverse DNS checker" smtp-connection-reverse-dns-checker)))
 
 
 ;; List of checkers to be called after a message body has been

@@ -213,3 +213,10 @@
 	     (progn ,@body)
 	   (if (socketp ,sockvar)
 	       (setf (,accessor ,sockvar) ,origvar)))))))
+
+(defun flip-ip (ip)
+  (ipaddr-to-dotted
+   (logior (ash (logand ip #xff000000) -24)
+	   (ash (logand ip #x00ff0000) -8)
+	   (ash (logand ip #x0000ff00) 8)
+	   (ash (logand ip #x000000ff) 24))))

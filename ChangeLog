@@ -6,6 +6,9 @@
 	* smtp-server*.cl: Added hook for initial connection checkers.
 	Moved the regular blacklisting stuff into a checker.
 
+	Added option *reverse-dns-required* to insist that a connecting
+	client has a reverse DNS record.
+
 2003-06-30  Ahmon Dancy  <dancy@dancy>
 
 	* input.cl:  When reading a message in, strip the Unix mailbox
