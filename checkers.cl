@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: checkers.cl,v 1.4 2003/07/08 18:15:52 layer Exp $
+;; $Id: checkers.cl,v 1.5 2003/07/30 22:48:48 dancy Exp $
 
 (in-package :user)
 
@@ -54,7 +54,7 @@
 	 (return (values :reject text (first checker))))
 	(:transient
 	 (if (null text)
-	     (setf text "(no additional details"))
+	     (setf text "(no additional details)"))
 	 (return (values :transient text (first checker))))
 	(:ok
 	 ) ;; so far so good
