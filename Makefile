@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.12 2004/11/10 15:51:53 layer Exp $
+# $Id: Makefile,v 1.13 2004/11/10 15:52:21 layer Exp $
 
 lisp=$(shell if test -x /storage1/acl/mlisp; then \
 		echo /storage1/acl/mlisp; \
@@ -48,6 +48,7 @@ install-init: FORCE
 clean: FORCE
 	rm -f *.fasl
 	rm -fr maild check-mail-virus rpmbuild maild.spec
+	(cd greyadmin; make clean)
 
 HERE := $(shell pwd)
 
