@@ -246,15 +246,13 @@
   (let* ((sess (websession-from-req req))
 	 (user (websession-variable sess "user"))
 	 (addr (user-address user))
-	 (ip (request-query-value "ip" req))
 	 (sender (request-query-value "sender" req)))
     (greysql
-     (format nil "update triples set blockexpire=0 where receiver=~S and sender=~S and ip=~D"
+     (format nil "update triples set blockexpire=0 where receiver=~S and sender=~S"
 	     (mysql-escape-sequence addr)
-	     (mysql-escape-sequence sender)
-	     ip))
+	     (mysql-escape-sequence sender)))
     "menu"))
-  
+
 
 ;; db stuff
 
