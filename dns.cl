@@ -3,38 +3,6 @@
 (eval-when (compile load eval)
   (require :acldns))
 
-;; Modelled after the glibc resolver which uses the search path first
-;; if there is no dot in the domain name.  
-(defun useful-dns-query (domain &rest rest &key (search t) &allow-other-keys)
-  (macrolet ((flags (respform)
-	       (let ((respvar (gensym)))
-		 `(let ((,respvar ,respform))
-		    (if (eq (type-of ,respvar) 'dns-response)
-			(dns-response-flags ,respvar)
-		      (fourth ,respvar))))))
-    (when (not *dns-configured*)
-      ;; since we rely on *dns-domain* and *domain-search-list*
-      (configure-dns :auto t) 
-      ;; Avoid using old data.
-      (setf socket::*stale-entry-remove-time* 0))
-
-    (let ((search-list (copy-list *domain-search-list*))
-	  res)
-      (if *dns-domain*
-	  (pushnew *dns-domain* search-list :test #'equalp))
-      (if (and search (null (position #\. domain)))
-	  (dolist (searchdom search-list)
-	    (setf res 
-	      (multiple-value-list 
-	       (apply #'dns-query (cons 
-				   (concatenate 'string domain "." searchdom)
-				   rest))))
-	    ;; Only loop if there's a definitely negative answer.
-	    (if (not (member :no-such-domain (flags res)))
-		(return-from useful-dns-query (values-list res)))))
-      (apply #'dns-query (cons domain rest)))))
-
-
 ;; Only follows one CNAME lookup.   If there is any more than that,
 ;; the sender's domain has a really jacked up setup.
 
@@ -45,7 +13,7 @@
 ;;  :unknown -- couldn't get any answers.
 (defun dns-record-exists-p (domain type &key (try-cname t))
   (block nil
-    (let ((resp (useful-dns-query domain :decode nil :type type)))
+    (let ((resp (dns-query domain :decode nil :type type :search t)))
       (if (null resp)
 	  (return :unknown))
       (let ((flags (dns-response-flags resp))
@@ -97,7 +65,7 @@
 
 ;; Requires properly set up forward and reverse DNS
 (defun compute-fqdn ()
-  (let ((mainip (useful-dns-query (gethostname)))
+  (let ((mainip (dns-query (gethostname) :search t))
 	fqdn)
     (if (null mainip)
 	(error "Could not resolve our hostname (~A) via DNS" (gethostname)))

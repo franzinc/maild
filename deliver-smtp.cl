@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: deliver-smtp.cl,v 1.12 2003/07/23 19:53:14 dancy Exp $
+;; $Id: deliver-smtp.cl,v 1.13 2003/09/10 20:13:21 dancy Exp $
 
 (in-package :user)
 
@@ -325,7 +325,7 @@
 (defun get-good-mxs (domain)
   (let (res)
     (multiple-value-bind (best ttl others disp)
-	(useful-dns-query domain :type :mx)
+	(dns-query domain :type :mx :search t)
       (declare (ignore ttl))
       (if (member :no-such-domain disp)
 	  (return-from get-good-mxs :no-such-domain))

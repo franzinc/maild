@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: smtp-server.cl,v 1.23 2003/09/02 21:45:33 dancy Exp $
+;; $Id: smtp-server.cl,v 1.24 2003/09/10 20:13:21 dancy Exp $
 
 (in-package :user)
 
@@ -274,7 +274,7 @@
 	(setf text (string-left-trim '(#\space) text))
 	
 	(multiple-value-bind (first ttl rest flags)
-	    (useful-dns-query text)
+	    (dns-query text :search t)
 	  (declare (ignore ttl))
 	  (when (member :no-such-domain flags)
 	    (if* (eq 't *helo-must-match-ip*)
