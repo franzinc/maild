@@ -18,10 +18,10 @@
 ;; Domains for which we receive mail. Add your domain name here.
 ;; *short-host-name*, *fqdn*, and *host-aliases* are included
 ;; implicitly so you don't need to add them.
-(defparameter *localdomains* '("franz.com"))
+(defparameter *localdomains* nil)
 
 ;; List of IP addresses or networks.
-(defparameter *relay-access* '("127.0.0.1" "192.132.95.0/24"))
+(defparameter *relay-access* '("127.0.0.1"))
 
 ;; Can be a list of IP addresses and masks.. or domain names.
 ;; If a domain like example.com is supplied, then connections
@@ -59,14 +59,14 @@
 
 ;; SMTP-outgoing unqualified addresses are augmented with this 
 ;; domain part.
-(defparameter *masquerade-as* "franz.com")
+(defparameter *masquerade-as* nil)
 
 ;; Local users for whom we do not use masquerading.
 (defparameter *exposed-users* '("root"))
 
 ;; If set, during local delivery, any addresses with this string as
 ;; their domain part will have their domain part stripped.
-(defparameter *strip-domain-for-local-delivery* "franz.com")
+(defparameter *strip-domain-for-local-delivery* nil)
 
 ;; nil or 0 means no max.
 (defparameter *maxmsgsize* nil) 
@@ -100,18 +100,16 @@
 (defparameter *external-checker-user* "mailnull")
 
 
-;;;;;;;;
-;;; Stuff that will need to be moved out to generalize the program.
+;; Can be replaced w/ a symbol naming a function which will create the
+;; command line used for local delivery.  The function takes two 
+;; arguments: 1) The local user name (a string... no @domain part). 
+;;            2) The 'queue' object.
+;; The function should return a list which represents the components
+;; of the command line to be executed.
 
-(defun my-deliver-local-command (user queue)
-  (list
-   "/usr/local/sbin/deliver-via-spamc" 
-   "-f"
-   (emailaddr-orig (rewrite-local-envelope-sender (queue-from queue)))
-   "-d"
-   user))
-
-(defparameter *deliver-local-command* 'my-deliver-local-command)
+;; Default: use the built-in local delivery command which creates:
+;; procmail -Y -f <envelope-from> -d <user>
+(defparameter *deliver-local-command* 'deliver-local-command)
 
 (defparameter *extra-headers-func* nil)
 

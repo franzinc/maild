@@ -1,3 +1,7 @@
+2003-06-23  Ahmon Dancy  <dancy@dancy>
+
+	* config.cl:  Removed franz-specific stuff.
+
 2003-06-18  root  <root@gills.dancysoft.com>
 
 	* Makefile:  Added 'install' rule.
