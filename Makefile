@@ -8,6 +8,7 @@ maild/maild: *.cl
 
 install: maild/maild
 	mkdir -p $(libdir) $(bindir)
+	rm -fr $(libdir)/maild
 	cp -pr maild $(libdir)
 	ln -sf $(libdir)/maild/maild $(bindir)/maild
 

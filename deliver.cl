@@ -22,10 +22,10 @@
 ;;; called when a recipient has been determined to be a local user
 ;;; that exists.  Also includes program and file recipients.
 (defun deliver-local (recip q &key verbose)
-  (setf recip (string-downcase recip))
   (let* ((type (recip-type recip))
 	 (file (recip-file recip))
-	 (user (if (recip-addr recip) (emailaddr-user (recip-addr recip))))
+	 (user (if (recip-addr recip) 
+		   (string-downcase (emailaddr-user (recip-addr recip)))))
 	 (res (multiple-value-list
 	       (cond
 		((null type)
