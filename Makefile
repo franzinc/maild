@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.13 2004/11/10 15:52:21 layer Exp $
+# $Id: Makefile,v 1.14 2004/11/10 15:58:53 layer Exp $
 
 lisp=$(shell if test -x /storage1/acl/mlisp; then \
 		echo /storage1/acl/mlisp; \
@@ -12,11 +12,11 @@ all: maild/maild check-mail-virus/check-mail-virus
 
 maild/maild: *.cl
 	rm -fr maild
-	$(lisp) -L load.cl -e "(build)" -kill
+	$(lisp) -batch -L load.cl -e "(build)" -kill
 
 check-mail-virus/check-mail-virus: check-mail-virus.cl
 	rm -fr check-mail-virus
-	$(lisp) -L check-mail-virus.cl -e '(build)' -kill
+	$(lisp) -batch -L check-mail-virus.cl -e '(build)' -kill
 
 install: install-maild install-check-mail-virus
 

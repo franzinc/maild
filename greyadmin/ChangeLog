@@ -1,6 +1,9 @@
 2004-11-10  Kevin Layer  <layer@relay.known.net>
 
-	* Makefile: the start of rpm build support
+	* Makefile:
+	- the start of rpm build support
+	- batch mode to compile
+	* greyadmin.cl: kill warning
 
 2003-08-04  root  <root@gills.dancysoft.com>
 

@@ -1,6 +1,9 @@
 2004-11-10  Kevin Layer  <layer@relay.known.net>
+1.1.22
 
-	* Makefile: work in progress for building an RPM package
+	* Makefile:
+	- work in progress for building an RPM package
+	- batch mode to compile
 	* (NEW) config-greyadmin.cl -- demo config file
 	* (NEW) config-maild-greylist.cl -- demo config file
 	* (NEW) config-maild.cl -- demo config file

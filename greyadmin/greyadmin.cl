@@ -324,7 +324,7 @@
     "menu"))
 
 (def-clp-function ga_lifetime-days (req ent args body)
-  (declare (ignore args body ent))
+  (declare (ignore args body req ent))
   (html (:princ (ceiling (/ *greylist-lifetime* 86400.0)))))
 
 (def-clp-function ga_dump-personal-whitelist (req ent args body)
@@ -519,5 +519,7 @@
 ;;;;;;;
 
 (defun build ()
-  (compile-file-if-needed "greyadmin.cl")
+  (handler-case (compile-file-if-needed "greyadmin.cl")
+    (warning (c)
+      (error c)))
   (generate-executable "greyadmin" '("greyadmin.fasl" :locale)))

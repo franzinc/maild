@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.3 2004/11/10 15:51:53 layer Exp $
+# $Id: Makefile,v 1.4 2004/11/10 15:56:52 layer Exp $
 
 lisp=$(shell    if test -x /fi/cl/6.2/acl/osname.sh; then \
 			echo /fi/cl/6.2/bin/`/fi/cl/6.2/acl/osname.sh`/mlisp; \
@@ -14,7 +14,7 @@ all: greyadmin/greyadmin
 
 greyadmin/greyadmin: greyadmin.cl
 	rm -fr greyadmin
-	$(lisp) -L greyadmin.cl -e "(build)" -kill
+	$(lisp) -batch -L greyadmin.cl -e "(build)" -kill
 
 install: install-greyadmin
 
