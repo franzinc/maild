@@ -41,38 +41,6 @@
 	   (pop tokens)) 
     (nreverse res)))
 
-;; returns values:
-;;   list of accepted, parsed addresses.
-;;   list of ("rejected-address" "reason")
-;;   remaining cruft
-(defun parse-email-addr-list (string &key (pos 0) (max (length string))
-					  allow-null)
-  (block nil
-    (let* ((tokens (emailaddr-lex string :pos pos :max max))
-	   goods bads string addr cruft)
-      (multiple-value-bind (mblist remainder)
-	  (parse-mailbox-list tokens)
-	(dolist (mailbox (second mblist))
-	  (setf addr (mailbox-to-addrspec mailbox))
-	  (setf string (with-output-to-string (s) (print-token mailbox s)))
-	  ;; null addresses aren't allowed (unless allow-null is t)
-	  ;; null user parts aren't allowed.
-	  (cond 
-	   ((and (null (addrspec-user addr)) (null (addrspec-domain addr))
-		 (not allow-null))
-	    (push (list string "User unknown")
-		  bads))
-	   ((and (null (addrspec-user addr)) (addrspec-domain addr))
-	    (push (list string "User address required") 
-		  bads))
-	   (t
-	    (push (addrspec-to-emailaddr addr) goods))))
-	(setf cruft 
-	  (with-output-to-string (s) (print-token-list remainder s)))
-	(if (match-regexp "^\\b*$" cruft)
-	    (setf cruft ""))
-	(values (nreverse goods) (nreverse bads) cruft)))))
-		
 (defun printable-from-addrspec (addr)
   (if (null (addrspec-user addr))
       (if (null (addrspec-domain addr))
@@ -87,8 +55,8 @@
     (cond 
      ((addrspec-p thing)
       thing)
-     ((eq (first thing) :name-addr)
-      (angle-addr-to-addrspec (third thing)))
+     ((nameaddr-p thing)
+      (angle-addr-to-addrspec (nameaddr-angleaddr thing)))
      (t
       (error "Unexpected mailbox subtype: ~S" thing)))))
 
@@ -100,15 +68,19 @@
 (defun mailbox-to-emailaddr (mailbox)
   (addrspec-to-emailaddr (mailbox-to-addrspec mailbox)))
 
-(defun parse-email-addr (string &key (pos 0) (max (length string))
-				     allow-null)
-  (block nil
-    (multiple-value-bind (goods bads cruft)
-	(parse-email-addr-list string :pos pos :max max
-			       :allow-null allow-null)
-      (if (or (/= (length goods) 1) (> (length bads) 0) (string/= cruft ""))
-	  (return nil))
-      (first goods))))
+;; only accepts mailbox style addresses
+(defun parse-email-addr (string &key (pos 0) allow-null)
+  (multiple-value-bind (mb remaining-tokens)
+      (parse-mailbox (emailaddr-lex string :pos pos))
+    (when (and mb (null remaining-tokens))
+      (let ((addr (mailbox-to-emailaddr mb)))
+	(if (or
+	     (and (null (emailaddr-user addr)) (null (emailaddr-domain addr))
+		  (not allow-null))
+	     (and (null (emailaddr-user addr)) (emailaddr-domain addr)))
+	    nil
+	  addr)))))
+
 
 ;; stuff from RFC 2822
 
@@ -503,12 +475,16 @@
        (list :angle-addr precomments spec postcomments)
        tokens))))
 
-(defun print-name-addr (token &optional (stream t))
-  (if (second token)
-      (print-phrase (second token) stream))
-  (print-angle-addr (third token) stream))
+(defstruct nameaddr
+  displayname
+  angleaddr)
+
+(defun print-nameaddr (token &optional (stream t))
+  (if (nameaddr-displayname token)
+      (print-phrase (nameaddr-displayname token) stream))
+  (print-angle-addr (nameaddr-angleaddr token) stream))
   
-(defun parse-name-addr (tokens)
+(defun parse-nameaddr (tokens)
   (block nil
     (multiple-value-bind (phrase newtokens)
 	(parse-phrase tokens)
@@ -519,8 +495,9 @@
 	  (parse-angle-addr tokens)
 	(if (null angleaddr)
 	    (return nil))
-	(values (list :name-addr phrase angleaddr) newtokens)))))
-
+	(values 
+	 (make-nameaddr :displayname phrase :angleaddr angleaddr)
+	 newtokens)))))
 
 (defun print-mailbox (token &optional (stream t))
   (print-token (second token) stream))
@@ -529,7 +506,7 @@
 (defun parse-mailbox (tokens)
   (block nil
     (multiple-value-bind (nameaddr newtokens)
-	(parse-name-addr tokens)
+	(parse-nameaddr tokens)
       (if nameaddr
 	  (return (values (list :mailbox nameaddr) newtokens))))
     (multiple-value-bind (addrspec newtokens)
@@ -538,31 +515,66 @@
 	  (return (values (list :mailbox addrspec) newtokens)))
       nil)))
 
-(defun print-group (token &optional (stream t))
-  (print-phrase (second token) stream)
-  (write-char #\: stream)
-  (print-token (third token) stream)
-  (write-char #\; stream))
+(defun skip-cfws (tokens)
+  (while (and tokens 
+	      (or (whitespace-token-p (first tokens))
+		  (comment-token-p (first tokens))))
+    (pop tokens))
+  tokens)
 
+
+(defun collect-cfws (tokens)
+  (let (res)
+    (while (and tokens 
+		(or (whitespace-token-p (first tokens))
+		    (comment-token-p (first tokens))))
+      (push (pop tokens) res))
+    (values (nreverse res) tokens)))
+
+(defun print-groupspec (token &optional (stream t))
+  (print-phrase (groupspec-displayname token) stream)
+  (write-char #\: stream)
+  (print-token (groupspec-mailbox-list token) stream)
+  (print-token-list (groupspec-pre-semi token) stream)
+  (write-char #\; stream)
+  (print-token-list (groupspec-post-semi token) stream))
+
+(defstruct groupspec
+  displayname
+  mailbox-list
+  pre-semi
+  post-semi)
 
 ;;group           =       display-name ":" [mailbox-list / CFWS] ";"
 (defun parse-group (tokens)
   (block nil
-    (multiple-value-bind (dispname newtokens)
-	(parse-phrase tokens)
-      (if (null dispname)
-	  (return nil))
-      (setf tokens newtokens)
-      (if (not (colon-token-p (first tokens)))
-	  (return nil))
-      (pop tokens)
+    (let ((g (make-groupspec)))
+      (multiple-value-bind (dispname newtokens)
+	  (parse-phrase tokens)
+	(if (null dispname)
+	    (return nil))
+	(setf tokens newtokens)
+	(if (not (colon-token-p (first tokens)))
+	    (return nil))
+	(pop tokens)
+	(setf (groupspec-displayname g) dispname))
       (multiple-value-bind (mailboxlist newtokens)
 	  (parse-mailbox-list tokens)
 	(setf tokens newtokens)
-	(if (not (semicolon-token-p (first tokens)))
-	    (return nil))
-	(pop tokens)
-	(values (list :group dispname mailboxlist) tokens)))))
+	(setf (groupspec-mailbox-list g) mailboxlist))
+      (multiple-value-bind (pre newtokens)
+	  (collect-cfws tokens)
+	(setf (groupspec-pre-semi g) pre)
+	(setf tokens newtokens))
+      ;; Check for the required semicolon
+      (if (not (semicolon-token-p (first tokens)))
+	  (return nil))
+      (pop tokens) ;; pop it
+      (multiple-value-bind (post newtokens)
+	  (collect-cfws tokens)
+	(setf (groupspec-post-semi g) post)
+	(setf tokens newtokens))
+      (values g tokens))))
 
 (defun print-address (token &optional (stream t))
   (print-token (second token) stream))
@@ -644,17 +656,19 @@
     (print-token token stream)))
 
 (defun print-token (token &optional (stream t))
-  (if (addrspec-p token)
-      (print-addrspec token stream)
+  (cond
+   ((addrspec-p token)
+    (print-addrspec token stream))
+   ((groupspec-p token)
+    (print-groupspec token stream))
+   ((nameaddr-p token)
+    (print-nameaddr token stream))
+   (t
     (case (first token)
       ((:comment :whitespace :quoted-string :atom)
        (write-string (second token) stream))
-      (:name-addr
-       (print-name-addr token stream))
       (:mailbox-list
        (print-mailbox-list token stream))
-      (:group
-       (print-group token stream))
       (:adddress
        (print-address token stream))
       (:mailbox
@@ -666,7 +680,7 @@
       (:special
        (write-char (second token) stream))
       (t
-       (error "token ~S not handled yet." token)))))
+       (error "token ~S not handled yet." token))))))
 
 ;; unquotes quoted strings
 (defun tokens-to-string (tokens &key strip-trailing-white)

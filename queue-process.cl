@@ -93,8 +93,6 @@
      (+ (queue-ctime q) (* *bounce-days* 86400))))
       
 
-;; XXX -- todo: sort the directory list so that queue items
-;; will be processed in the order which they were created.
 (defun get-all-queue-ids ()
   (let* ((prefix (concatenate 'string *queuedir* "/qf"))
 	 (prefixlen (length prefix))
@@ -103,7 +101,7 @@
       ;; skip .lck files.
       (if (string/= "lck" (pathname-type p))
 	  (push (subseq (namestring p) prefixlen) res)))
-    res))
+    (sort res #'string<)))
 
 (defun queue-list ()
   (dolist (id (get-all-queue-ids))
@@ -119,10 +117,13 @@
 	    (format t "Queue id ~A doesn't have a data file!~%" id))
 	(format t " Date queued: ~A~%" (ctime (queue-ctime q)))
 	(format t " Sender: ~A~%" (emailaddr-orig (queue-from q)))
-	(format t " Remaining recips: ~A~%"
-		(list-to-delimited-string
-		 (mapcar #'recip-printable (queue-recips q))
-		 #\,))
+	(format t " Remaining recips:~%")
+	(dolist (recip (queue-recips q))
+	  (format t "  ~A~%   ~A~%"
+		  (recip-printable recip)
+		  (if (recip-status recip)
+		      (recip-status recip)
+		    "")))
 	(format t " Status: ~A~%" (queue-status q))))))
 
 

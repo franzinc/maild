@@ -118,22 +118,55 @@
 (defun rewrite-header-help (string rewritefunc &key (pos 0) 
 						    (max (length string)))
   (block nil
-    (let ((addrlist (parse-address-list 
-		     (emailaddr-lex string :pos pos :max max))))
+    (multiple-value-bind (addrlist remainder)
+	(parse-address-list (emailaddr-lex string :pos pos :max max))
       (if (null addrlist)
-	  (return nil))
-      (rewrite-addrspec addrlist rewritefunc)
+	  (return nil)) ;; indicate no rewrite done
+      ;; sanity check
+      (if (not (eq (first addrlist) :address-list))
+	  (error "rewrite-header-help: Expected an :address-list!"))
+      (dolist (addr (second addrlist))
+	(rewrite-addrlist-entry addr rewritefunc))
       (with-output-to-string (s) 
-	(print-address-list addrlist s)))))
+	(print-address-list addrlist s)
+	(print-token-list remainder s)))))
 
-(defun rewrite-addrspec (thing rewritefunc)
+
+(defun rewrite-addrlist-entry (thing rewritefunc)
+  ;; sanity check
+  (if (or (not (listp thing))
+	  (not (eq (first thing) :address)))
+      (error "rewrite-addrlist-entry: Got something other than :address"))
+  (setf thing (second thing))
   (cond
-   ((addrspec-p thing)
-    (let ((ea (make-emailaddr :user (addrspec-user thing)
-			      :domain (addrspec-domain thing))))
-      (setf ea (funcall rewritefunc ea))
-      (setf (addrspec-user thing) (emailaddr-user ea))
-      (setf (addrspec-domain thing) (emailaddr-domain ea))))
-   ((listp thing)
-    (dolist (item thing)
-      (rewrite-addrspec item rewritefunc)))))
+   ((groupspec-p thing)
+    (dolist (mb (second (groupspec-mailbox-list thing)))
+      (rewrite-mailbox mb rewritefunc)))
+   ((eq (first thing) :mailbox)
+    (rewrite-mailbox thing rewritefunc))
+   (t
+    (error "rewrite-addrlist-entry: Unexpected data: ~S" thing))))
+
+;; modifies addrspec in 'as'
+(defun rewrite-addrspec (as rewritefunc)
+  ;; sanity check
+  (if (not (addrspec-p as))
+      (error "non-addrspec passwd to rewrite-addrspec"))
+  (let ((ea (make-emailaddr :user (addrspec-user as)
+			    :domain (addrspec-domain as))))
+    (setf ea (funcall rewritefunc ea))
+    (setf (addrspec-user as) (emailaddr-user ea))
+    (setf (addrspec-domain as) (emailaddr-domain ea))))
+
+(defun rewrite-mailbox (mb rewritefunc)
+  (if (not (eq (first mb) :mailbox))
+      (error "non-mailbox ~S passed to rewrite-mailbox" mb))
+  (cond 
+   ((nameaddr-p (second mb))
+    (rewrite-addrspec (angle-addr-to-addrspec (nameaddr-angleaddr (second mb)))
+		      rewritefunc))
+   ((addrspec-p (second mb))
+    (rewrite-addrspec (second mb) rewritefunc))
+   (t
+    (error "rewrite-mailbox: Unexpected data: ~S~%" mb))))
+

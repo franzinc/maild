@@ -194,108 +194,156 @@
        (t
 	nil)))))
 
-(defun parse-recip (tokens)
-  (if (stringp tokens)
-      (setf tokens (emailaddr-lex tokens)))
-  (let* ((string (tokens-to-string tokens :strip-trailing-white t))
-	 (recip (make-recip :orig string)))
+(defun collect-tokens-up-to-comma (tokens)
+  (let (res)
+    (while (and tokens (not (comma-token-p (first tokens))))
+      (push (pop tokens) res))
+    (values (nreverse res) tokens)))
+
+(defun parse-special-recip (tokens)
+  (block nil
+    (multiple-value-bind (tokens remainder)
+	(collect-tokens-up-to-comma tokens)
+      (let* ((string (tokens-to-string tokens :strip-trailing-white t))
+	     (recip (make-recip :orig string)))
+	(cond
+	 ;; file recips
+	 ((tokens-begin-with-p #\/ tokens)
+	  (setf (recip-type recip) :file)
+	  (setf (recip-file recip) string))
+
+	 ;; include recips
+	 ((prefix-of-p ":include:" string)
+	  (setf (recip-type recip) :include)
+	  (setf (recip-file recip) (subseq string #.(length ":include:"))))
+       
+	 ;; error recips
+	 ((prefix-of-p ":error:" string)
+	  (setf (recip-type recip) :error)
+	  (setf (recip-errmsg recip) (subseq string #.(length ":error:")))
+	  (if (string= (recip-errmsg recip) "")
+	      (setf (recip-errmsg recip) "Invalid user")))
+       
+	 ;; program recips
+	 ((tokens-begin-with-p #\| tokens)
+	  (setf (recip-type recip) :prog)
+	  (multiple-value-bind (found whole prog-user prog)
+	      (match-regexp "^|(\\([^)]+\\))\\(.*\\)" string)
+	    (declare (ignore whole))
+	    (if* found
+	       then
+		    (setf (recip-file recip) prog)
+		    (setf (recip-prog-user recip) prog-user)
+	       else
+		    (setf (recip-file recip) (subseq string 1)))))
+	 (t
+	  (return)))
+	
+	(values recip remainder)))))
+
+(defun make-string-from-tokens-up-to-comma (tokens)
+  (multiple-value-bind (tokens remainder)
+      (collect-tokens-up-to-comma tokens)
+    (values (tokens-to-string tokens) remainder)))
+
+;; we're really at a proper ending if, after skipping whitespace and comments,
+;; we see no more tokens.. or a comma
+(defun at-end-of-recip-p (tokens)
+  (setf tokens (skip-cfws tokens))
+  (or (null tokens) (comma-token-p (first tokens))))
+
+
+(defun make-recip-from-mailbox (mb &key allow-null escaped)
+  (let ((recip (make-recip :escaped escaped))
+	addr)
+    (setf (recip-orig recip)
+      (with-output-to-string (s)
+	(print-address mb s)))
+    
+    (setf addr (mailbox-to-emailaddr mb))
+    (setf (recip-addr recip) addr)
+    
+    ;; check for <>
     (cond
-     ;; file recips
-     ((tokens-begin-with-p #\/ tokens)
-      (setf (recip-type recip) :file)
-      (setf (recip-file recip) string))
-
-     ;; include recips
-     ((prefix-of-p ":include:" string)
-      (setf (recip-type recip) :include)
-      (setf (recip-file recip) (subseq string #.(length ":include:"))))
-       
-     ;; error recips
-     ((prefix-of-p ":error:" string)
-      (setf (recip-type recip) :error)
-      (setf (recip-errmsg recip) (subseq string #.(length ":error:")))
-      (if (string= (recip-errmsg recip) "")
-	  (setf (recip-errmsg recip) "Invalid user")))
-       
-     ;; program recips
-     ((tokens-begin-with-p #\| tokens)
-      (setf (recip-type recip) :prog)
-      (multiple-value-bind (found whole prog-user prog)
-	  (match-regexp "^|(\\([^)]+\\))\\(.*\\)" string)
-	(declare (ignore whole))
-	(if* found
-	   then
-		(setf (recip-file recip) prog)
-		(setf (recip-prog-user recip) prog-user)
-	   else
-		(setf (recip-file recip) (subseq string 1)))))
+     ((and (null (emailaddr-user addr)) (null (emailaddr-domain addr))
+	   (not allow-null))
+      (setf (recip-type recip) :bad)
+      (setf (recip-errmsg recip) "Invalid address"))
      
-     ;; regular email recip
-     (t 
-      (when (tokens-begin-with-p #\\ tokens)
-	(pop tokens)
-	(setf (recip-escaped recip) t))
-      
-      
-      (setf tokens (nreverse tokens))
-      
-      ;; dump trailing whitespace (for next test)
-      (while (whitespace-token-p (first tokens))
-	     (pop tokens))
+     ;; check for @domain.com
+     ((and (null (emailaddr-user addr))
+	   (emailaddr-domain addr))
+      (setf (recip-type recip) :bad)
+      (setf (recip-errmsg recip) "User address required")))
+    
+    recip))
+	      
 
-      ;; gross hacks to make "group" mailboxes work.
-      (when (some-special-token-p (first tokens) #\;)
-	(pop tokens))
-      
-      (setf tokens (nreverse tokens))
-
-      (when (member-if #'(lambda (tok) (some-special-token-p tok #\:)) tokens)
-	;; disregard everything up to (and including) the colon
-	(while (and tokens (not (some-special-token-p (first tokens) #\:)))
-	       (pop tokens))
-	(pop tokens)) ;; pop the colon
-      
-      (multiple-value-bind (addrspec remaining-tokens)
-	  (parse-address tokens)
-	(if* (or remaining-tokens (null addrspec) 
-		 (not (eq (first addrspec) :address)))
-	   then
-		(setf (recip-type recip) :bad)
-		(setf (recip-errmsg recip) "Invalid address")
-	   else
-		;; good address.
-		(setf (recip-addr recip)
-		  (mailbox-to-emailaddr (second addrspec)))))))
-      recip))
-
+;; Returns a list of recip structs (since a group may have more
+;; than one)
+(defun parse-regular-recip (tokens &key allow-null)
+  (let (escaped)
+    ;; check for escaped recip
+    (when (tokens-begin-with-p #\\ tokens)
+      (pop tokens)
+      (setf escaped t))
+    (multiple-value-bind (parsed remainder)
+	(parse-address tokens)
+      (if* (or (null parsed) (not (at-end-of-recip-p remainder)))
+	 then
+	      ;; couldn't parse
+	      (multiple-value-bind (string remainder)
+		  (make-string-from-tokens-up-to-comma tokens)
+		(values
+		 (list
+		  (make-recip :type :bad
+			      :orig string
+			      :errmsg "Invalid address"))
+		 remainder))
+	 else
+	      (let ((mblist (if (groupspec-p (second parsed))
+				(second 
+				 (groupspec-mailbox-list (second parsed)))
+			      (list (second parsed)))))
+		(values 
+		 (mapcar #'(lambda (mb)
+			     (make-recip-from-mailbox mb
+						      :allow-null allow-null
+						      :escaped escaped))
+			 mblist)
+		 remainder))))))
 
 (defun parse-recip-list (input &key (pos 0) allow-null)
   (block nil
-    (setf input (emailaddr-lex input :pos pos))
-    (let ((tokens-lists (sep-tokens-by-comma input))
+    (let ((tokens (emailaddr-lex input :pos pos))
 	  recips)
-      (dolist (tokens tokens-lists)
-	;; trim leading whitespace
-	(if (whitespace-token-p (first tokens))
-	    (pop tokens))
-	(let* ((recip (parse-recip tokens))
-	       (addr (if (null (recip-type recip)) (recip-addr recip))))
-	  (cond
-	   ((recip-type recip) ;; other special types
-	    ) ;; no checks
-	   
-	   ;; check for <>
-	   ((and (null (emailaddr-user addr)) (null (emailaddr-domain addr)) 
-		 (not allow-null))
-	    (setf (recip-type recip) :bad)
-	    (setf (recip-errmsg recip) "Invalid address"))
-	   
-	   ;; check for @domain.com
-	   ((and (null (emailaddr-user addr)) (emailaddr-domain addr))
-	    (setf (recip-type recip) :bad)
-	    (setf (recip-errmsg recip) "User address required")))
-	  (push recip recips)))
+      (loop
+	;; skip and leading whitespace, comments, and commas
+	(while (and tokens
+		    (or (whitespace-token-p (first tokens))
+			(comment-token-p (first tokens))
+			(comma-token-p (first tokens))))
+	  (pop tokens))
+	
+	(if (null tokens) 
+	    (return))
+	
+	;; Check for special stuff first.
+	(multiple-value-bind (recip remainder)
+	    (parse-special-recip tokens)
+	  (if* recip
+	     then
+		  (push recip recips)
+		  (setf tokens remainder)
+	     else
+		  ;; try regular recip
+		  (multiple-value-bind (new-recips remainder)
+		      (parse-regular-recip tokens :allow-null allow-null)
+		    (setf tokens remainder)
+		    (setf recips (nconc recips new-recips))))))
       recips)))
+
+
 
 ;; for messages coming in on stdin
 (defun get-good-recips-from-string (string &key (pos 0) verbose)

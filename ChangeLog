@@ -1,3 +1,26 @@
+2003-05-16  root  <root@dancy>
+
+	* aliasees.cl:  Always copy recip structs before returning them
+	from alias expansions.
+
+	* emailaddr.cl:  Removed parse-email-addr-list.  It has been
+	replaced by parse-recip-list in recips.cl   Turned a few parsed
+	things into structs for easier manipulation.  Added collect-cfws
+	utility function.  Improved "group" mailbox parsing.
+
+	* queue-process.cl:  The list of all queue ids is now sorted
+	before being returned.    queue-list:  Print recipient status
+	information.  
+
+	* recips.cl:  Rewrote the parse-recip-list stuff again so that it
+	can handle group mailboxes but still be flexible when bad
+	addresses are encountered during parsing.
+
+	* rewrite.cl:  Fixed up the header rewrite stuff to correspond w/
+	the changes in emailaddr.cl
+
+	
+
 2003-05-15  root  <root@gills.dancysoft.com>
 
 	* aliases.cl:  Make sure that only one thread reparses the aliases

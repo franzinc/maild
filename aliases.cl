@@ -238,8 +238,8 @@
     res))
 
 (defun aliases-set-recip-owner (recip owner)
-  (when owner
-    (setf recip (copy-recip recip))
-    (setf (recip-owner recip) owner))
+  (setf recip (copy-recip recip))
+  (setf (recip-owner recip) owner)
   recip)
+
       

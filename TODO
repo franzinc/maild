@@ -1,7 +1,3 @@
-Fix parse-email-addr so it doesn't use parse-email-addr-list.
-
-Sort queue items by id in queue-process-all
-
 Allow SIGHUP to make the config reload on a running server.
 
 Parameterize the blacklist SMTP response.  If it is multiline, make
