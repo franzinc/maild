@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: greylist.cl,v 1.17 2004/07/21 20:51:23 dancy Exp $
+;; $Id: greylist.cl,v 1.18 2004/09/26 14:44:55 dancy Exp $
 
 (in-package :user)
 
@@ -109,7 +109,7 @@
     (ecase *greylist-operation-mode*
       (:opt-out
        (when (greylist-recipient-excluded-p to)
-	 (maild-log "Greylist: ~A is in the opt-out list" to)
+	 (maild-log "Greylist: ~A is in the opt-out list" (emailaddr-orig to))
 	 (return :ok)))
       (:opt-in
        (when (not (greylist-recipient-included-p to))
@@ -220,10 +220,7 @@
 	(return :ok))
     
       (greylist-check-common (get-universal-time)
-			     ip
-			     (emailaddr-orig from)
-			     (emailaddr-orig to)))))
-
+			     ip from to))))
 
 ;; If any of the triples would delay, then the entire message is
 ;; delayed.  However, all triples are checked anyway.. to make sure
@@ -239,8 +236,7 @@
       
       (dolist (to tos)
 	(setf res (multiple-value-list 
-		   (greylist-check-common now ip (emailaddr-orig from)
-					  (emailaddr-orig to))))
+		   (greylist-check-common now ip from to)))
 	;; the return values from the first failed check are used.
 	(when (and ok (not (eq (first res) :ok)))
 	  (setf ok nil)
@@ -256,8 +252,7 @@
       ;; from <> are considered one-time error messages. 
       (if (greylist-mailer-daemon-addr-p from)
 	  (dolist (to tos)
-	    (let ((triple (greylist-lookup-triple now ip (emailaddr-orig from)
-						  (emailaddr-orig to))))
+	    (let ((triple (greylist-lookup-triple now ip from to)))
 	      (greylist-delete-triple triple))))
       
       :ok)))
@@ -285,6 +280,9 @@
 
 (defun greylist-lookup-triple (now ip from to)
   (block nil
+    (setf from (emailaddr-orig from))
+    (setf to (emailaddr-orig to))
+    
     ;; not necessary for MySQL
     ;;(setf from (string-downcase from))
     ;;(setf to (string-downcase to))
@@ -357,19 +355,24 @@
 	   (dbi.mysql:mysql-escape-sequence (triple-from triple))
 	   (dbi.mysql:mysql-escape-sequence (triple-to triple)))))
 
-(defun greylist-recipient-excluded-p (to)
-  (if (greysql 
-       (format nil "select receiver from optout where receiver=~S"
-	       (dbi.mysql:mysql-escape-sequence to)))
-      t
-    nil))
+(defun greylist-optin-optout-check-common (table to)
+  (let ((query 
+	 (format nil "select receiver from ~A where receiver=~S"
+		 table
+		 (dbi.mysql:mysql-escape-sequence (emailaddr-orig to)))))
+    (if (emailaddr-domain to)
+	(setq query (format nil "~A or receiver=\"*@~A\"" 
+			    query
+			    (dbi.mysql:mysql-escape-sequence 
+			     (emailaddr-domain to)))))
+    (if (greysql query) t nil)))
+    
 
+(defun greylist-recipient-excluded-p (to)
+  (greylist-optin-optout-check-common "optout" to))
+  
 (defun greylist-recipient-included-p (to)
-  (if (greysql 
-       (format nil "select receiver from optin where receiver=~S"
-	       (dbi.mysql:mysql-escape-sequence to)))
-      t
-    nil))
+  (greylist-optin-optout-check-common "optin" to))
 
 (defun greylist-whitelisted-sender-p (from to)
   ;; This is no mechanism for whitelisting the null sender, so
