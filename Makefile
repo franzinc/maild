@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.10 2003/07/23 16:56:42 dancy Exp $
+# $Id: Makefile,v 1.11 2003/07/23 19:21:48 dancy Exp $
 
 lisp=$(shell if test -x /storage1/acl/mlisp; then \
 		echo /storage1/acl/mlisp; \
@@ -8,6 +8,8 @@ lisp=$(shell if test -x /storage1/acl/mlisp; then \
 libdir=/usr/local/lib
 bindir=/usr/local/sbin
 
+all: maild/maild check-mail-virus/check-mail-virus
+
 maild/maild: *.cl
 	rm -fr maild
 	$(lisp) -L load.cl -e "(build)" -kill
@@ -16,7 +18,7 @@ check-mail-virus/check-mail-virus: check-mail-virus.cl
 	rm -fr check-mail-virus
 	$(lisp) -L check-mail-virus.cl -e '(build)' -kill
 
-install: install-maild
+install: install-maild install-check-mail-virus
 
 install-common:
 	mkdir -p $(libdir) $(bindir)
