@@ -165,7 +165,7 @@
 
 ;; returns a list of recip structs
 ;; may include duplicates.
-(defun expand-alias (alias-orig)
+(defun expand-alias (alias-orig &key (wild t))
   ;;; XXX - may want to move this out for performance reasons
   (update-aliases-info)
   (let ((alias (if (stringp alias-orig)
@@ -173,44 +173,66 @@
 		 alias-orig)))
     (if (null alias)
 	(error "expand-alias: Invalid address: ~S" alias-orig))
-    (expand-alias-inner alias (aliases-info-aliases *aliases*) nil nil)))
+    (expand-alias-inner alias (aliases-info-aliases *aliases*) nil nil
+			:wild wild)))
 
 ;; tries long match (w/ full domain) first.. 
+;; then wildcard match (*@domain) [if desired]
 ;; then short match (just user part)
-;; this behavior may go away.
-(defun expand-alias-inner (alias ht seen owner)
+
+(defun expand-alias-inner (alias ht seen owner &key wild)
   (block nil
-    (if (not (local-domain-p alias))
-	(return nil))
-    (if (member alias seen :test #'equalp)
-	(error "Alias loop involving alias ~S" alias))
-    (push alias seen)
-    (let ((members (gethash (emailaddr-orig alias) ht)))
+    (let (members)
+      (if (not (local-domain-p alias))
+	  (return nil))
+      (if (member alias seen :test #'equalp)
+	  (error "Alias loop involving alias ~S" (emailaddr-orig alias)))
+      (push alias seen)
+      
+      (setf members (gethash (emailaddr-orig alias) ht))
       (if members
-	  (alias-expand-member-list alias members ht seen owner)
-	;; try short address instead
-	(let ((members (gethash (emailaddr-user alias) ht)))
+	  (return (alias-expand-member-list alias members ht seen owner)))
+      
+      ;; if there's no domain part, give up.
+      (if (null (emailaddr-domain alias))
+	  (return nil))
+
+      ;; try domain wildcard address instead
+      (when wild
+	(let ((wildcard (concatenate 'string "*@" (emailaddr-domain alias))))
+	  (setf members 
+	    (gethash wildcard ht))
 	  (if members
-	      (alias-expand-member-list alias members ht seen owner)))))))
+	      (return 
+		(alias-expand-member-list (parse-email-addr wildcard)
+					  members ht seen owner)))))
+      
+      ;; try just the local part.
+      (setf members (gethash (emailaddr-user alias) ht))
+      (if members
+	  (alias-expand-member-list alias members ht seen owner)))))
 
 ;; 'members' is a list of recip structs
 (defun alias-expand-member-list (lhs members ht seen owner &key in-include)
   (let (res type ownerstring ownerparsed)
     (setf ownerstring (concatenate 'string "owner-" (emailaddr-orig lhs)))
     (setf ownerparsed (parse-email-addr ownerstring))
-    (if (expand-alias ownerparsed)
+    (if (expand-alias ownerparsed :wild nil)
 	(setf owner ownerparsed))
 
     (dolist (member members)
       (setf type (recip-type member))
+      
       (cond
        ;; sanity checks first
        ((and in-include (eq type :prog))
 	(error "While processing :include: file ~A: program aliases are not allowed in :include: files"
 	       in-include))
+       
        ((and in-include (eq type :file))
 	(error "While processing :include: file ~A: file aliases are not allowed in :include: files"
 	       in-include))
+       
        ((eq type :include)
 	(when in-include
 	  (error "While processing :include: file ~A: :include: is not allowed within an :include: file"
@@ -223,23 +245,28 @@
 	     (alias-expand-member-list lhs newmembers ht seen owner
 				       :in-include includefile)
 	     res))))
+
        ;; definite terminals
        ((or (member type '(:prog :file :error))
 	    (recip-escaped member)
 	    (not (local-domain-p (recip-addr member)))
 	    (equalp (emailaddr-user (recip-addr member))
 		    (emailaddr-user lhs)))
-	(push (aliases-set-recip-owner member owner) res))
+	(push (aliases-set-recip-info member owner lhs) res))
+       
+       ;; normal expansion.
        (t
 	(let ((exp (expand-alias-inner (recip-addr member) ht seen owner)))
 	  (if (null exp)
-	      (push (aliases-set-recip-owner member owner) res)
+	      (push (aliases-set-recip-info member owner lhs) res)
 	    (setf res (append exp res)))))))
     res))
 
-(defun aliases-set-recip-owner (recip owner)
+(defun aliases-set-recip-info (recip owner expanded-from)
   (setf recip (copy-recip recip))
   (setf (recip-owner recip) owner)
+  (setf (recip-expanded-from recip)
+    (emailaddr-orig expanded-from))
   recip)
 
       

@@ -1,3 +1,22 @@
+2003-06-08  root  <root@gills.dancysoft.com>
+
+	* aliases.cl:  Supports wildcard aliases now.
+
+	* checkers.cl:  Added support for external checker programs.
+
+	* config.cl:  Removed *virtusersfile*.  Not used anymore.  Added
+	*external-checker-user* variable for specifying user under which
+	external checkers run.
+
+	* deliver-smtp.cl:  Fixed check for nxdomain.
+
+	* deliver.cl:  When delivering to program alias, use
+	*program-alias-user*, not *local-delivery-user*.
+
+	* recips.cl:  Fixed buglet.
+
+	* virtusers.cl:  Removed.   Implemented in aliases.
+
 2003-06-06  Ahmon Dancy  <dancy@dancy>
 
 	* config.cl:  New parameter.  *extra-headers-func* for specifying

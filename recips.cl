@@ -121,6 +121,13 @@
      (t
       (setf sender-exp (first sender-exp))))
     
+    ;; if sender address didn't expand, manually convert it to a recip
+    ;; struct
+    (if (not (recip-p sender-exp))
+	(setf sender-exp (make-recip :orig (emailaddr-orig sender)
+				     :addr sender)))
+
+    
     (let (recips)
       (dolist (addr addrs)
 	(if (not (local-domain-p addr))

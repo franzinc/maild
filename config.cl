@@ -3,7 +3,6 @@
 (defparameter *debug* t)
 
 (defparameter *aliasesfile* "/etc/aliases")
-(defparameter *virtusersfile* "/etc/mail/virtusers")
 
 ;; If this is nil, it is determined by calling (gethostname)
 (defparameter *short-host-name* nil)
@@ -87,7 +86,6 @@
 ;; program with "|(user)/program/path"  syntax.
 (defparameter *program-alias-user* "mailnull")
 
-
 ;; List of checkers to be called after a message body has been
 ;; received.  A checker entry is a list with two elements.  The first
 ;; element is a string which describes the checker.  The second
@@ -97,6 +95,10 @@
 (defparameter *message-data-checkers* 
     '(("Message size checker" message-size-checker)
       ("Hop count checker" hop-count-checker)))
+
+;; User to run external checkers as.
+(defparameter *external-checker-user* "mailnull")
+
 
 ;;;;;;;;
 ;;; Stuff that will need to be moved out to generalize the program.

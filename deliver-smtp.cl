@@ -214,10 +214,10 @@
 ;; return a list of (addr . name)
 (defun get-good-mxs (domain)
   (let (res)
-    (multiple-value-bind (best ttl others)
+    (multiple-value-bind (best ttl others disp)
 	(useful-dns-query domain :type :mx)
       (declare (ignore ttl))
-      (if (eq best :no-such-domain)
+      (if (member :no-such-domain disp)
 	  (return-from get-good-mxs :no-such-domain))
       (let ((mxs (cons best others)))
 	(if (null best)  ;; use the A record if there's no MX record

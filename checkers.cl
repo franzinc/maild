@@ -61,3 +61,43 @@
   (if (> (count-received-headers headers) *maximum-hop-count*)
       (values :reject "5.4.6 Too many hops")
     :ok))
+
+(defun external-checker (prglist headers datafile)
+  (block nil
+    (let ((pwent (getpwnam *external-checker-user*)))
+      (when (null pwent)
+	(maild-log "external-checker: User ~a does not exist"
+		   *external-checker-user*)
+	(return :transient))
+      (with-pipe (readfrom writeto)
+	(mp:process-run-function "external checker message text generator"
+	  #'external-checker-msgwriter writeto headers datafile)
+	(multiple-value-bind (output errput status)
+	    (command-output
+	     (coerce (cons (first prglist) prglist) 'vector)
+	     :directory "/tmp"
+	     :input readfrom
+	     :whole t
+	     :uid (pwent-uid pwent)
+	     :gid (pwent-gid pwent)
+	     :initgroups-user *external-checker-user*)
+	  (close readfrom)
+	  (values status output errput))))))
+
+(defun external-checker-msgwriter (writestream headers datafile)
+  (dolist (h headers)
+    (write-line h writestream))
+  (write-line "" writestream)
+  (with-open-file (f datafile)
+    (let (char)
+      (while (setf char (read-char f nil nil))
+	     (write-char char writestream))))
+  (close writestream))
+
+;; utility for config file
+(defun add-checker (name function)
+  (setf *message-data-checkers* 
+    (nconc *message-data-checkers* (list (list name function)))))
+
+	   
+	   

@@ -102,7 +102,7 @@
   (deliver-to-program-help (split-regexp "\\b+" cmdline) q
 			   :run-as (if run-as 
 				       run-as
-				     *local-delivery-user*)))
+				     *program-alias-user*)))
 
 
 (defun deliver-to-program-help (prglist q &key (run-as *local-delivery-user*)
