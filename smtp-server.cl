@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: smtp-server.cl,v 1.18 2003/07/09 16:21:52 dancy Exp $
+;; $Id: smtp-server.cl,v 1.19 2003/07/23 16:56:42 dancy Exp $
 
 (in-package :user)
 
@@ -81,7 +81,8 @@
     (case pid
       (0 ;; child
        (detach-from-terminal)
-       (maild-log "SMTP server starting")
+       (maild-log "Allegro Maild ~A SMTP server starting"
+		  *allegro-maild-version*)
        (if (and queue-interval (> queue-interval 0))
 	   (queue-process-daemon queue-interval))
        (smtp-server)
@@ -187,7 +188,10 @@
 	      
 	      (inc-smtp-stat connections-accepted)
 	      
-	      (outline sock "220 ~A Allegro mail server ready" (fqdn)) ;; Greet
+	      ;; Greet
+	      (outline sock "220 ~A Allegro Maild ~A ready" 
+		       (fqdn) *allegro-maild-version*)
+
 	      (loop
 		(setf cmd 
 		  (smtp-get-line (session-sock sess) (session-buf sess) 
@@ -524,13 +528,13 @@
 	     (maild-log "Checker ~S said: ~A" checker text)
 	     
 	     (outline sock "552 ~A" text)
-	     (inc-checker-stat messages-rejected-permanently (first checker))
+	     (inc-checker-stat messages-rejected-permanently checker)
 	     
 	     (setf rejected t))
 	    (:transient
 	     (maild-log "Checker ~s reported a transient error: ~A"
 			checker text)
-	     (inc-checker-stat messages-rejected-temporarily (first checker))
+	     (inc-checker-stat messages-rejected-temporarily checker)
 	     (setf err :transient)))))
       
       (when (and (not err) (not rejected))

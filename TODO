@@ -20,12 +20,6 @@ Possibility:
 RFCs 1891 and 1894 discuss standards for delivery status notification 
  (bounces, return receipts, etc).  Gotta make MIME messages, etc. bleh
 
-change the way I have the local hooks.  They should be things that can
-be in the config file.. or calls to external programs... that way, no
-recompile will be necessary for user changes.  Just need to describe
-how the external programs should report their status.  I only use one
-status, though..  good==0, bad==nonzero.
-
 sendmail has a connect timeout (defaults to the kernel's timeout) and
 an iconnect timeout.  The latter is used to immediately send mail to
 responsive hosts.  It is a short timeout (a few seconds).  If it times

@@ -1,5 +1,12 @@
 2003-07-23  root  <root@gills.dancysoft.com>
 
+	* Dubbed this version 1.0 and updated several places to include
+	the version number.
+
+	* Added check-mail-virus program.  
+
+	* Fixed message data checker statistic updater.
+
 	* SMTP delivery:  Now uses a single SMTP session for delivery of a
 	message for recipients at the particular domain.  I had avoided
 	adding this complexity but it was necessary to avoid recipients

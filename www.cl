@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: www.cl,v 1.4 2003/07/09 16:15:27 dancy Exp $
+;; $Id: www.cl,v 1.5 2003/07/23 16:56:42 dancy Exp $
 
 (in-package :user)
 
@@ -76,9 +76,9 @@
     (net.aserve:with-http-body (req ent)
       (html 
        (:html
-	(:head (:title "Allegro maild"))
+	(:head (:title "Allegro Maild " (:princ-safe *allegro-maild-version*)))
 	(:body
-	 (:h3 "Allegro maild")
+	 (:h3 "Allegro Maild " (:princ-safe *allegro-maild-version*))
 	 "Statistics collection started at "
 	 (:princ-safe (ctime (get-smtp-stat stats-start))) :br
 	 (:ul

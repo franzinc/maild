@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: headers.cl,v 1.10 2003/07/23 14:44:23 dancy Exp $
+;; $Id: headers.cl,v 1.11 2003/07/23 16:56:42 dancy Exp $
 
 (in-package :user)
 
@@ -116,7 +116,8 @@
 	      (add-header-word h (ipaddr-to-dotted cliaddr))))
     (add-header-word h "by")
     (add-header-word h (fqdn))
-    (add-header-word h "(Allegro maild)")
+    (add-header-word h 
+		     (format nil "(Allegro Maild ~A)" *allegro-maild-version*))
     (add-header-word h "id")
     (add-header-word h (format nil "~A;" id))
     (add-header-word h (datetime))

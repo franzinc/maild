@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: deliver-smtp.cl,v 1.10 2003/07/23 14:44:23 dancy Exp $
+;; $Id: deliver-smtp.cl,v 1.11 2003/07/23 16:56:42 dancy Exp $
 
 (in-package :user)
 
@@ -251,10 +251,10 @@
 	(return (values :transient line)))
        ((eq line :eof)
 	(maild-log "Remote SMTP server ~A hung up on us" mxname)
-	(return (values :transient "<disconnect>")))
+	(return (values :transient "<unexpected disconnect>")))
        ((eq line :timeout)
 	(maild-log "Timeout while waiting for SMTP greeting from ~A" mxname)
-	(return (values :transient "<timeout>")))
+	(return (values :transient "<communication timeout>")))
        ((stringp line)
 	nil)
        (t
