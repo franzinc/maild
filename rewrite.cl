@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: rewrite.cl,v 1.8 2003/07/08 18:15:53 layer Exp $
+;; $Id: rewrite.cl,v 1.9 2003/07/30 22:44:55 dancy Exp $
 
 (in-package :user)
 
@@ -101,7 +101,7 @@
     (:smtp
      (values #'rewrite-smtp-header-sender #'rewrite-smtp-header-recip))))
 
-;;; To, From, Cc.
+;;; To, From, Cc, Reply-To, etc... see top of headers.cl
 ;;; removes Bcc.
 (defun rewrite-headers (headers type)
   ;; Bcc is always removed from the headers, regardless of the rewrite

@@ -14,9 +14,41 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: headers.cl,v 1.11 2003/07/23 16:56:42 dancy Exp $
+;; $Id: headers.cl,v 1.12 2003/07/30 22:44:55 dancy Exp $
 
 (in-package :user)
+
+;; Header info table.. mostly stolen from sendmail's conf.c
+(defstruct hdrinfo
+  name ;; including the colon
+  type) ;; list
+
+(defmacro mkfromhdr (name)
+  `(make-hdrinfo :name (concatenate 'string ,name ":") :type '(:from)))
+
+(defmacro mktohdr (name)
+  `(make-hdrinfo :name (concatenate 'string ,name ":") :type '(:to)))
+
+
+(defparameter *hdrinfos*
+    (list
+     (mkfromhdr "resent-sender")
+     (mkfromhdr "resent-from")
+     (mkfromhdr "resent-reply-to")
+     (mkfromhdr "sender")
+     (mkfromhdr "from")
+     (mkfromhdr "reply-to")
+     (mkfromhdr "errors-to")
+     (mkfromhdr "return-receipt-to")
+     
+     (mktohdr "to")
+     (mktohdr "resent-to")
+     (mktohdr "cc")
+     (mktohdr "resent-cc")
+     (mktohdr "bcc")
+     (mktohdr "resent-bcc")
+     (mktohdr "apparently-to")))
+
 
 (defstruct header
   buffer
@@ -189,19 +221,20 @@
 (defun remove-header (header headers)
   (remove-if #'(lambda (h) (prefix-of-p header h)) headers))
 
+
 ;; Returns the position of the header data
 (defun recip-header-p (header)
-  (cond 
-   ((or (prefix-of-p "To:" header) (prefix-of-p "Cc:" header))
-    3)
-   ((prefix-of-p "Bcc:" header)
-    4)
-   (t
-    nil)))
+  (dolist (hi *hdrinfos*)
+    (if (and (member :to (hdrinfo-type hi))
+	     (prefix-of-p (hdrinfo-name hi) header))
+	(return (length (hdrinfo-name hi))))))
 
 (defun sender-header-p (header)
-  (if (prefix-of-p "From:" header)
-      5))
+  (dolist (hi *hdrinfos*)
+    (if (and (member :from (hdrinfo-type hi))
+	     (prefix-of-p (hdrinfo-name hi) header))
+	(return (length (hdrinfo-name hi))))))
+    
 
 (defun count-received-headers (headers)
   (count-if #'(lambda (h) (prefix-of-p "Received:" h)) headers))

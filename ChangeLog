@@ -1,3 +1,11 @@
+2003-07-30  Ahmon Dancy  <dancy@dancy>
+
+	* Bumped version to 1.1.1
+
+	* headers.cl:  Added a big list (stolen from sendmail) of
+	potential sender and receiver headers that may need to be
+	rewritten.  
+
 2003-07-23  root  <root@gills.dancysoft.com>
 
 	* Bumped version to 1.1.0
