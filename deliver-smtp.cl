@@ -175,8 +175,9 @@
 ;; return a list of (addr . name)
 (defun get-good-mxs (domain)
   (let (res)
-    (multiple-value-bind (best others)
-	(mx-dns-query domain)
+    (multiple-value-bind (best ttl others)
+	(useful-dns-query domain :type :mx)
+      (declare (ignore ttl))
       (if (eq best :no-such-domain)
 	  (return-from get-good-mxs :no-such-domain))
       (let ((mxs (cons best others)))
@@ -186,10 +187,10 @@
 	  (complete-mx-info mx)
 	  (if (second mx)
 	      (push (cons (second mx) (first mx)) res)))))
-    (reverse res)))
+    (nreverse res))) ;; order matters
 
 ;; do a name lookup if (second info) is nil
-;; this is bogus because a host could have multiple addresses and
+;; XXX -- this is bogus because a host could have multiple addresses and
 ;; lookup-hostname only returns one.
 (defun complete-mx-info (info)
   (when (null (second info))
@@ -197,22 +198,6 @@
     (if (null (second info))
 	(maild-log "Couldn't get address of MX ~A" (first info)))))
 
-;;; temporary, hopefully.  Asked jkf for a mod to dns-query
-(defun mx-dns-query (domain)
-  (multiple-value-bind (best ttl others flags)
-      (socket:dns-query domain :type :mx)
-    (declare (ignore ttl))
-    (if (not (member :no-such-domain flags))
-	(values best others)
-      ;; Try the searchlist
-      (dolist (searchdomain *domain-search-list* :no-such-domain)
-	(multiple-value-bind (best ttl others flags)
-	    (socket:dns-query (concatenate 'string domain "." searchdomain)
-			      :type :mx)
-	  (declare (ignore ttl))
-	  (if (not (member :no-such-domain flags))
-	      (return-from mx-dns-query (values best others))))))))
-	    
 
 	
 	

@@ -3,13 +3,13 @@
 (defparameter *debug* t)
 
 (defparameter *aliasesfile* "/etc/aliases")
+(defparameter *virtusersfile* "/etc/mail/virtusers")
 
 ;; If this is nil, it is determined by calling (gethostname)
 (defparameter *short-host-name* nil)
 
 ;; If this is nil, the fully qualified domain name of this
-;; host is determined by calling:
-;;    (dns-ipaddr-to-hostname (dns-lookup-hostname (gethostname)))
+;; host will be determined automatically, if possible.
 (defparameter *fqdn* nil)
 
 ;; Other names by which this host is known (Besides *fqdn* and
@@ -75,6 +75,9 @@
 ;; program with "|(user)/program/path"  syntax.
 (defparameter *program-alias-user* "mailnull")
 
+
+
+
 ;;;;;;;;
 ;;; Stuff that will need to be moved out to generalize the program.
 
@@ -85,12 +88,15 @@
     nil)
 
 (defun my-deliver-local-command (user queue)
+  (declare (ignore queue))
   (list
    "/usr/local/sbin/deliver-via-spamc" 
-   (emailaddr-orig (rewrite-local-envelope-sender (queue-from queue)))
+   ;;(emailaddr-orig (rewrite-local-envelope-sender (queue-from queue)))
+   "-d"
    user))
 
 (defparameter *deliver-local-command* 'my-deliver-local-command)
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Stuff unlikely to be modified.

@@ -13,7 +13,7 @@
   
 ;; Domain part is assumed to have been checked already.
 (defun lookup-recip-in-passwd (address)
-  (getpwnam (emailaddr-user address)))
+  (getpwnam (string-downcase (emailaddr-user address))))
 
 
 (defun get-recipient-disposition (addr)

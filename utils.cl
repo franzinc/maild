@@ -149,9 +149,16 @@
 		    (if (eq (type-of ,respvar) 'dns-response)
 			(dns-response-flags ,respvar)
 		      (fourth ,respvar))))))
-    (let (res)
+    ;; since we rely on *dns-domain* and *domain-search-list*
+    (configure-dns :auto t) 
+    ;; Avoid using old data.
+    (setf socket::*stale-entry-remove-time* 0)
+    (let ((search-list (copy-list *domain-search-list*))
+	  res)
+      (if *dns-domain*
+	  (pushnew *dns-domain* search-list :test #'equalp))
       (if (and search (null (position #\. domain)))
-	  (dolist (searchdom *domain-search-list*)
+	  (dolist (searchdom search-list)
 	    (setf res 
 	      (multiple-value-list 
 	       (apply #'dns-query (cons 
@@ -185,13 +192,20 @@
 	     (close ,f))))))
   
 
-;; XXX -- This will probably need some work
-;; Should we use the c-library resolver only?  It allows
-;; opportunity for /etc/hosts lookups, etc... controlled by the
-;; sysadmin  [this will be done 
+;; Requires properly set up forward and reverse DNS
 (defun compute-fqdn ()
-  (dns-ipaddr-to-hostname (dns-lookup-hostname (gethostname))))
+  (let ((mainip (useful-dns-query (gethostname)))
+	fqdn)
+    (if (null mainip)
+	(error "Could not resolve our hostname (~A) via DNS" (gethostname)))
+    (setf fqdn (dns-ipaddr-to-hostname mainip))
+    (if (null fqdn)
+	(error "Could not do a reverse DNS lookup on our IP address (~A)"
+	       (ipaddr-to-dotted mainip)))
+    fqdn))
 
+
+;; If there are DNS troubles, the user can set *fqdn* in the config file.
 (defun fqdn ()
   (if *fqdn*
       *fqdn*

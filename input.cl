@@ -29,7 +29,7 @@
     ;; don't need to look up gecos info if the fromaddr
     ;; is not local.. or if user-gecos is specified.
     (if (and (local-domain-p parsedfromaddr) (null user-gecos))
-	(let ((newpwent (getpwnam (emailaddr-user parsedfromaddr))))
+	(let ((newpwent (string-downcase (getpwnam (emailaddr-user parsedfromaddr)))))
 	  (if* newpwent
 	     then
 		  (setf gecos (pwent-gecos newpwent))

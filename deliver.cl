@@ -86,7 +86,7 @@
       (declare (ignore whole))
       (when found
 	;; Make sure the user exists.
-	(if (null (getpwnam user))
+	(if (null (getpwnam (string-downcase user)))
 	    (error 
 	     "Alias left hand side: ~A: User ~A doesn't exist"
 	     cmdline user))
@@ -123,7 +123,7 @@
 (defun send-message-to-program (q prg &key (rewrite :norewrite) run-as)
   (let (uid gid initgroups-user dir)
     (when run-as
-      (let ((pwent (getpwnam run-as)))
+      (let ((pwent (getpwnam (string-downcase run-as))))
 	(if (null pwent)
 	    (error "send-message-to-program: user ~S doesn't exist" run-as))
 	(setf uid (pwent-uid pwent))
