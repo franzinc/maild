@@ -308,6 +308,34 @@
 	    (setf tokens newtokens))))
       (return (values res tokens)))))
 
+(defun unquote-quoted-string (string)
+  (let ((outstring (make-string (length string)))
+	(outpos 0)
+	(inpos 0)
+	(max (length string))
+	quote
+	char)
+    (while (< inpos max)
+      (setf char (schar string inpos))
+      (cond
+       (quote
+	(setq quote nil)
+	(setf (schar outstring outpos) char)
+	(incf outpos)
+	(incf inpos))
+       ((char= char #\")
+	(incf inpos))
+       ((char= char #\\)
+	(incf inpos)
+	(setf quote t))
+       (t
+	(setf (schar outstring outpos) char)
+	(incf outpos)
+	(incf inpos))))
+    (subseq outstring 0 outpos)))
+
+
+
 (defun unquote-word (token)
   (cond
    ((atom-token-p token)

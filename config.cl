@@ -111,6 +111,8 @@
 
 (defparameter *deliver-local-command* 'my-deliver-local-command)
 
+(defparameter *extra-headers-func* nil)
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

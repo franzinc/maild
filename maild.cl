@@ -21,6 +21,7 @@
 	 ("v" :short verbose nil)
 	 ("t" :short grab-recips nil))
       (cmdline-recips :command-line-arguments args)
+      (declare (ignore options))
 
       (establish-signal-handlers)
 

@@ -80,6 +80,24 @@
       (delete-file (queue-datafile q)))
   (queue-unlock q))
 
+;; convenience functions.
+(defun queue-append-header (q header)
+  (setf (queue-headers q) (nconc (queue-headers q) (list header))))
+
+;; removes all existing instances and appends the new one.
+;; not used in the main program but might be used in user's *extra-headers-func*.
+(defun queue-replace-header (q header)
+  (let ((colonpos (position #\: header))
+	headername)
+    (if (null colonpos)
+	(error "queue-replace-header: Invalid header: ~A~%" header))
+    (setf headername (subseq header 0 (1+ colonpos))) ;; include the colon in the name
+    (setf (queue-headers q) (remove-header headername (queue-headers q)))
+    (queue-append-header q header)))
+
+;; also available for *extra-headers-func*
+(defun queue-locate-header (q header)
+  (locate-header header (queue-headers q)))
 
 ;; recips is a list of email addresses or a list of recip structs
 (defun queue-finalize (q recips headers cliaddr &key date add-from from-gecos)
@@ -93,22 +111,20 @@
       (expand-addresses emailaddrs (queue-from q))))
   
   ;; Add in any necessary headers.
+  ;; Received header always goes in front.
   (setf (queue-headers q)
     (cons 
-     (make-received-header cliaddr (queue-id q) (queue-orig-recips q))
+     (make-received-header cliaddr (queue-id q))
      headers))
   (if (null (locate-header "Message-Id:" headers))
-      (setf (queue-headers q)
-	(append (queue-headers q) 
-		(list (make-message-id-header (queue-id q))))))
+      (queue-append-header q (make-message-id-header (queue-id q))))
   (if (and date (null (locate-header "Date:" headers)))
-      (setf (queue-headers q)
-	(append (queue-headers q) 
-		(list (make-date-header)))))
+      (queue-append-header q (make-date-header)))
   (if (and add-from (null (locate-header "From:" headers)))
-      (setf (queue-headers q)
-	(append (queue-headers q) 
-		(list (make-from-header (queue-from q) from-gecos)))))
+      (queue-append-header q (make-from-header (queue-from q) from-gecos)))
+  
+  (if *extra-headers-func*
+      (funcall *extra-headers-func* q))
   
   (setf (queue-valid q) t)
   (update-queue-file q))

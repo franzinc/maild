@@ -13,10 +13,11 @@
       "localmods"))
 
 (defun compile-sources (&key load)
-  (with-compilation-unit ()
-    (dolist (file *source-files*)
-      (compile-file-if-needed (concatenate 'string file ".cl"))
-      (if load (load (concatenate 'string file ".fasl"))))))
+  (let ((excl::*break-on-warnings* t))
+    (with-compilation-unit ()
+      (dolist (file *source-files*)
+	(compile-file-if-needed (concatenate 'string file ".cl"))
+	(if load (load (concatenate 'string file ".fasl")))))))
   
 (eval-when (compile load eval)
   (require :osi)

@@ -1,3 +1,22 @@
+2003-06-06  Ahmon Dancy  <dancy@dancy>
+
+	* config.cl:  New parameter.  *extra-headers-func* for specifying
+	the a function that will be called to add additional message
+	headers when a queue item is being finalized.
+
+	* emailaddr.cl:  Added unquote-quoted-string.
+
+	* headers.cl:  Don't add the envelope recipient list to the
+	Received header.  
+
+	* load.cl:  Added break-on-warnings.
+
+	* queue.cl: Added queue-append-header, queue-replace-header, and
+	queue-locate-header convenience functions (intended for use in an
+	*extra-headers-func*).
+	
+	* utils.cl: removed unquote-quoted-string.
+	
 2003-05-19  root  <root@dancy>
 
 	* config.cl:  Parameterized the blacklisted host message in a new
