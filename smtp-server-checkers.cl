@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: smtp-server-checkers.cl,v 1.11 2003/08/15 21:18:48 dancy Exp $
+;; $Id: smtp-server-checkers.cl,v 1.12 2003/08/19 21:23:59 dancy Exp $
 
 (in-package :user)
 
@@ -60,7 +60,7 @@
     
     ;; When doing :ptr lookups, dns-query automatically flips the address
     ;; and adds .in-addr.arpa for us.
-    (let ((res (dns-record-exists-p ip :ptr)))
+    (let ((res (dns-record-exists-p (socket:ipaddr-to-dotted ip) :ptr)))
       (when (eq res :unknown)
 	(return 
 	  (values :transient "Domain resolution error")))
