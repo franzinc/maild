@@ -1,3 +1,8 @@
+2003-07-24  root  <root@gemini>
+
+	* Show individual and global stats.  Shows lists of currently
+	blocked deliveries and provides a way for quick whitelisting.
+	
 2003-07-23  root  <root@gills.dancysoft.com>
 
 	* New adminstration web thingy

@@ -28,28 +28,43 @@
   (require :osi)
   (use-package :excl.osi)
   (require :mysql)
-  (use-package :dbi.mysql))
+  (use-package :dbi.mysql)
+  (require :socket))
+
+
+(defun debug-main ()
+  (main "greyadmin" "-d"))
 
 (defun main (&rest args)
-  (declare (ignore args))
-  (init-webserver)
-  (let ((pid (fork)))
-    (cond
-     ((not (numberp pid))
-      (error "fork failed"))
-     ((= pid 0)
-      ;; child
-      (detach-from-terminal)
-      (loop (sleep 86400)))
-     (t
-      ;; parent
-      (exit 0 :quiet t)))))
+  (pop args)
+  (with-command-line-arguments 
+      (("d" :short debug nil))
+    (rest :command-line-arguments args)
+    (declare (ignore rest))
 
+    ;; config file is required
+    (load *configfile* :verbose debug)
+    
+    (when debug
+      (setf *libdir* "")
+      (setf *port* 2527))
+    
+    (init-webserver)
+
+    (let ((pid (if debug 0 (fork))))
+      (cond
+       ((not (numberp pid))
+	(error "fork failed"))
+       ((= pid 0)
+	;; child
+	(when (not debug)
+	  (detach-from-terminal))
+	(loop (sleep 86400)))
+       (t
+	;; parent
+	(exit 0 :quiet t))))))
 
 (defun init-webserver ()
-  ;; config file is required
-  (load *configfile* :verbose nil)
-  
   (let ((pwent (getpwnam *run-as*)))
     (if (null pwent)
 	(error "User ~A doesn't exist" *run-as*))
@@ -67,7 +82,8 @@
 		       :map '(("login" "login.clp")
 			      ("checklogin" check-login)
 			      ("menu" "menu.clp")
-			      ("update" update)))))
+			      ("update" update)
+			      ("whitelist" quick-whitelist-triple)))))
 
 ;; no output is generated unless an authenticated session
 ;; is in use or public argument is supplied.
@@ -122,6 +138,12 @@
     (html
      (:princ-safe (user-address user)))))
 
+(def-clp-function ga_domain (req ent args body) 
+  (declare (ignore req ent args body))
+  (html
+     (:princ-safe *domain*)))
+
+
 ;; t means on, nil means off
 (defun determine-greylist-status (addr)
   (ecase *greylist-operation-mode*
@@ -163,36 +185,78 @@
     "menu"))
 
 (def-clp-function ga_num-blocked-triples (req ent args body) 
-  (declare (ignore ent args body))
+  (declare (ignore ent body))
   (let* ((sess (websession-from-req req))
 	 (user (websession-variable sess "user"))
-	 (addr (user-address user)))
+	 (addr (if (assoc "user" args :test #'equal)
+		   (user-address user))))
     (html 
-     (:princ (num-blocked-triples addr)))))
+     (:princ (num-blocked-triples :addr addr)))))
 
 (def-clp-function ga_num-passed-triples (req ent args body) 
-  (declare (ignore ent args body))
+  (declare (ignore ent body))
   (let* ((sess (websession-from-req req))
 	 (user (websession-variable sess "user"))
-	 (addr (user-address user)))
+	 (addr (if (assoc "user" args :test #'equal)
+		   (user-address user))))
     (html 
-     (:princ (num-passed-triples addr)))))
+     (:princ (num-passed-triples :addr addr)))))
 
 (def-clp-function ga_num-suspected-spams (req ent args body) 
-  (declare (ignore ent args body))
+  (declare (ignore ent body))
   (let* ((sess (websession-from-req req))
 	 (user (websession-variable sess "user"))
-	 (addr (user-address user)))
+	 (addr (if (assoc "user" args :test #'equal)
+		   (user-address user))))
     (html 
-     (:princ (num-suspected-spams addr)))))
-      
+     (:princ (num-suspected-spams :addr addr)))))
 
+(defun make-url (base alist)
+  (concatenate 'string base "?" (query-to-form-urlencoded alist)))
 
+(def-clp-function ga_list-delayed-triples (req ent args body)
+  (declare (ignore args body))
+  (let* ((wa (webaction-from-ent ent))
+	 (sess (websession-from-req req))
+	 (user (websession-variable sess "user"))
+	 (addr (user-address user))
+	 (entries (get-delayed-triples addr)))
+    (when entries
+      (html
+       (:b "Deliveries currently being delayed for "
+	   (:princ-safe addr)) 
+       :br :br
+       ((:table :border 1)
+	(:tr (:td (:b "Sending mail server")) 
+	     (:td (:b "Sender (click to unblock)"))
+	     (:td (:b "Unblocks at")))
+	(dolist (thing entries)
+	  (html
+	   (:tr
+	    (:td (:princ (socket:ipaddr-to-dotted (first thing))))
+	    (:td 
+	     ((:a :href (make-url (locate-action-path wa "whitelist" sess)
+				  `(("ip" . ,(first thing))
+				    ("sender" . ,(second thing)))))
+	      (:princ-safe (second thing))))
+	    (:td (:princ-safe (ctime (third thing))))))))))))
+
+(defun quick-whitelist-triple (req ent)
+  (declare (ignore ent))
+  (let* ((sess (websession-from-req req))
+	 (user (websession-variable sess "user"))
+	 (addr (user-address user))
+	 (ip (request-query-value "ip" req))
+	 (sender (request-query-value "sender" req)))
+    (greysql
+     (format nil "update triples set blockexpire=0 where receiver=~S and sender=~S and ip=~D"
+	     (mysql-escape-sequence addr)
+	     (mysql-escape-sequence sender)
+	     ip))
+    "menu"))
   
 
-
-
-;; from greylist.cl (with some mods)
+;; db stuff
 
 (defun ensure-greylist-db ()
   (without-interrupts
@@ -214,9 +278,6 @@
 			   :host *greylist-db-host*
 			   :user *greylist-db-user*
 			   :password *greylist-db-password*)))))
-
-
-
 
 
 (defmacro greysql (&rest rest)
@@ -264,26 +325,41 @@
       (format nil "delete from optin where receiver=~S"
 	      (mysql-escape-sequence addr))))))
 
-(defun num-blocked-triples (addr)
+(defun num-blocked-triples (&key addr)
   (caar 
    (greysql 
-    (format nil "select sum(blocked) from triples where receiver=~S"
-	    (mysql-escape-sequence addr)))))
+    (with-output-to-string (s)
+      (write-string "select sum(blocked) from triples" s)
+      (if addr
+	  (format s " where receiver=~S" (mysql-escape-sequence addr)))))))
 
-(defun num-passed-triples (addr)
+(defun num-passed-triples (&key addr)
   (caar 
    (greysql 
-    (format nil "select sum(passed) from triples where receiver=~S"
-	    (mysql-escape-sequence addr)))))
+    (with-output-to-string (s)
+      (write-string "select sum(passed) from triples" s)
+      (if addr
+	  (format s " where receiver=~S" (mysql-escape-sequence addr)))))))
 
-(defun num-suspected-spams (addr)
+(defun num-suspected-spams (&key addr)
   (caar 
    (greysql 
-    (format nil "select count(*) from triples where receiver=~S and passed=0"
-	    (mysql-escape-sequence addr)))))
+    (with-output-to-string (s)
+      (write-string "select count(*) from triples where passed=0" s)
+      (if addr
+	  (format s " and receiver=~S" (mysql-escape-sequence addr)))))))
+
+;; Return triples that are currently in the blocking period.
+(defun get-delayed-triples (addr)
+  (let ((now (get-universal-time)))
+    (greysql 
+     (format nil "select ip, sender, blockexpire from triples where receiver=~S and blockexpire>~D and expire>~D and passed=0" 
+	     (mysql-escape-sequence addr)
+	     now now))))
+  
 
 ;;;;;;;
 
 (defun build ()
   (compile-file-if-needed "greyadmin.cl")
-  (generate-executable "greyadmin" '("greyadmin.fasl")))
+  (generate-executable "greyadmin" '("greyadmin.fasl" :locale)))

@@ -15,14 +15,42 @@ Off
 <br>
 <input type=submit value="Update settings"><br>
 </form>
+
+<hr>
 <b>Statistics</b><br>
+
 <ul>
-<li>Number of delivery attempts that have been delayed: 
- <ga_num-blocked-triples/></li>
-<ul>
-    <li>Of those, the number that have never been accepted (likely spams): <ga_num-suspected-spams/></li>
+<li> For <ga_domain/> </li>
+  <ul>
+	<li>Number of delivery attempts that have been delayed: 
+	    <ga_num-blocked-triples/></li>
+	<ul>
+		    <li>Of those, the number that have never been accepted (likely spams): 
+			<ga_num-suspected-spams/></li>
+	</ul>
+	<li>Number of delivery attempts that have been accepted:
+		 <ga_num-passed-triples/></li>
+  </ul>
+<li> For <ga_user-address/> </li>
+  <ul>
+	<li>Number of delivery attempts that have been delayed: 
+	    <ga_num-blocked-triples user=t/></li>
+	<ul>
+		    <li>Of those, the number that have never been accepted (likely spams): 
+			<ga_num-suspected-spams user=t/></li>
+	</ul>
+	<li>Number of delivery attempts that have been accepted:
+		 <ga_num-passed-triples user=t/></li>
+  </ul>
 </ul>
-<li>Number of delivery attempts that have been accepted:
- <ga_num-passed-triples/></li>
-</ul>
+
+
+<ga_list-delayed-triples/>
+
+
+<form action="menu">
+<input type=submit value="Refresh"><br>
+</form>
+
+
 </ga_with-wrapper>
