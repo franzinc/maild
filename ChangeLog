@@ -1,6 +1,13 @@
+2003-08-22  Ahmon Dancy  <dancy@dancy>
+
+	* version.cl: Bumped version to 1.1.5.
+
+	* rewrite.cl: Cope better with invalid email addresses that may be
+	found in mail headers during rewrite.  
+
 2003-08-19  Ahmon Dancy  <dancy@dancy>
 
-	* verison.cl: Bumped version to 1.1.4.
+	* version.cl: Bumped version to 1.1.4.
 
 	* emailaddr.cl:  Allow carriage return characters to be treated as
 	whitespace even though it's not allowed in the RFC.  This helps

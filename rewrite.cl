@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: rewrite.cl,v 1.9 2003/07/30 22:44:55 dancy Exp $
+;; $Id: rewrite.cl,v 1.10 2003/08/22 20:41:47 dancy Exp $
 
 (in-package :user)
 
@@ -38,16 +38,20 @@
   (block nil
     (if (emailnullp addr)
 	(return addr))
-    
-    (if (should-masquerade-p addr)
-	(setf addr
+
+    (let (newaddr)
+      (when (should-masquerade-p addr)
+	(setf newaddr
 	  (parse-email-addr
-	   (concatenate 'string (emailaddr-user addr) "@" *masquerade-as*))))
-    ;; Tack on our fqdn if we're still domainless.
-    (if (null (emailaddr-domain addr))
-	(setf addr 
+	   (concatenate 'string (emailaddr-user addr) "@" *masquerade-as*)))
+	(setf addr (if newaddr newaddr addr)))
+      
+      ;; Tack on our fqdn if we're still domainless.
+      (when (null (emailaddr-domain addr))
+	(setf newaddr
 	  (parse-email-addr
-	   (concatenate 'string (emailaddr-user addr) "@" (fqdn)))))
+	   (concatenate 'string (emailaddr-user addr) "@" (fqdn))))
+	(setf addr (if newaddr newaddr addr))))
     addr))
     
 ;;;; stuff user may want to modify

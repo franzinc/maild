@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: smtp-server.cl,v 1.21 2003/07/23 20:28:46 dancy Exp $
+;; $Id: smtp-server.cl,v 1.22 2003/08/22 20:41:47 dancy Exp $
 
 (in-package :user)
 
@@ -94,7 +94,7 @@
 
 (defun smtp-server ()
   (parse-connections-blacklist)
-  
+
   (let ((port *smtp-port*)
 	(ent (getservbyname "smtp" "tcp"))
 	sock)

@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: maild.cl,v 1.16 2003/07/08 18:15:52 layer Exp $
+;; $Id: maild.cl,v 1.17 2003/08/22 20:41:47 dancy Exp $
 
 (in-package :user)
 
@@ -28,7 +28,7 @@
       (verify-real-user-is-root)
       (queue-list)
       (exit 0 :quiet t))
-    
+
     (if (null args)
 	(error "Recipient names must be specified"))
     (with-command-line-arguments 
