@@ -82,17 +82,33 @@
 	    (let* ((dotted (smtp-remote-dotted sock))
 		   (sess (make-session :sock sock :dotted dotted
 				       :fork fork :verbose verbose))
-		   bl cmd)
+		   cmd)
 	
 	      (maild-log "SMTP connection from ~A" dotted)
 	      
-	      (setf bl (connection-blacklisted-p (smtp-remote-host sock)))
-	
-	      (when bl
-		(outline sock "500 ~A (~A)" *blacklisted-response* bl)
-		(maild-log "Rejecting blacklisted SMTP client (~A)"
-			   dotted)
-		(return-from do-smtp))
+	      
+	     (parse-connections-blacklist)
+	      
+	      ;; Run through checkers.
+	      (dolist (checker *smtp-connection-checkers*)
+		(multiple-value-bind (status string)
+		    (funcall (second checker) (smtp-remote-host sock))
+		  (ecase status
+		    (:err
+		     (outline sock "500 ~A" string)
+		     (maild-log 
+		      "Checker ~S rejected connection from ~A. Message: ~A"
+		      (first checker) dotted string)
+		     (return-from do-smtp))
+		    (:transient
+		     (outline sock "400 ~A" string)
+		     (maild-log 
+		      "Checker ~S temporarily rejected connectino from ~A. Message: ~A"
+		      (first checker) dotted string)
+		     (return-from do-smtp))
+		    (:ok
+		     ))))
+
 	      
 	      (outline sock "220 ~A Allegro mail server ready" (fqdn)) ;; Greet
 	      (loop

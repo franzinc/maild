@@ -4,16 +4,7 @@
 
 (defun main (&rest args)
   (setf *load-verbose* nil)
-
-  (if (and (probe-file *configfile*) 
-	   (verify-root-only-file *configfile*))
-      (load *configfile*))
   
-  ;; sanity check.
-  (if (not (probe-file *queuedir*))
-      (error "Queue directory ~A doesn't exist!" *queuedir*))
-  (verify-root-only-file *queuedir*)
-
   (let ((prgname (pop args)))
     (when (string= (basename prgname) "mailq")
       (verify-real-user-is-root)
@@ -30,8 +21,25 @@
 	 ("o" :short options :required-companion :allow-multiple-options)
 	 ("q" :short processqueue :optional-companion)
 	 ("v" :short verbose nil)
-	 ("t" :short grab-recips nil))
+	 ("t" :short grab-recips nil)
+	 ("C" :short alt-config-file :required-companion))
       (cmdline-recips :command-line-arguments args)
+
+      (when alt-config-file
+	(verify-real-user-is-root)
+	(if (not (probe-file alt-config-file))
+	    (error "Configuration file ~A not found." alt-config-file))
+	(setf *configfile* alt-config-file))
+      
+      ;; Load the configuration now.
+      (if (and (probe-file *configfile*) 
+	       (verify-root-only-file *configfile*))
+	  (load *configfile*))
+
+      ;; sanity check.
+      (if (not (probe-file *queuedir*))
+	  (error "Queue directory ~A doesn't exist!" *queuedir*))
+      (verify-root-only-file *queuedir*)
       
       (establish-signal-handlers)
 

@@ -1,3 +1,8 @@
+2003-07-01  root  <root@gills.dancysoft.com>
+
+	* smtp-server*.cl: Added hook for initial connection checkers.
+	Moved the regular blacklisting stuff into a checker.
+
 2003-06-30  Ahmon Dancy  <dancy@dancy>
 
 	* input.cl:  When reading a message in, strip the Unix mailbox

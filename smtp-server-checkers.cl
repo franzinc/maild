@@ -16,7 +16,23 @@
     (nconc *smtp-data-pre-checkers*
 	   (list (list name func)))))
 
+(defun add-smtp-connection-checker (name func)
+  (setf *smtp-connection-checkers*
+    (nconc *smtp-connection-checkers*
+	   (list (list name func)))))
+
 ;; default checkers for the smtp server
+
+;; Initial connection
+
+(defun smtp-connection-blacklist-checker (ip)
+  (let ((bl (connection-blacklisted-p ip)))
+    (if* (null bl)
+       then
+	    :ok
+       else
+	    (values :err 
+		    (format nil "~A (~A)" *blacklisted-response* bl)))))
 
 ;; MAIL FROM:
 

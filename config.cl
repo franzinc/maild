@@ -38,9 +38,7 @@
 
 ;; Can be a list of IP addresses and masks.. or domain names.
 ;; If a domain like example.com is supplied, then connections
-;; from mailhost.example.com will be blacklisted as well.  Comparing
-;; domains will require reverse DNS mapping enforcement to be turned
-;; on to work properly.
+;; from mailhost.example.com will be blacklisted as well.  
 (defparameter *blacklist-connections* nil)
 
 ;; This is the message that is sent immediately after connection from
@@ -125,6 +123,11 @@
 ;; This is called just before the DATA command responds with the 
 ;; normal go-ahead (354 Enter mail...).  
 (defparameter *smtp-data-pre-checkers* nil)
+
+;; Initial connection checkers.  Checkers are called with the 
+;; client ip address.
+(defparameter *smtp-connection-checkers* 
+    '(("Connection blacklist checker" smtp-connection-blacklist-checker)))
 
 
 ;; List of checkers to be called after a message body has been
