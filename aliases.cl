@@ -14,12 +14,12 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: aliases.cl,v 1.12 2004/09/06 15:09:37 dancy Exp $
+;; $Id: aliases.cl,v 1.13 2005/04/06 03:22:32 dancy Exp $
 
 (in-package :user)
 
 (defstruct aliases-info
-  (mtime 0)
+  files ;; list of (filename mtime) pairs
   aliases
   (lock (mp:make-process-lock))) ;; so only one thread will reparse
 
@@ -28,31 +28,62 @@
 (defun update-aliases-info ()
   ;; Make sure only one thread creates the aliases-info
   (without-interrupts 
-    (if (null *aliases*) (setf *aliases* (make-aliases-info))))
-  
+    (if (null *aliases*) 
+	(setf *aliases* 
+	  (make-aliases-info :files (list (list *aliases-file* 0))))))
+
   ;; Make sure only one thread reparses the aliases.
   (mp:with-process-lock ((aliases-info-lock *aliases*) 
 			 :whostate "Waiting for aliases lock")
-    (let ((mtime (file-write-date *aliases-file*)))
-      (if* (> mtime (aliases-info-mtime *aliases*))
-	 then
-	      (verify-root-only-file *aliases-file*)
-	      (if *debug* (maild-log "Reparsing aliases"))
-	      (setf (aliases-info-aliases *aliases*)
-		(parse-aliases-file))
-	      (setf (aliases-info-mtime *aliases*) mtime)))))
+    (when (aliases-need-reparsing-p)
+      (if *debug* (maild-log "Reparsing aliases"))
+      (parse-global-aliases))))
 
-(defun parse-aliases-file ()
+
+;; Call with the lock held.
+;; XXX What should we do if an alias file doesn't exist anymore?
+;; Right now we treat that as a need-to-reparse scenario.
+(defun aliases-need-reparsing-p ()
+  (dolist (pair (aliases-info-files *aliases*))
+    (let ((filename (first pair))
+	  (mtime (second pair)))
+      (if (or (not (probe-file filename))
+	      (> (file-write-date filename) mtime))
+	  (return t)))))
+
+(defun parse-global-aliases ()
   (let ((ht (make-hash-table :test #'equalp)))
-    (with-open-file (f *aliases-file*)
+    (setf (aliases-info-files *aliases*) nil)
+    (parse-aliases-file *aliases-file* ht nil)
+    (setf (aliases-info-aliases *aliases*) ht)))
+    
+
+(defun parse-aliases-file (filename ht files-seen)
+  (verify-root-only-file filename)
+  (push filename files-seen)
+  (let ((files-entry (list filename 0)))
+    (push files-entry (aliases-info-files *aliases*))
+    (with-open-file (f filename)
       (let (ali)
 	(while (setf ali (aliases-get-alias f))
 	  (multiple-value-bind (alias expansion)
 	      (parse-alias-line ali)
-	    (if (gethash alias ht)
-		(error "Redefined alias: ~A" alias))
-	    (setf (gethash alias ht) expansion)))))
-    ht))
+	    
+	    (if* (equalp alias "include")
+	       then
+		    (dolist (entry expansion)
+		      (if (not (eq (recip-type entry) :file))
+			  (error "~A~%Right hand side of an include alias must be a list of absolute pathnames" ali))
+		      (let ((ifile (recip-file entry)))
+			(if (member ifile files-seen :test #'equal)
+			    (error "~A~%Include loop" ifile))
+			(parse-aliases-file ifile ht files-seen)))
+	       else
+		    (if (gethash alias ht)
+			(error "Redefined alias: ~A" alias))
+		    (setf (gethash alias ht) expansion))))))
+    ;; Indicate success
+    (setf (second files-entry) (get-universal-time))))
 
   
 (defun parse-alias-line (line)
@@ -62,6 +93,7 @@
       (if (null lhs)
 	  (error "Invalid aliases line: ~A" line))
       (values lhs (parse-alias-right-hand-side lhs line pos)))))
+
 
 (defun parse-alias-right-hand-side (lhs line pos)
   (let ((recips (parse-recip-list line :pos pos)))

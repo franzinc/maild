@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.7 2005/03/16 03:35:07 dancy Exp $
+# $Id: Makefile,v 1.8 2005/04/06 03:22:32 dancy Exp $
 
 lisp=$(shell if test -n "$(ACL)"; then \
 		echo $(ACL); \
@@ -6,6 +6,8 @@ lisp=$(shell if test -n "$(ACL)"; then \
 		echo /fi/cl/7.0/bin/linux86/mlisp; \
 	     elif test -x /usr/local/acl70/mlisp; then \
 		echo /usr/local/acl70/mlisp; \
+	     elif test -x /storage1/acl70/mlisp; then \
+		echo /storage1/acl70/mlisp; \
 	     else \
 		echo /backup/acl/acl70/mlisp; \
 	     fi)

@@ -1,3 +1,15 @@
+2005-04-05  root  <root@gills.dancysoft.com>
+1.1.25
+	
+	* aliases.cl: Allow system aliases file to include other aliases
+	files (This isn't the same as using :include: on the right hand
+	side of an alias.. which would only define the expansion for a
+	single left hand side).  Included alias files are subject to the
+	same security restrictions that the global aliases file is (i.e,
+	must be owned by root and must not be group/world writable).
+
+	* Makefile: Also look for mlisp in /storage1/acl70.
+
 2004-12-20  Kevin Layer  <layer@gemini>
 1.1.24
 
