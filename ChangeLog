@@ -1,3 +1,31 @@
+2003-09-19  Ahmon Dancy  <dancy@dancy>
+
+	* version.cl: 1.1.9
+
+	* headers.cl:  Fixed daylight savings time problem when generating
+	date header.
+
+	* config.cl:  New *smtp-data-checkers* variable to hold a list of
+	checkers that should be called after the message data has been
+	received in an SMTP session but before the response is sent.
+	This is different than the "checker" checkers that happen for all
+	messages, regardless of their means of reception (smtp, stdin).  
+
+	* smtp-server.cl:  Use the new *smtp-data-checkers* list.
+
+	* smtp-server-checkers.cl:  New utility function to add things to
+	the *smtp-data-checkers* list.
+
+	* greylist.cl:  New config parameter:
+	*greylist-after-data-received*.  If set to true, greylisting
+	checks will only be done after the message is received during the
+	DATA command.  This allegedly helps interoperability with some
+	mail servers.  However, this has a potentially undesirable side
+	effect.  When this option is turned off, a message arriving for
+	several recipients will have each recipient deferred or accepted
+	individually.  With this option turned on, if any one recipient
+	should be deferred, the message is deferred for all recipients.
+	
 2003-09-10  Ahmon Dancy  <dancy@dancy>
 
 	* version.cl: Bumped version to 1.1.8.

@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: smtp-server.cl,v 1.24 2003/09/10 20:13:21 dancy Exp $
+;; $Id: smtp-server.cl,v 1.25 2003/09/19 17:30:34 dancy Exp $
 
 (in-package :user)
 
@@ -527,7 +527,30 @@ in the HELO command (~A) from client ~A"
 	(:dot  ;;okay
 	 ))
 
-      ;; Run through checkers.
+      (dolist (checker *smtp-data-checkers*)
+	(multiple-value-bind (status string)
+	    (funcall (second checker) (smtp-remote-host sock) 
+		     (session-from sess) (session-to sess)
+		     msgsize headers (queue-datafile q))
+	  (ecase status
+	    (:err
+	     (outline sock "551 ~A" string)
+	     (maild-log "Checker ~S rejected message data. Message: ~A"
+			(first checker) string)
+	     (inc-checker-stat messages-rejected-permanently (first checker))
+	     (return-from smtp-data))
+	    (:transient
+	     (outline sock "451 ~A" string)
+	     (maild-log 
+	      "Checker ~S temporarily failed message. Message: ~A"
+	      (first checker) string)
+	     (inc-checker-stat messages-rejected-temporarily (first checker))
+	     (return-from smtp-data))
+	    (:ok
+	     ))))
+
+      
+      ;; Run through non-smtp-specific checkers.
       (when (and (not err) (not rejected))
 	(multiple-value-bind (res text checker)
 	    (check-message-checkers q headers msgsize)

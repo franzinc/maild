@@ -14,14 +14,13 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: greylist.cl,v 1.10 2003/08/04 16:39:37 dancy Exp $
+;; $Id: greylist.cl,v 1.11 2003/09/19 17:30:34 dancy Exp $
 
 (in-package :user)
 
 (eval-when (compile load eval)
   (require :mysql))
 
-(defparameter *greylist-configfile* nil)
 (defparameter *greylist-db-host* "localhost")
 (defparameter *greylist-db-name* "greylist")
 (defparameter *greylist-db-user* "greylist")
@@ -29,6 +28,7 @@
 ;; :opt-in or :opt-out.  
 (defparameter *greylist-operation-mode* :opt-out)
 (defparameter *greylist-ip-whitelist* '("127.0.0.1"))
+
 
 ;; times are in seconds
 
@@ -38,6 +38,15 @@
 (defparameter *greylist-delay-lifetime* (* 4 3600)) ;; 4 hours
 ;; Good records can be idle for this amount of time.
 (defparameter *greylist-lifetime* (* 60 86400)) ;; 60 days
+
+;; Change to t to make the greylisting checks happen
+;; after the message data is received.  This may improve interoperability
+;; with weird clients.  However, this has a potentially undesirable side
+;; effect.  When this option is turned off, a message arriving for
+;; several recipients will have each recipient deferred or accepted 
+;; individually.  With this option turned on, if any one recipient should
+;; be deferred, the message is deferred for all recipients.
+(defparameter *greylist-after-data-received* nil)
 
 (defparameter *greylist-db* nil)
 
@@ -58,9 +67,15 @@
 
 
 (defun enable-greylist (configfile)
-  (setf *greylist-configfile* configfile)
-  (add-smtp-rcpt-to-checker "Greylist checker" 'greylist-rcpt-to-checker)
-  (add-smtp-data-pre-checker "Greylist checker" 'greylist-data-pre-checker)
+  (load configfile :verbose nil)
+  (if* (not *greylist-after-data-received*)
+     then
+	  (add-smtp-rcpt-to-checker 
+	   "Greylist checker" 'greylist-rcpt-to-checker)
+	  (add-smtp-data-pre-checker 
+	   "Greylist checker" 'greylist-data-pre-checker)
+     else
+	  (add-smtp-data-checker "Greylist checker" 'greylist-data-checker))
   (setf *greylist-ip-whitelist-parsed* nil)
   (dolist (ip *greylist-ip-whitelist*)
     (push (parse-addr ip) *greylist-ip-whitelist-parsed*)))
@@ -72,9 +87,6 @@
 	(mp:make-process-lock :name "Greylist database lock"))))
 
   (mp:with-process-lock (*greylist-lock*)
-    (if (null *greylist-db*)
-	(load *greylist-configfile* :verbose nil))
-    
     ;; See if we have a broken connection.
     (when (and *greylist-db* 
 	       (not (dbi.mysql:mysql-connected *greylist-db*)))
@@ -138,29 +150,30 @@
 ;; :skip -- no need to check greylist.. accept the message
 ;; (:transient ...) -- something wrong connecting to database
 
-(defun greylist-init (ip from to)
+(defun greylist-init-common (ip from to)
   ;; Check ip whitelist.
   (dolist (net *greylist-ip-whitelist-parsed*)
     (when (addr-in-network-p ip net)
       (maild-log "Client from ~A:  Manually whitelisted client." 
 		 (ipaddr-to-dotted ip))
-      (return-from greylist-init :skip)))
+      (return-from greylist-init-common :skip)))
   
   ;; Hosts that are allowed to relay through us aren't subject
-  ;; to greylisting.
+  ;; to greylisting.   Most (all?) relay checkers ignore the 'to'
+  ;; parameter so this won't cause problems when there are really
+  ;; multiple recipients (i.e., it is unlikely that this function
+  ;; will return different values depending on the 'to' parameter).
   (when (relaying-allowed-p ip from to)
     (maild-log "Client from ~A:  Auto-whitelisted relay client."
 	       (ipaddr-to-dotted ip))
-    (return-from greylist-init :skip))
+    (return-from greylist-init-common :skip))
   
-  (let ((res (multiple-value-list (greylist-db-init))))
-    (ecase (first res)
-      (:transient
-       (return-from greylist-init (values-list res)))
-      (:ok)))
+  (greylist-db-init))
+
   
+(defun greylist-init-common-recip (to)
   (setf to (emailaddr-orig to))
-  
+    
   (ecase *greylist-operation-mode*
     (:opt-out
      (if* (greylist-recipient-excluded-p to)
@@ -168,16 +181,30 @@
 	     (maild-log "Greylist: ~A is in the opt-out list" to)
 	     :skip
 	else
-       :ok))
+	     :ok))
     (:opt-in
      (if (greylist-recipient-included-p to)
 	 :ok
        :skip))))
-
-(defun greylist-mailer-daemon-addr-p (addr)
-  (or (emailnullp addr)
-      (equalp "postmaster" (emailaddr-user addr))))
   
+
+;; Only returns :skip if all recipients would return :skip
+(defun greylist-init (ip from tos)
+  (if (not (listp tos))
+      (setf tos (list tos)))
+  (block nil
+    (let ((res (multiple-value-list (greylist-init-common ip from (first tos)))))
+      (ecase (first res)
+	(:transient
+	 (return (values-list res)))
+	(:skip
+	 (return :skip))
+	(:ok
+	 (dolist (to tos :skip)
+	   (if (eq :ok (greylist-init-common-recip to))
+	       (return :ok))))))))
+
+
 (defmacro with-greylist ((ip from to) &body body)
   (let ((res (gensym)))
     `(let ((,res (multiple-value-list (greylist-init ,ip ,from ,to))))
@@ -189,6 +216,11 @@
 	 (:transient
 	  (values-list ,res))))))
 
+
+(defun greylist-mailer-daemon-addr-p (addr)
+  (or (emailnullp addr)
+      (equalp "postmaster" (emailaddr-user addr))))
+  
 
 (defun greylist-rcpt-to-checker (ip from type to recips)
   (declare (ignore type recips))
@@ -205,32 +237,44 @@
 			     (emailaddr-orig to)))))
 
 
-(defun greylist-data-pre-checker (ip from tos)
-  (block nil
-    ;;(maild-log "greylist-data-pre-checker...")
-    (with-greylist (ip from (first tos))
-      (when (not (greylist-mailer-daemon-addr-p from))
-	(return :ok)) ;; we already passed the rcpt to test
-
-      (let ((now (get-universal-time))
-	    res)
-	(dolist (to tos :ok)
-	  (setf res 
-	    (multiple-value-list 
-	     (greylist-check-common now ip (emailaddr-orig from)
-				    (emailaddr-orig to))))
+;; If any of the triples would delay, then the entire message is
+;; delayed.
+(defun greylist-data-checker-common (ip from tos)
+  (with-greylist (ip from tos)
+    (let ((now (get-universal-time))
+	  res)
+      (dolist (to tos)
+	(setf res 
+	  (multiple-value-list 
+	   (greylist-check-common now ip (emailaddr-orig from)
+				  (emailaddr-orig to))))
 	
-	  (if (not (eq (first res) :ok))
-	      (return-from greylist-data-pre-checker (values-list res))))
+	(if (not (eq (first res) :ok))
+	    (return-from greylist-data-checker-common (values-list res))))
       
-	;; We're about to say okay.. but before we do, expire the
-	;; corresponding records.  (special case for mail from <>).
-	(dolist (to tos)
-	  (let ((triple (greylist-lookup-triple now ip (emailaddr-orig from)
-						(emailaddr-orig to))))
-	    (greylist-delete-triple triple)))
+      ;; Reach here if all triples were :ok.  Before reporting :ok,
+      ;; check to see if this is a message from <>.  If it is,
+      ;; immediately expire the corresponding triples since messages
+      ;; from <> are considered one-time error messages. 
+      (if (greylist-mailer-daemon-addr-p from)
+	  (dolist (to tos)
+	    (let ((triple (greylist-lookup-triple now ip (emailaddr-orig from)
+						  (emailaddr-orig to))))
+	      (greylist-delete-triple triple))))
       
-	:ok))))
+      :ok)))
+
+
+(defun greylist-data-checker (ip from tos size headers datafile)
+  (declare (ignore size headers datafile))
+  (greylist-data-checker-common ip from tos))
+
+;; Same as greylist-data-checker.. except it always says okay if
+;; the message is not from mailer daemon.
+(defun greylist-data-pre-checker (ip from tos)
+  (if (not (greylist-mailer-daemon-addr-p from))
+      :ok
+    (greylist-data-checker-common ip from tos)))
 
 
 ;;;;;;;; DB stuff

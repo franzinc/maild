@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: smtp-server-checkers.cl,v 1.13 2003/09/02 21:45:33 dancy Exp $
+;; $Id: smtp-server-checkers.cl,v 1.14 2003/09/19 17:30:34 dancy Exp $
 
 (in-package :user)
 
@@ -32,6 +32,11 @@
 (defun add-smtp-data-pre-checker (name func)
   (setf *smtp-data-pre-checkers*
     (nconc *smtp-data-pre-checkers*
+	   (list (list name func)))))
+
+(defun add-smtp-data-checker (name func)
+  (setf *smtp-data-checkers*
+    (nconc *smtp-data-checkers*
 	   (list (list name func)))))
 
 (defun add-smtp-connection-checker (name func)

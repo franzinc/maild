@@ -14,12 +14,17 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: checkers.cl,v 1.5 2003/07/30 22:48:48 dancy Exp $
+;; $Id: checkers.cl,v 1.6 2003/09/19 17:30:34 dancy Exp $
 
 (in-package :user)
 
 ;; Checks that are run after a message body is received but before it
-;; is accepted.  
+;; is accepted.  These checkers are used for messages that came in from
+;; SMTP or stdin... and are primarily intended for checkers that want to
+;; verify the message data itself.  If you want something that only runs
+;; after a message has been received via the SMTP DATA command, use
+;; an smtp-data-checker (see smtp-server-checkers.cl).
+;;
 ;; Checkers are called with the following arguments:
 ;;    headers  : a list of the message headers 
 ;;    size : the message size in bytes 

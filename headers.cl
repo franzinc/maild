@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: headers.cl,v 1.12 2003/07/30 22:44:55 dancy Exp $
+;; $Id: headers.cl,v 1.13 2003/09/19 17:30:34 dancy Exp $
 
 (in-package :user)
 
@@ -158,7 +158,9 @@
 (defun datetime ()
   (multiple-value-bind (second minute hour date month year day daylight-p zone)
       (get-decoded-time)
-    (declare (ignore-if-unused second minute hour date month year day daylight-p zone))
+    (declare (ignore-if-unused second minute hour date month year day zone))
+    (if daylight-p
+	(decf zone))
     (let ((zonesign (if (<= zone 0) "+" "-")))
       (format nil "~a, ~d ~a ~d ~2,'0d:~2,'0d:~2,'0d ~a~4,'0d"
 	      (svref *abbrev-days-of-week* day)

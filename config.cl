@@ -1,4 +1,4 @@
-;; $Id: config.cl,v 1.24 2003/08/15 21:18:48 dancy Exp $
+;; $Id: config.cl,v 1.25 2003/09/19 17:30:34 dancy Exp $
 
 (in-package :user)
 
@@ -151,10 +151,16 @@
       ("DNS blacklist checker" smtp-rcpt-to-dns-blacklist-checker)))
 
 ;; Same idea as above.  Checkers are called with 
-;; client ip address, sender, recips (all email addresses parse).
+;; client ip address, sender, recips (all email addresses parsed).
 ;; This is called just before the DATA command responds with the 
 ;; normal go-ahead (354 Enter mail...).  
 (defparameter *smtp-data-pre-checkers* nil)
+
+;; These checkers are called after the client has sent the CRLF.CRLF
+;; message terminator, but before a response code is sent. Checkers
+;; are called with:  client ip address, sender, recips (all email addressed
+;; parsed), message size, message headers, message data filename.
+(defparameter *smtp-data-checkers* nil)
 
 ;; Initial connection checkers.  Checkers are called with the 
 ;; client ip address.
