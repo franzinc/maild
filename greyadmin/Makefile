@@ -1,10 +1,12 @@
-# $Id: Makefile,v 1.1 2003/07/24 02:50:46 dancy Exp $
+# $Id: Makefile,v 1.2 2003/07/24 03:02:14 dancy Exp $
 
-lisp=$(shell if test -x /storage1/acl/mlisp; then \
-		echo /storage1/acl/mlisp; \
-	     else \
-		echo /backup/acl/acl62/mlisp; \
-	     fi)
+lisp=$(shell    if test -x /fi/cl/6.2/acl/osname.sh; then \
+			echo /fi/cl/6.2/bin/`/fi/cl/6.2/acl/osname.sh`/mlisp; \
+		elif test -x /storage1/acl/mlisp; then \
+			echo /storage1/acl/mlisp; \
+		else \
+			echo /backup/acl/acl62/mlisp; \
+		fi)
 libdir=/usr/local/lib
 bindir=/usr/local/sbin
 
