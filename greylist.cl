@@ -152,8 +152,9 @@
 	  (multiple-value-list 
 	   (greylist-check-common now ip (emailaddr-orig from)
 				  (emailaddr-orig to))))
+	
 	(if (not (eq (first res) :ok))
-	    (return (values-list res))))
+	    (return-from greylist-data-pre-checker (values-list res))))
       
       ;; We're about to say okay.. but before we do, expire the
       ;; corresponding records.  (special case for mail from <>).
