@@ -13,7 +13,7 @@
   domain
   domainpostcomments)
 
-
+;; utilities
 
 (defun emailaddr= (addr1 addr2)
   (and (equalp (emailaddr-user addr1) (emailaddr-user addr2))
@@ -22,6 +22,15 @@
 (defun emailnullp (addr)
   (and (null (emailaddr-user addr)) 
        (null (emailaddr-domain addr))))
+
+(defun make-parsed-and-unparsed-address (thing)
+  (if (stringp thing)
+      (let ((parsed (parse-email-addr thing)))
+	(if (null parsed)
+	    (error "Invalid address: ~A" thing))
+	(values parsed thing))
+    (values thing (emailaddr-orig thing))))
+
 
 ;; Front ends to the complex stuff below.
 ;; This is intended to be used for envelope addresses.

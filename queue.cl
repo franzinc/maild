@@ -148,7 +148,7 @@
 
 (defun queue-exists-p (id)
   (probe-file (queue-filename-from-id id)))
-1
+
 ;; locks and reads.  Returns nil if it couldn't get a lock.
 (defun queue-get (id)
     (if (null (queue-lock id))

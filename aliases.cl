@@ -163,18 +163,25 @@
 
 ;;; begin expansion stuff...
 
+(defun alias-transform (thing)
+  (let* ((addr (make-parsed-and-unparsed-address thing))
+	 (res (expand-alias addr)))
+    (if (null res)
+	(list (make-recip :addr addr))
+      res)))
+
+;; 'thing' can be a string or an emailaddr struct
 ;; returns a list of recip structs
 ;; may include duplicates.
-(defun expand-alias (alias-orig &key (wild t))
+(defun expand-alias (thing &key (wild t))
   ;;; XXX - may want to move this out for performance reasons
   (update-aliases-info)
-  (let ((alias (if (stringp alias-orig)
-		   (parse-email-addr alias-orig)
-		 alias-orig)))
-    (if (null alias)
-	(error "expand-alias: Invalid address: ~S" alias-orig))
-    (expand-alias-inner alias (aliases-info-aliases *aliases*) nil nil
-			:wild wild)))
+  (expand-alias-inner 
+   (make-parsed-and-unparsed-address thing)
+   (aliases-info-aliases *aliases*) 
+   nil ;; seen
+   nil ;; owner
+   :wild wild))
 
 ;; tries long match (w/ full domain) first.. 
 ;; then wildcard match (*@domain) [if desired]
@@ -182,35 +189,58 @@
 
 (defun expand-alias-inner (alias ht seen owner &key wild)
   (block nil
+    ;; Check for loops
+    (if (member alias seen :test #'equalp)
+	(error "Alias loop involving alias ~S" (emailaddr-orig alias)))
+    
+    (multiple-value-bind (lhs members)
+	(alias-get-entry alias ht :wild wild)
+
+      (if (null members)
+	  (return))
+
+      (push alias seen)
+
+      (alias-expand-member-list lhs members ht seen owner))))
+
+  ;; returns values (lhs rhs) 
+;; lhs is returned in case a wildcard match was hit.
+(defun alias-get-entry (alias ht &key wild)
+  (block nil
     (let (members)
       (if (not (local-domain-p alias))
 	  (return nil))
-      (if (member alias seen :test #'equalp)
-	  (error "Alias loop involving alias ~S" (emailaddr-orig alias)))
-      (push alias seen)
       
       (setf members (gethash (emailaddr-orig alias) ht))
       (if members
-	  (return (alias-expand-member-list alias members ht seen owner)))
+	  (return (values alias members)))
       
       ;; if there's no domain part, give up.
       (if (null (emailaddr-domain alias))
 	  (return nil))
-
+      
       ;; try domain wildcard address instead
       (when wild
 	(let ((wildcard (concatenate 'string "*@" (emailaddr-domain alias))))
-	  (setf members 
-	    (gethash wildcard ht))
+	  (setf members (gethash wildcard ht))
 	  (if members
-	      (return 
-		(alias-expand-member-list (parse-email-addr wildcard)
-					  members ht seen owner)))))
+	      (return (values (parse-email-addr wildcard) members)))))
       
       ;; try just the local part.
-      (setf members (gethash (emailaddr-user alias) ht))
-      (if members
-	  (alias-expand-member-list alias members ht seen owner)))))
+      (let ((lookup (emailaddr-user alias)))
+	(setf members (gethash lookup ht))
+	(if members
+	    (return (values (parse-email-addr lookup) members)))))))
+
+;; 'entry' will be a recip.  It should be a regular recip because
+;; the check for :prog, :error: and :file is done beforehand.  
+;; sanity check is here anyway.
+(defun alias-member-self-referential-p (current-lhs entry ht)
+  (if (not (null (recip-type entry)))
+      (error "alias-member-self-referential-p called with non-regular recip: ~S" entry))
+  (let ((new-lhs (alias-get-entry (recip-addr entry) ht :wild t)))
+    (and new-lhs  (emailaddr= new-lhs current-lhs))))
+  
 
 ;; 'members' is a list of recip structs
 (defun alias-expand-member-list (lhs members ht seen owner &key in-include)
@@ -219,7 +249,7 @@
     (setf ownerparsed (parse-email-addr ownerstring))
     (if (expand-alias ownerparsed :wild nil)
 	(setf owner ownerparsed))
-
+    
     (dolist (member members)
       (setf type (recip-type member))
       
@@ -245,28 +275,27 @@
 	     (alias-expand-member-list lhs newmembers ht seen owner
 				       :in-include includefile)
 	     res))))
-
+       
        ;; definite terminals
        ((or (member type '(:prog :file :error))
 	    (recip-escaped member)
 	    (not (local-domain-p (recip-addr member)))
-	    (equalp (emailaddr-user (recip-addr member))
-		    (emailaddr-user lhs)))
-	(push (aliases-set-recip-info member owner lhs) res))
+	    (alias-member-self-referential-p lhs member ht))
+	(push (aliases-set-recip-info member owner seen) res))
        
        ;; normal expansion.
        (t
-	(let ((exp (expand-alias-inner (recip-addr member) ht seen owner)))
+	(let ((exp (expand-alias-inner (recip-addr member) ht seen owner
+				       :wild t)))
 	  (if (null exp)
 	      (push (aliases-set-recip-info member owner lhs) res)
 	    (setf res (append exp res)))))))
     res))
 
+  
 (defun aliases-set-recip-info (recip owner expanded-from)
   (setf recip (copy-recip recip))
   (setf (recip-owner recip) owner)
-  (setf (recip-expanded-from recip)
-    (emailaddr-orig expanded-from))
+  (setf (recip-expanded-from recip) expanded-from)
   recip)
 
-      

@@ -27,7 +27,7 @@
     
     ;; XXX --  This needs work.   We want to take advantage of 
     ;; multiple recips per SMTP session.
-    (let (failed-recips recip-addr recip-printable recip-type)
+    (let (failed-recips recip-addr recip-printable recip-type status response)
       (dolist (recip (queue-recips q))
 	(setf recip-addr (recip-addr recip))
 	(setf recip-printable (recip-printable recip))
@@ -38,33 +38,40 @@
 	  (format nil "Working on delivery to ~A" recip-printable))
 	(setf (recip-status recip) "Attempting delivery")
 
-	;; XXX -- May want to move this outside the loop.
+	;; XXX -- May want to move this outside the loop.. but having
+	;; it inside keeps the file most up-to-date.
 	(update-queue-file q)
-	  
-	(multiple-value-bind (status response)
-	    (if (or (member recip-type '(:file :prog))
-		    (local-domain-p recip-addr))
-		(deliver-local recip q :verbose verbose)
-	      (deliver-smtp recip q :verbose verbose))
-	  (case status
-	    (:delivered
-	     (setf (queue-recips q) (delete recip (queue-recips q))))
-	    (:fail
-	     (maild-log "delivery to ~A failed: ~A" 
-			recip-printable response)
+
+	(if* (error-recip-p recip)
+	   then
+		(setf status :fail)
+		(setf response (recip-errmsg recip))
+	   else
+		(multiple-value-setq (status response)
+		  (if (or (member recip-type '(:file :prog))
+			  (local-domain-p recip-addr))
+		      (deliver-local recip q :verbose verbose)
+		    (deliver-smtp recip q :verbose verbose))))
+	
+	(case status
+	  (:delivered
+	   (setf (queue-recips q) (delete recip (queue-recips q))))
+	  (:fail
+	   (maild-log "delivery to ~A failed: ~A" 
+		      recip-printable response)
+	   (setf (recip-status recip)
+	     (format nil "~A: ~A" recip-printable response))
+	   (push recip failed-recips)
+	   (setf (queue-recips q) 
+	     (delete recip (queue-recips q))))
+	  ;; Everything else is treated as a transient problem
+	  (t
+	   (maild-log "delivery status for ~a is ~s." 
+		      recip-printable status)
+	   (when response
 	     (setf (recip-status recip)
 	       (format nil "~A: ~A" recip-printable response))
-	     (push recip failed-recips)
-	     (setf (queue-recips q) 
-	       (delete recip (queue-recips q))))
-	    ;; Everything else is treated as a transient problem
-	    (t
-	     (maild-log "delivery status for ~a is ~s." 
-			recip-printable status)
-	     (when response
-	       (setf (recip-status recip)
-		 (format nil "~A: ~A" recip-printable response))
-	       (maild-log "Error message is: ~A" response))))))
+	     (maild-log "Error message is: ~A" response)))))
       
       ;; See if we need to send bounces
       (if failed-recips

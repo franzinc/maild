@@ -1,9 +1,14 @@
 (in-package :user)
 
+(defparameter *configfile* "/etc/maild.cl")
+
 (defun main (&rest args)
-  (if (and (probe-file "/etc/maild.cl") 
-	   (verify-root-only-file "/etc/maild.cl"))
-      (load "/etc/maild.cl" :verbose nil))
+  (setf *load-verbose* nil)
+
+  (if (and (probe-file *configfile*) 
+	   (verify-root-only-file *configfile*))
+      (load *configfile*))
+  
   ;; sanity check.
   (if (not (probe-file *queuedir*))
       (error "Queue directory ~A doesn't exist!" *queuedir*))

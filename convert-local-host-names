@@ -9,7 +9,7 @@ if ($argc != 1) {
 open(F, $ARGV[0]) ||
     die("$0: Failed to open $ARGV[0] for reading: $!\n");
 
-print "(defparameter *localdomains* '(\n";
+print "(setf *localdomains* '(\n";
 
 while (<F>) {
     chop;

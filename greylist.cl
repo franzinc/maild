@@ -17,8 +17,6 @@
 ;; Good records can be idle for this amount of time.
 (defparameter *greylist-lifetime* (* 60 86400)) ;; 60 days
 
-(defparameter *greylist-localhost* nil) ;; for testing
-
 (defparameter *greylist-db* nil)
 
 (defparameter *greylist-lock* nil)
@@ -41,16 +39,28 @@
 
   
 (defun ensure-greylist-db ()
-  (when (null *greylist-lock*)
-    (setf *greylist-lock* 
-      (mp:make-process-lock :name "Greylist database lock")))
-  
-  (when (null *greylist-db*)
-    (load *greylist-configfile* :verbose nil)
-    (setf *greylist-db* 
-      (dbi.mysql:connect :database *greylist-db-name*
-			 :user *greylist-db-user*
-			 :password *greylist-db-password*))))
+  (without-interrupts
+    (when (null *greylist-lock*)
+      (setf *greylist-lock* 
+	(mp:make-process-lock :name "Greylist database lock"))))
+
+  (mp:with-process-lock (*greylist-lock*)
+    (if (null *greylist-db*)
+	(load *greylist-configfile* :verbose nil))
+    
+    ;; See if we have a broken connection.
+    (when (and *greylist-db* 
+	       (not (open-stream-p (dbi.mysql::mysql-socket *greylist-db*))))
+      (maild-log "greylist: Disconnecting broken mysql connection")
+      (dbi.mysql:disconnect :db *greylist-db*)
+      (setf *greylist-db* nil))
+    
+    (when (null *greylist-db*)
+      (maild-log "greylist: Establishing mysql connection")
+      (setf *greylist-db* 
+	(dbi.mysql:connect :database *greylist-db-name*
+			   :user *greylist-db-user*
+			   :password *greylist-db-password*)))))
 
 (defun greylist-check-common (now ip from to)
   (block nil
@@ -84,23 +94,23 @@
       
       :ok)))
 
-(defun greylist-init (ip)
-  (block nil
-    ;; localhost is not subject to greylisting normally.
-    (when (and (= ip #.(dotted-to-ipaddr "127.0.0.1"))
-	       (not *greylist-localhost*))
-      (maild-log "Client from localhost.  Always whitelisted")
-      (return :skip))
-    
-    (handler-case
-	(progn
-	  (ensure-greylist-db)
-	  :ok)
-      (error (c)
-	(maild-log "Failed to establish connection to greylist database: ~A"
-		   c)
-	(return
-	  (values :transient "Please try again later"))))))
+(defun greylist-init (ip from to)
+  ;; Hosts that are allowed to relay through us aren't subject
+  ;; to greylisting.
+  (dolist (checker *relay-checkers*)
+    (when (funcall checker ip from to)
+      (maild-log "Client from ~A:  Auto-whitelisted relay client."
+		 (ipaddr-to-dotted ip))
+      (return-from greylist-init :skip)))
+  
+  (handler-case
+      (progn
+	(ensure-greylist-db)
+	:ok)
+    (error (c)
+      (maild-log "Failed to establish connection to greylist database: ~A"
+		 c)
+      (values :transient "Please try again later"))))
   
 
 (defun greylist-rcpt-to-checker (ip from type to recips)
@@ -108,7 +118,7 @@
   (block nil
     (maild-log "greylist: checking...")
     
-    (let ((res (multiple-value-list (greylist-init ip))))
+    (let ((res (multiple-value-list (greylist-init ip from to))))
       (ecase (first res)
 	(:ok
 	 )
@@ -132,7 +142,7 @@
   (block nil
     (maild-log "greylist-data-pre-checker...")
     
-    (let ((res (multiple-value-list (greylist-init ip))))
+    (let ((res (multiple-value-list (greylist-init ip from (first tos)))))
       (ecase (first res)
 	(:ok
 	 )

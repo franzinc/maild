@@ -30,7 +30,7 @@
        "   ----- The following addresses had permanent fatal errors -----"
        f)
       (dolist (recip failed-recips)
-	(write-line (emailaddr-orig (recip-addr recip)) f))
+	(write-recip-expansion recip f))
       (write-line "" f)
       (write-line "   ----- Transcript of session follows -----" f)
       (dolist (recip failed-recips)
@@ -64,3 +64,8 @@
 	   bounce-proc 
 	   (format nil "Waiting for bounce message to be sent to ~A"
 		   (emailaddr-orig bounce-to)))))))
+
+(defun write-recip-expansion (recip stream)
+  (write-line (emailaddr-orig (recip-addr recip)) stream)
+  (dolist (exp (recip-expanded-from recip))
+    (format stream "  ... expanded from ~A~%" (emailaddr-orig exp))))

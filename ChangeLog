@@ -1,8 +1,41 @@
+2003-06-29  root  <root@gills.dancysoft.com>
+
+	* Many changes to allow for mailer definitions.  
+
+	Incompatible changes: The arguments to the local delivery program
+	command line building function are different now.  Check your
+	configuration files.  The first argument is a parsed emailaddr
+	struct... the second argument is the queue struct.
+
+	*local-recip-checks*, *local-delivey-user*, and
+	*deliver-local-command* variables have been removed.  They are
+	part of a mailer definition now.
+
+	* MAILERS.txt: new file describing how to use mailer definitions.
+
+	* Improved handling of wildcard aliases.
+
+	* Bounces show alias expansions to help diagnose problems in aliases.
+
+	* Additional relaying-allowed checkers can be specified now.  See
+	config.cl for details.
+
+	* greylist.cl:  Added reconnect code in case mysql was restarted
+	or something.   Also, hosts that are allowed to relay (as
+	determined by calling the new relay checkers) aren't subject to
+	greylisting now.
+
 2003-06-27  Ahmon Dancy  <dancy@dancy>
 
-	* maild.cl:  Do 'maild -bp' if executed as 'mailq'.
+	* Fix header rewrite after changes mentioned below (wasn't really
+	happening).
 
-	* Fix header rewrite (wasn't really happening).
+2003-06-26  root  <root@gills.dancysoft.com>
+
+	* headers.cl/rewrite.cl: rewrite-headers now properly deals with
+	headers that span multiple lines.
+
+	* maild.cl:  Do 'maild -bp' if executed as 'mailq'.
 
 2003-06-25  Kevin Layer  <layer@relay.known.net>
 

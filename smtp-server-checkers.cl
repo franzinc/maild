@@ -56,13 +56,19 @@
 ;; RCPT TO:
 
 (defun smtp-rcpt-to-relay-checker (ip from type recip recips)
-  (declare (ignore from recips))
-  (if (or (eq type :local) 
-	  (relaying-allowed-p ip))
-      :ok
+  (declare (ignore recips))
+  (block nil
+    (if (eq type :local)
+	(return :ok))
+
+    (dolist (checker *relay-checkers*)
+      (if (funcall checker ip from recip)
+	  (return-from smtp-rcpt-to-relay-checker :ok)))
+    
     (values :err (format nil "~A... Relaying denied" (emailaddr-orig recip)))))
 	  
-(defun relaying-allowed-p (cliaddr)
+(defun relaying-allowed-p (cliaddr from recip)
+  (declare (ignore from recip))
   (dolist (check *relay-access*)
     (if (addr-in-network-p cliaddr (parse-addr check))
 	(return t))))

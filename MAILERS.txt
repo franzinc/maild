@@ -1,0 +1,47 @@
+*** Notes about the *mailers* configuration variable:
+
+The *mailers* variable holds a list of mailers.  
+
+Each entry is a list of the following values.
+
+1) keyword identifier
+2) descriptive string
+3) symbol naming function to call to look up a recipient for this
+   mailer type
+4) symbol naming function to call to generate the command line
+   for the delivery program.
+5) string indicating the user under which the delivery program
+   should run (the user's normal group and extra groups are 
+   used as well)
+
+Entries are processed in order (by calling lookup-recip-in-passwd)
+until one of them accepts the recipient.
+
+All potential recipients are transformed via aliases first.
+
+*** The lookup function
+
+The function is called with argument which is either a string or
+parsed email address struct [Use make-parsed-and-unparsed-address
+function for easy handling of either type].  The function should
+return nil if it doesn't deal w/ this recip, non-nil if it does.
+
+
+*** The delivery program command line function
+
+The function is called with two arguments:
+1) The recipient (parsed emailaddr struct)
+2) The 'queue' object.
+
+The function should return a list which represents the components of
+the command line to be executed.
+
+Default: use the built-in local delivery command which creates:
+procmail -Y -f <envelope-from> -d <user>
+
+ 
+*** Relation to the aliases file
+
+All email addresses are passed through the aliases file for
+transformation before being used to find the appropriate mailer.
+

@@ -1,6 +1,6 @@
 (in-package :user)
 
-(defparameter *debug* t)
+(defparameter *debug* nil)
 
 (defparameter *aliasesfile* "/etc/aliases")
 
@@ -20,8 +20,21 @@
 ;; implicitly so you don't need to add them.
 (defparameter *localdomains* nil)
 
-;; List of IP addresses or networks.
+;; List of functions to call to determine if the client is allowed to
+;; relay through this server.  Function is called with arguments:
+;;  1) ip address of client 
+;;  2) envelope sender
+;;  3) envelope recipient
+;; The function should return true (non-nil) if relaying is allowed,
+;; otherwise nil.  The first function that returns true will
+;; terminate the checking.
+(defparameter *relay-checkers* '(relaying-allowed-p))
+
+;; List of IP addresses or networks.  This is used by the default
+;; relay checker "relaying-allowed-p"
 (defparameter *relay-access* '("127.0.0.1"))
+
+
 
 ;; Can be a list of IP addresses and masks.. or domain names.
 ;; If a domain like example.com is supplied, then connections
@@ -44,15 +57,6 @@
 ;; If non-nil, then envelope senders in the SMTP session must have
 ;; a domain name part.
 (defparameter *sender-domain-required* nil)
-
-;; These functions will be called in order until one of them
-;; returns true.  They are used to determine if a potential 
-;; local recipient address should be accepted.  Order matters since
-;; this is also used to check for recipients which should generate
-;; an error message.  Currenly, this can only be done in the aliases
-;; file, so that check should happen first.
-(defparameter *local-recip-checks*
-    '(lookup-recip-in-aliases lookup-recip-in-passwd))
 
 (defparameter *queuedir* "/var/spool/maild")
 
@@ -80,9 +84,6 @@
 ;; Maximum number of "Received" headers that may be found in a message
 ;; before we assume there's a mail loop and bounce the message.
 (defparameter *maximum-hop-count* 17)
-
-;; User to run local delivery programs as
-(defparameter *local-delivery-user* "root")
 
 ;; User program aliases (e.g.,  majordomo: |/home/majordomo/wrapper..) run
 ;; as (by default.. can be overridden in the aliases file by specifying the
@@ -144,17 +145,14 @@
 ;; function will be called w/ one argument, the "queue" structure.
 (defparameter *extra-headers-func* nil)
 
-;; Can be replaced w/ a symbol naming a function which will create the
-;; command line used for local delivery.  The function takes two 
-;; arguments: 1) The local user name (a string... no @domain part). 
-;;            2) The 'queue' object.
-;; The function should return a list which represents the components
-;; of the command line to be executed.
 
-;; Default: use the built-in local delivery command which creates:
-;; procmail -Y -f <envelope-from> -d <user>
-(defparameter *deliver-local-command* 'deliver-local-command)
-
+;; See MAILERS.txt for information on mailers.
+(defparameter *mailers*
+    '((:local ;; keyword iden
+       "Unix mailbox" 
+       lookup-addr-in-passwd
+       deliver-local-command
+       "root")))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

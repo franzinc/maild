@@ -12,10 +12,11 @@
   escaped ;; don't expand any further
   expanded-from ;; string  (information only)
   owner ;; nil means just use the original envelope sender
+  mailer ;; which delivery program should be used
   status) 
 
 (defun error-recip-p (r)
-  (eq (recip-type r) :error))
+  (and (recip-p r) (eq (recip-type r) :error)))
 
 (defun bad-recip-p (r)
   (eq (recip-type r) :bad))
@@ -46,7 +47,9 @@
 	(:include
 	 (format nil ":include:~A" (recip-file r)))
 	(:error
-	 (format nil ":error:~A" (recip-errmsg r)))
+	 (if (recip-addr r)
+	     (emailaddr-orig (recip-addr r))
+	   (format nil ":error:~A" (recip-errmsg r))))
 	(:bad
 	 (format nil ":bad:~A" (recip-orig r)))))))
   
@@ -59,97 +62,95 @@
 			*host-aliases*
 			*localdomains*)
 		:test #'equalp))))
-  
-;; Domain part is assumed to have been checked already.
-(defun lookup-recip-in-passwd (orig-address)
-  (let ((address (if (stringp orig-address)
-		     (parse-email-addr orig-address)
-		   orig-address)))
-    (if (null address)
-	(error "lookup-recip-in-passwd: Invalid address: ~A" orig-address))
-    (let ((pwent (getpwnam (string-downcase (emailaddr-user address)))))
-      (if (null pwent)
-	  nil
-	(list (make-recip :addr address))))))
 
-;; accepts non-special recip structs as arg as well
-(defun get-recipient-disposition (addr)
+
+
+
+(defun string-or-recip-or-emailaddr-to-emailaddr (thing)
   (block nil
-    (if (recip-p addr)
-	(if (recip-type addr)
-	    (error "get-recipient-disposition doesn't work on special recips")
-	  (setf addr (recip-addr addr))))
+    (when (recip-p thing)
+      (if (recip-type thing)
+	  (error "lookup-recipient doesn't work on special recips")
+	(return (recip-addr thing))))
+    (make-parsed-and-unparsed-address thing)))
+    
+
+  
+;; accepts non-special recip structs as arg as well
+(defun get-recipient-disposition (thing)
+  (block nil
+    (let ((addr (string-or-recip-or-emailaddr-to-emailaddr thing)))
+      (if (not (local-domain-p addr))
+	  (return :non-local))
+
+      ;; lookup-recipient might return error information.
+      (let ((res (multiple-value-list (quick-verify-recip addr))))
+	(if (null (first res))
+	    (return :local-unknown))
 	
-    (if (not (local-domain-p addr))
-	(return :non-local))
-    (let (recips)
-      (dolist (func *local-recip-checks* :local-unknown)
-	(setf recips (funcall func addr))
-	(if (and recips (= (length recips) 1) 
-		 (eq (recip-type (first recips)) :error))
-	    (return
-	      (values
-	       :error
-	       (if (recip-errmsg (first recips)) 
-		   (recip-errmsg (first recips))
-		 "Invalid user"))))
-	(if recips
-	    (return :local-ok))))))
+	(when (eq (first res) :error)
+	  (return (values-list res)))
+	
+	(return :local-ok)))))
 
-(defun lookup-recip-in-aliases (orig-address)
-  (let ((address (if (stringp orig-address)
-		     (parse-email-addr orig-address)
-		   orig-address)))
-    (if (null address)
-	(error "lookup-recip-in-aliases: Invalid address: ~S" orig-address))
-    (expand-alias address)))
 
+    
+
+;; Only call on potential local recips.
+(defun quick-verify-recip (thing)
+  (block nil
+    (let* ((addr (string-or-recip-or-emailaddr-to-emailaddr thing))
+	   (expansion (expand-alias addr)))
+      (when expansion
+	(if (every #'error-recip-p expansion)
+	    (return (values :error (recip-errmsg (first expansion))))
+	  (return t)))
+      
+      (any-mailer-matches-p addr))))
+
+
+;; Returns a list of recips.  There may be duplicates.  There
+;; may be error recips.  
+(defun lookup-recip (thing)
+  (block nil
+    (let ((addr (string-or-recip-or-emailaddr-to-emailaddr thing))
+	  expansion)
+      (if (not (local-domain-p addr))
+	  (return (list (make-recip :addr addr :mailer :smtp))))
+      
+      (setf expansion (alias-transform thing))
+      
+      (dolist (recip expansion)
+	(mark-recip-with-suitable-mailer recip))
+      
+      expansion)))
+
+	
 (defmacro mailing-list-p (exp)
   `(> (length ,exp) 1))
 
 ;; returns a list of recip structs w/ no duplicates.
+;; There may be some :error recips.
 (defun expand-addresses (addrs sender)
   (let ((exclude-sender t)
-	(sender-exp (lookup-recip-in-aliases sender)))
-    (cond 
-     ((mailing-list-p sender-exp)
-      (setf exclude-sender nil))
-     ((null sender-exp)
-      (setf sender-exp sender))
-     ((recip-type (first sender-exp)) ;; prog/file/whatnot expansion
-      (setf exclude-sender nil))
-     (t
-      (setf sender-exp (first sender-exp))))
-    
-    ;; if sender address didn't expand, manually convert it to a recip
-    ;; struct
-    (if (not (recip-p sender-exp))
-	(setf sender-exp (make-recip :orig (emailaddr-orig sender)
-				     :addr sender)))
-
+	(sender-exp (lookup-recip sender)))
+    (if (or (mailing-list-p sender-exp)
+	    (recip-type (first sender-exp))) ;; prog/file/whatnot expansion    
+	(setf exclude-sender nil)
+      (setf sender-exp (first sender-exp)))
     
     (let (recips)
       (dolist (addr addrs)
-	(if (not (local-domain-p addr))
-	    ;; don't bother trying to expand non-local recips.
-	    (push (make-recip :addr addr) recips)
-	  ;; else
-	  (let ((expansion (lookup-recip-in-aliases addr)))
-	    (if* expansion
-	       then
-		    (when (and (mailing-list-p expansion)
-			       exclude-sender
-			       (member sender-exp expansion
-				       :test #'same-recip-p))
-		      (if *debug*
-			  (maild-log "Removing ~A from expansion of ~A"
-				     (recip-printable sender-exp)
-				     (emailaddr-orig addr)))
-		      (setf expansion (delete sender-exp expansion
-					   :test #'same-recip-p)))
-		    (setf recips (nconc recips expansion))
-	       else
-		    (push (make-recip :addr addr) recips)))))
+	(setf addr (make-parsed-and-unparsed-address addr))
+	(let ((expansion (lookup-recip addr)))
+	  (when (and (mailing-list-p expansion)
+		     exclude-sender
+		     (member sender-exp expansion :test #'same-recip-p))
+	    (setf expansion 
+	      (delete sender-exp expansion :test #'same-recip-p)))
+	  
+	  (setf recips (nconc recips expansion))))
+
       (delete-duplicates recips :test #'same-recip-p))))
 
 ;; Should be called on post-expansion recip structs.
@@ -183,7 +184,10 @@
 	     (string= (recip-file recip1) (recip-file recip2))
 	     (equalp (recip-prog-user recip1) (recip-prog-user recip2))))
 	(:file
-	 (string= (recip-file recip1) (recip-file recip2)))))))
+	 (string= (recip-file recip1) (recip-file recip2)))
+	(:error
+	 ;; error recips are for bad addresses.. so compare addresses
+	 (emailaddr= (recip-addr recip1) (recip-addr recip2)))))))
 
 ;;; recipient parsing stuff.  
 
@@ -229,7 +233,7 @@
 	  (setf (recip-type recip) :error)
 	  (setf (recip-errmsg recip) (subseq string #.(length ":error:")))
 	  (if (string= (recip-errmsg recip) "")
-	      (setf (recip-errmsg recip) "Invalid user")))
+	      (setf (recip-errmsg recip) "No such mailbox")))
        
 	 ;; program recips
 	 ((tokens-begin-with-p #\| tokens)
@@ -377,7 +381,7 @@
 	  (ecase disp
 	    ((:non-local :local-ok)
 	     (if verbose
-		 (format t "~A... OK~%" (recip-orig recip)))
+		 (format t "~A... deliverable~%" (recip-orig recip)))
 	     (push recip good-recips)) ;; accepted
 	    (:error 
 	     (format t "~A... ~A~%" (recip-orig recip) msg))

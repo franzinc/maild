@@ -5,13 +5,13 @@
       "utils" "security" "lex"
       "emailaddr" "log" "ipaddr" "blacklist" 
       "recips" "aliases" "headers" "rewrite" 
-      "lock" "smtp" "queue" "deliver" "deliver-smtp" 
+      "lock" "smtp" "queue" "mailer" "deliver" "deliver-smtp" 
       "queue-process" "checkers"
       "input"
       "smtp-server" "smtp-server-checkers" "greylist"
       "bounce" 
-      "maild"
-      "localmods"))
+      "maild"))
+
 
 (defun compile-sources (&key load)
   (let ((excl::*break-on-warnings* t))

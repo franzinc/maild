@@ -1,14 +1,5 @@
 (in-package :user)
 
-;; default *deliver-local-command*
-(defun deliver-local-command (user queue)
-  (list "/usr/bin/procmail" 
-	"-Y"
-	"-f"
-	(emailaddr-orig (rewrite-local-envelope-sender (queue-from queue)))
-	"-d"
-	user))
-
 (defstruct wmts-async
   stream
   queue
@@ -24,16 +15,10 @@
 (defun deliver-local (recip q &key verbose)
   (let* ((type (recip-type recip))
 	 (file (recip-file recip))
-	 (user (if (recip-addr recip) 
-		   (string-downcase (emailaddr-user (recip-addr recip)))))
 	 (res (multiple-value-list
 	       (cond
-		((null type)
-		 (if verbose
-		     (format t "~A... Connecting to local...~%" user))
-		 (deliver-to-program-help 
-		  (funcall *deliver-local-command* user q) q
-		  :user user))
+		((null type) ;; regular recipient
+		 (deliver-via-mailer recip q :verbose verbose))
 		((eq type :file)
 		 (if verbose
 		     (format t "~A... Writing to file...~%" file))
@@ -54,7 +39,16 @@
     
     (values-list res)))
 
-       
+(defun deliver-via-mailer (recip q &key verbose)
+  (when verbose
+    (format t "~A... Connecting to ~A...~%" 
+	    (emailaddr-orig (recip-addr recip)) (recip-mailer recip)))
+  (multiple-value-bind (cmdlist run-as)
+      (make-delivery-command-for-recip recip q)
+    (deliver-to-program-help cmdlist q run-as :user 
+			     (emailaddr-orig (recip-addr recip)))))
+
+
 ;; Since with-stream-lock only locks out other processes, we need to
 ;; do internal locking as well.
 (defvar *file-delivery-locks* nil)
@@ -100,14 +94,11 @@
 
 (defun deliver-to-program (cmdline run-as q)
   (deliver-to-program-help (split-regexp "\\b+" cmdline) q
-			   :run-as (if run-as 
-				       run-as
-				     *program-alias-user*)))
+			   (if run-as run-as *program-alias-user*)))
 
 
-(defun deliver-to-program-help (prglist q &key (run-as *local-delivery-user*)
-					       (rewrite :local)
-					       user)
+(defun deliver-to-program-help (prglist q run-as &key (rewrite :local)
+						      user)
   (block nil
     (let* ((prgvec (coerce (cons (car prglist) prglist) 'vector))
 	   (prgname (svref prgvec 0)))

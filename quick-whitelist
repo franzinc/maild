@@ -1,0 +1,10 @@
+#!/bin/sh
+if [ $# -ne 1 ]
+then
+	echo Usage: $0 person@domain.com
+	exit 1
+fi
+
+mysql greylist <<EOF
+update triples set blockexpire=0 where sender="$1";
+EOF
