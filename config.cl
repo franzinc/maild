@@ -99,9 +99,9 @@
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Stuff unlikely to be modified.
 
 (defparameter *smtp-port* 25)
+(defparameter *smtp-ip* nil) ;; address to bind socket
 (defparameter *maxlinelen* 2048) ;; including CR, but not LF
 (defparameter *maxrecips* 100)
 (defparameter *mailer-daemon* "MAILER-DAEMON")

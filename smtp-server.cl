@@ -24,6 +24,7 @@
       (if ent
 	  (setf port (servent-port ent))))
     (let ((sock (make-socket :local-port port 
+			     :local-host *smtp-ip*
 			     :type :hiper
 			     :connect :passive
 			     :reuse-address t)))

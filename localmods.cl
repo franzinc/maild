@@ -13,7 +13,7 @@
 ;; Returns :ok, :reject, or :transient
 (defun spamassn-check (q)
   (block nil
-    (multiple-value-bind (output errput status)
+    (multiple-value-bind (output errput status writerstatus)
 	(send-message-to-program q *spamc-cmd* 
 				 :rewrite :local :run-as *spamc-user*)
       (declare (ignore status))
@@ -21,6 +21,8 @@
 	  (maild-log "spamc stderr: ~A" errput))
       (when (null output)
 	(maild-log "spamc generated no output.")
+	(return :transient))
+      (when (not (eq writerstatus :ok))
 	(return :transient))
       (multiple-value-bind (found whole score)
 	  (match-regexp "^\\([.0-9-]+\\)/" output)

@@ -9,6 +9,16 @@
 	"-d"
 	user))
 
+(defstruct wmts-async
+  stream
+  queue
+  rewrite-type
+  smtp
+  noclose
+  (gate (mp:make-gate nil))
+  (status :ok)) ;; :ok or an error condition
+
+
 (defun local-delivery-type (user)
   (if (< (length user) 1)
       :normal ;; not all that normal, really.
@@ -73,7 +83,7 @@
 	(format stream "From ~A  ~A~%" 
 		(emailaddr-orig (queue-from q)) (ctime))
 	(write-message-to-stream stream q :local :noclose t)
-	(write-char #\newline stream)
+	(terpri stream)
 	(maild-log "Delivered to file ~A" file)
 	:delivered))))
 
@@ -102,7 +112,7 @@
     (let* ((prgvec (coerce (cons (car prglist) prglist) 'vector))
 	   (prgname (svref prgvec 0)))
       (verify-security prgname)
-      (multiple-value-bind (output errput status)
+      (multiple-value-bind (output errput status writerstatus)
 	  (send-message-to-program q prgvec :rewrite rewrite
 				   :run-as run-as)
 	(if output
@@ -111,6 +121,9 @@
 	    (maild-log "~A stderr: ~A~%" prgname errput))
 	(when (/= status 0)
 	  (maild-log "~A exited w/ status: ~D" prgname status)
+	  (return :transient))
+	(when (not (eq writerstatus :ok))
+	  ;; the writer logs its own errors.
 	  (return :transient))
 	(maild-log "Successful local delivery to ~A" 
 		   (if user user prgname))
@@ -121,7 +134,7 @@
 ;; Returns values:
 ;;  output, errput, exit code
 (defun send-message-to-program (q prg &key (rewrite :norewrite) run-as)
-  (let (uid gid initgroups-user dir)
+  (let (uid gid initgroups-user dir async)
     (when run-as
       (let ((pwent (getpwnam (string-downcase run-as))))
 	(if (null pwent)
@@ -131,8 +144,11 @@
 	(setf initgroups-user run-as)
 	(setf dir (pwent-dir pwent)))) 
     (with-pipe (readfrom writeto) 
+      (setf async (make-wmts-async :stream writeto
+				   :queue q
+				   :rewrite-type rewrite))
       (mp:process-run-function "message text generator"
-	#'write-message-to-stream writeto q rewrite)
+	#'write-message-to-stream-async async)
       (multiple-value-bind (output errput status)
 	  (command-output
 	   prg
@@ -143,37 +159,28 @@
 	   :input readfrom
 	   :whole t)
 	(close readfrom)
-	(values output errput status)))))
+	;; wait for writer to finish
+	(mp:process-wait "Waiting for message text generator to finish"
+			 #'mp:gate-open-p (wmts-async-gate async))
+	(values output errput status (wmts-async-status async))))))
 
-(defun write-message-to-stream (stream queue rewrite-type &key smtp noclose)
+(defun write-message-to-stream (stream queue rewrite-type 
+				&key smtp noclose)
   (if (null (queue-headers queue))
       (error "write-message-to-stream: queue-headers is null.  This can't be right"))
-  
-  (handler-case 
-      (write-message-to-stream-inner stream queue rewrite-type
-				     :smtp smtp
-				     :noclose noclose)
-    (t (c)
-      (maild-log "write-message-to-stream-inner got error ~A" c)
-      (if (not noclose)
-	  (ignore-errors (close stream :abort t))))))
-
-
-(defun write-message-to-stream-inner (stream queue rewrite-type 
-				      &key smtp noclose)
   (with-socket-timeout (stream :write *datatimeout*)
     (macrolet ((endline () `(if smtp 
-			    (progn
-			      (write-char #\return stream)
-			      (write-char #\linefeed stream))
-			  (write-char #\newline stream))))
+				(progn
+				  (write-char #\return stream)
+				  (write-char #\linefeed stream))
+			      (write-char #\newline stream))))
       (dolist (header (rewrite-headers (queue-headers queue) rewrite-type))
 	(write-string header stream)
 	(endline))
-      
+
       ;; write the header boundary.
       (endline)
-	
+
       (with-open-file (f (queue-datafile queue))
 	(let (char (freshline t))
 	  (while (setf char (read-char f nil nil))
@@ -186,9 +193,27 @@
 			(write-char char stream)) ;; double-up the dot
 		    (write-char char stream)
 		    (setf freshline nil))))))
-    
+
     (finish-output stream)
-    
+
     (if (not (or smtp noclose))
 	(close stream :abort t)))) ;; EOF
 
+
+(defun write-message-to-stream-async (async)
+  (let ((stream (wmts-async-stream async))
+	(queue (wmts-async-queue async))
+	(rewrite-type (wmts-async-rewrite-type async))
+	(smtp (wmts-async-smtp async))
+	(noclose (wmts-async-noclose async)))
+    (handler-case 
+	(write-message-to-stream stream queue rewrite-type
+				 :smtp smtp
+				 :noclose noclose)
+      (t (c)
+	(maild-log "write-message-to-stream got error ~A" c)
+	(setf (wmts-async-status async) c)
+	;; Gotta do this, otherwise the listening party won't know
+	;; what the deal is.
+	(ignore-errors (close stream :abort t)))))
+  (mp:open-gate (wmts-async-gate async)))

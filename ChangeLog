@@ -1,3 +1,25 @@
+2003-04-28  root  <root@dancy>
+
+	* config.cl: Added *smtp-ip* parameter for binding the server
+	socket to a particular interface.
+
+	* smtp-server.cl:  Use the new *smtp-ip* parameter
+
+	* deliver-smtp.cl:  Added :verbose keyword arg to many of the
+	functions so that the SMTP transaction can be watched (ala
+	sendmail -v).   Also added a with-socket-timeout around the main
+	function so that an unresponsive SMTP server doesn't make us hang.
+
+	* deliver.cl:  New write-message-to-stream-async for use with
+	send-message-to-program.  It is intended to be called via
+	mp:process-run-function.  It takes a structure which has the usual
+	arguments to write-message-to-stream.. plus a gate and a status
+	field for returning information to the caller.
+
+	* queue-process.cl:  Added :verbose keyword stuff.  Also, the
+	queue processor now collects the error messages from the delivery
+	subroutines for storage in the queue file.  
+
 2003-04-24  root  <root@dancy>
 
 	* config.cl:  Call local delivery program w/ -f.

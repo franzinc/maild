@@ -1,14 +1,14 @@
 (in-package :user)
 
-;;; XXX -- all calls to outline need to be wrapped in a timeout.
-
-(defun deliver-smtp (recip q)
+(defun deliver-smtp (recip q &key verbose)
   (block nil
     (let ((buf (make-string *maxlinelen*))
 	  (domain (emailaddr-domain recip))
+	  (sender 
+	   (emailaddr-orig (rewrite-smtp-envelope-sender (queue-from q))))
 	  errmsg)
       (multiple-value-bind (sock mxname status)
-	  (connect-to-mx domain)
+	  (connect-to-mx domain :verbose verbose)
 	(when (eq status :no-such-domain)
 	  (setf errmsg (format nil "~A: Host not found" domain))
 	  (maild-log "~A" errmsg)
@@ -20,19 +20,19 @@
 		    domain))
 	  (maild-log "~A" errmsg)
 	  (return (values :transient errmsg)))
+	;; Socket ready.
 	(unwind-protect
-	    (let ((sender (emailaddr-orig (rewrite-smtp-envelope-sender
-					   (queue-from q)))))
+	    (with-socket-timeout (sock :write *datatimeout*)
 	      (multiple-value-bind (res response)
-		  (get-smtp-greeting sock buf mxname)
+		  (get-smtp-greeting sock buf mxname :verbose verbose)
 		(if (not (eq res :ok))
 		    (return (values res response))))
 	      (multiple-value-bind (res response)
-		  (smtp-say-hello sock buf mxname)
+		  (smtp-say-hello sock buf mxname :verbose verbose)
 		(if (not (eq res :ok))
 		    (return (values res response))))
 	      (multiple-value-bind (res response)
-		  (smtp-send-mail-from sock buf mxname sender)
+		  (smtp-send-mail-from sock buf mxname sender :verbose verbose)
 		(if (not (eq res :ok))
 		    (return (values res response))))
 
@@ -41,12 +41,13 @@
 	      ;; w/ the transaction. Bounces for the others will need
 	      ;; to be handled.
 	      (multiple-value-bind (res response)
-		  (smtp-send-rcpt-to sock buf mxname (emailaddr-orig recip))
+		  (smtp-send-rcpt-to sock buf mxname (emailaddr-orig recip) 
+				     :verbose verbose)
 		(if (not (eq res :ok))
 		    (return (values res response))))
 	   
 	      (multiple-value-bind (res response)
-		  (smtp-send-data sock buf mxname q)
+		  (smtp-send-data sock buf mxname q :verbose verbose)
 		(if (not (eq res :ok))
 		    (return (values res response))))
 	      
@@ -57,54 +58,80 @@
 	  ;; cleanup forms
 	  (if sock 
 	      (ignore-errors
-	       ;; try to be polite
-	       (smtp-finish sock buf mxname)
-	       (close sock))))))))
+	       ;; try to be polite.  But don't wait too long
+	       (mp:with-timeout (30)
+		 (smtp-finish sock buf mxname :verbose verbose))
+	       (close sock :abort t))))))))
 
-(defun smtp-finish (sock buf mxname)
+(defun smtp-finish (sock buf mxname &key verbose)
+  (if verbose
+      (format t ">>> QUIT~%"))
   (outline sock "QUIT")
-  (get-smtp-reply sock buf *quittimeout* mxname))
+  (get-smtp-reply sock buf *quittimeout* mxname :verbose verbose))
   
-(defun smtp-send-data (sock buf mxname q)
+(defun smtp-send-data (sock buf mxname q &key verbose)
   (block nil
+    (if verbose
+	(format t ">>> DATA~%"))
     (outline sock "DATA")
     (multiple-value-bind (status line)
-	(get-smtp-reply sock buf *datainitiationtimeout* mxname)
+	(get-smtp-reply sock buf *datainitiationtimeout* mxname 
+			:verbose verbose)
       (if (not (eq status :intermediate-ok))
 	  (return (values status line))))
     (handler-case (write-message-to-stream sock q :smtp :smtp t)
       (error (c)
-	(let ((report 
-	       (format nil "Error ~A while sending message data to ~A" 
-		       c mxname)))
+	(let (report)
+	  (if (and (eq (type-of c) 'socket-error)
+		   (eq (stream-error-identifier c) :write-timeout))
+	      (setf report
+		(format nil "Message transmission stalled while talking to ~A"
+			mxname))
+	    (setf report
+	      (format nil "Error ~A while sending message data to ~A" 
+		      c mxname)))
 	  (maild-log "~A" report)
 	  (return (values :transient report)))))
+    (if verbose
+	(format t ">>> .~%"))
     (outline sock ".")
-    (get-smtp-reply sock buf *dataterminationtimeout* mxname)))
+    (get-smtp-reply sock buf *dataterminationtimeout* mxname 
+		    :verbose verbose)))
 
-(defun smtp-send-rcpt-to (sock buf mxname to)
+(defun smtp-send-rcpt-to (sock buf mxname to &key verbose)
   (if (string= to "<>")
       (setf to ""))
-  (outline sock "RCPT TO:<~A>" to)
-  (get-smtp-reply sock buf *rcptcmdtimeout* mxname))
+  (let ((string (format nil "RCPT TO:<~A>" to)))
+    (if verbose 
+	(format t ">>> ~A~%" string))
+    (outline sock "~A" string))
+  (get-smtp-reply sock buf *rcptcmdtimeout* mxname :verbose verbose))
 
-(defun smtp-send-mail-from (sock buf mxname sender)
+(defun smtp-send-mail-from (sock buf mxname sender &key verbose)
   (if (string= sender "<>")
       (setf sender ""))
-  (outline sock "MAIL FROM:<~A>" sender)
-  (get-smtp-reply sock buf *mailcmdtimeout* mxname))
+  (let ((string (format nil "MAIL FROM:<~A>" sender)))
+    (if verbose 
+	(format t ">>> ~A~%" string))
+    (outline sock "~A" string))
+  (get-smtp-reply sock buf *mailcmdtimeout* mxname :verbose verbose))
 
-(defun smtp-say-hello (sock buf mxname)
-  (outline sock "HELO ~A" (fqdn))
-  (get-smtp-greeting sock buf mxname))
+(defun smtp-say-hello (sock buf mxname &key verbose)
+  (let ((string (format nil "HELO ~A" (fqdn))))
+    (if verbose
+	(format t ">>> ~A~%" string))
+    (outline sock "~A" string))
+  (get-smtp-greeting sock buf mxname :verbose verbose))
 
-(defun get-smtp-greeting (sock buf mxname)
-  (get-smtp-reply sock buf *greetingtimeout* mxname))
+(defun get-smtp-greeting (sock buf mxname &key verbose)
+  (get-smtp-reply sock buf *greetingtimeout* mxname :verbose verbose))
 
-(defun get-smtp-reply (sock buf timeout mxname)
+(defun get-smtp-reply (sock buf timeout mxname &key verbose)
   (let (line char)
     (loop
       (setf line (smtp-get-line sock buf timeout))
+      (if verbose
+	  (format t "~A~%" line))
       (cond
        ((eq line :longline)
 	(maild-log "Got excessively long response from ~A while reading the SMTP greeting" mxname)
@@ -156,7 +183,7 @@
 	 (return (values :transient line)))))))
 
 
-(defun connect-to-mx (domain)
+(defun connect-to-mx (domain &key verbose)
   (block nil
     (let ((mxs (get-good-mxs domain)))
       (if (eq mxs :no-such-domain)
@@ -164,14 +191,22 @@
       (dolist (mx mxs)
 	(let (sock)
 	  (handler-case 
-	      (setf sock (make-socket :type :hiper
-				      :remote-host (car mx) 
-				      :remote-port *smtp-port*))
+	      (progn
+		(if verbose
+		    (format t "Connecting to ~A...~%" (cdr mx)))
+		(setf sock (make-socket :type :hiper
+					:remote-host (car mx) 
+					:remote-port *smtp-port*)))
 	    (error (c)
+	      (if verbose
+		  (format t "..failed: ~A~%" c))
 	      (maild-log "Error ~A while connecting to ~A" c (cdr mx))
 	      nil))
-	  (if sock
-	      (return (values sock (cdr mx) :ok))))))))
+	  (if* sock
+	     then
+		  (if verbose
+		      (format t "..connected.~%"))
+		  (return (values sock (cdr mx) :ok))))))))
 
 ;; return a list of (addr . name)
 (defun get-good-mxs (domain)
