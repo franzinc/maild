@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: greylist.cl,v 1.6 2003/07/21 22:10:25 dancy Exp $
+;; $Id: greylist.cl,v 1.7 2003/07/22 19:38:28 dancy Exp $
 
 (in-package :user)
 
@@ -22,6 +22,7 @@
   (require :mysql))
 
 (defparameter *greylist-configfile* nil)
+(defparameter *greylist-db-host* "localhost")
 (defparameter *greylist-db-name* "greylist")
 (defparameter *greylist-db-user* "greylist")
 (defparameter *greylist-db-password* "unset")
@@ -68,7 +69,7 @@
     
     ;; See if we have a broken connection.
     (when (and *greylist-db* 
-	       (not (open-stream-p (dbi.mysql::mysql-socket *greylist-db*))))
+	       (not (dbi.mysql:mysql-connected *greylist-db*)))
       (maild-log "greylist: Disconnecting broken mysql connection")
       (dbi.mysql:disconnect :db *greylist-db*)
       (setf *greylist-db* nil))
@@ -77,6 +78,7 @@
       (maild-log "greylist: Establishing mysql connection")
       (setf *greylist-db* 
 	(dbi.mysql:connect :database *greylist-db-name*
+			   :host *greylist-db-host*
 			   :user *greylist-db-user*
 			   :password *greylist-db-password*)))))
 
@@ -255,8 +257,10 @@
 	  
 (defun update-triple (triple)
   (mp:with-process-lock (*greylist-lock*)
+    (greysql "lock tables triples write")
     (greylist-delete-triple triple)
-    (greylist-insert-triple triple)))
+    (greylist-insert-triple triple)
+    (greysql "unlock tables")))
   
 
 (defun greylist-insert-triple (triple)
@@ -278,6 +282,3 @@
 	   (triple-ip triple)
 	   (dbi.mysql:mysql-escape-sequence (triple-from triple))
 	   (dbi.mysql:mysql-escape-sequence (triple-to triple)))))
-
-
-

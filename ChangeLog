@@ -1,3 +1,10 @@
+2003-07-22  root  <root@gills.dancysoft.com>
+
+	* greylist.cl: *greylist-db-host* variable for specifying the
+	mysql host.  Default is "localhost".  Useful for shared database.
+	Also, use "lock tables..." when updating a triple to avoid
+	concurrency problems.
+	
 2003-07-21  Ahmon Dancy  <dancy@dancy>
 
 	* greylist.cl:  From Evan Harris' latest greylist announcement:
