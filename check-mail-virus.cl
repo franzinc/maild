@@ -10,8 +10,9 @@
 (defparameter *ripmime* "/usr/local/bin/ripmime")
 (defparameter *uvscan* "/usr/local/bin/uvscan")
 
-(require :osi)
-(use-package :excl.osi)
+(eval-when (compile load eval)
+  (require :osi)
+  (use-package :excl.osi))
 
 (defun usage ()
   (error "Directory ~a must exist and be owned by user ~a~%"
