@@ -50,7 +50,8 @@
   
 
 ;; 'recips' is a (possibly empty) list of recip structs
-(defun send-from-stdin (recips &key (dot t) gecos from verbose grab-recips)
+(defun send-from-stdin (recips &key (dot t) gecos from verbose 
+				    grab-recips metoo)
   (multiple-value-bind (fromaddr gecos authwarn realuser)
       (compute-sender-info from gecos)
     (let (q errstatus)
@@ -87,7 +88,8 @@
 	  (queue-finalize q recips headers (dotted-to-ipaddr "127.0.0.1")
 			      :date t
 			      :add-from t 
-			      :from-gecos gecos)))
+			      :from-gecos gecos
+			      :metoo metoo)))
       
       (when errstatus
 	;; somethin' went wrong.  It should already have been logged.

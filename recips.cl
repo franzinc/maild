@@ -131,10 +131,11 @@
 
 ;; returns a list of recip structs w/ no duplicates.
 ;; There may be some :error recips.
-(defun expand-addresses (addrs sender)
+(defun expand-addresses (addrs sender &key metoo)
   (let ((exclude-sender t)
 	(sender-exp (lookup-recip sender)))
-    (if (or (mailing-list-p sender-exp)
+    (if (or metoo
+	    (mailing-list-p sender-exp)
 	    (recip-type (first sender-exp))) ;; prog/file/whatnot expansion    
 	(setf exclude-sender nil)
       (setf sender-exp (first sender-exp)))

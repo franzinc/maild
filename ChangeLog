@@ -1,3 +1,8 @@
+2003-07-08  Ahmon Dancy  <dancy@dancy>
+
+	*honors -m and -oM options so the sender will get a copy of mail
+	sent to mailing lists if the sender is a member of those lists.
+
 2003-07-03  root  <root@dancy>
 
 	* smtp-server.cl/config.cl: Added option *helo-must-match-ip*

@@ -100,7 +100,8 @@
   (locate-header header (queue-headers q)))
 
 ;; recips is a list of email addresses or a list of recip structs
-(defun queue-finalize (q recips headers cliaddr &key date add-from from-gecos)
+(defun queue-finalize (q recips headers cliaddr &key date add-from from-gecos
+						     metoo)
   (let ((emailaddrs 
 	 (if (emailaddr-p (first recips))
 	     recips
@@ -108,7 +109,7 @@
     
     (setf (queue-orig-recips q) emailaddrs)
     (setf (queue-recips q) 
-      (expand-addresses emailaddrs (queue-from q))))
+      (expand-addresses emailaddrs (queue-from q) :metoo metoo)))
   
   ;; Add in any necessary headers.
   ;; Received header always goes in front.

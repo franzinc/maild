@@ -22,6 +22,7 @@
 	 ("q" :short processqueue :optional-companion)
 	 ("v" :short verbose nil)
 	 ("t" :short grab-recips nil)
+	 ("m" :short metoo nil)
 	 ("C" :short alt-config-file :required-companion))
       (cmdline-recips :command-line-arguments args)
 
@@ -47,7 +48,9 @@
       (dolist (option options)
 	(cond
 	 ((string= option "i")
-	  (setf ignoredot t))))
+	  (setf ignoredot t))
+	 ((string= option "M")
+	  (setf metoo t))))
       
       (when processqueue
 	(if (stringp processqueue)
@@ -96,6 +99,7 @@
 			     :gecos fullname
 			     :from from
 			     :grab-recips grab-recips
+			     :metoo metoo
 			     :verbose verbose)
 	  (error "~a: No valid recipients specified." prgname))))))
 
