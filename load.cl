@@ -1,4 +1,4 @@
-;; $Id: load.cl,v 1.14 2003/09/05 20:09:16 dancy Exp $
+;; $Id: load.cl,v 1.15 2004/11/15 04:09:13 layer Exp $
 
 (in-package :user)
 
@@ -12,7 +12,7 @@
       "input" 
       "smtp-server" "smtp-server-checkers" "greylist"
       "bounce" "www"
-      "maild"))
+      "maild" "rep-server"))
 
 
 (defun compile-sources (&key load)

@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.14 2004/11/10 15:58:53 layer Exp $
+# $Id: Makefile,v 1.15 2004/11/15 04:09:13 layer Exp $
 
 lisp=$(shell if test -x /storage1/acl/mlisp; then \
 		echo /storage1/acl/mlisp; \
@@ -9,6 +9,7 @@ libdir=/usr/local/lib
 bindir=/usr/local/sbin
 
 all: maild/maild check-mail-virus/check-mail-virus
+	(cd greyadmin; make)
 
 maild/maild: *.cl
 	rm -fr maild

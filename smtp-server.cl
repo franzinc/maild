@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: smtp-server.cl,v 1.27 2004/09/06 15:09:37 dancy Exp $
+;; $Id: smtp-server.cl,v 1.28 2004/11/15 04:09:13 layer Exp $
 
 (in-package :user)
 
@@ -92,7 +92,16 @@
       (t ;; parent
        )))) ;; just return
 
+(defvar *rep-server-started* nil)
+
 (defun smtp-server ()
+  (when (and *rep-start-server*
+	     (not *rep-server-started*))
+    (maild-log "Starting REP server")
+    (mp:process-run-function "rep server"
+      'start-rep-server *rep-server-port* 'maild-log)
+    (setq *rep-server-started* t))
+  
   (parse-connections-blacklist)
 
   (let ((port *smtp-port*)

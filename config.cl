@@ -1,4 +1,4 @@
-;; $Id: config.cl,v 1.26 2003/09/30 17:56:42 dancy Exp $
+;; $Id: config.cl,v 1.27 2004/11/15 04:09:13 layer Exp $
 
 (in-package :user)
 
@@ -250,3 +250,8 @@
 
 (defparameter *queue-lock-timeout* (* 15 60)) ;; 15 minutes
 (defparameter *queue-lock-refresh-interval* (* 10 60)) ;; every 10 minutes
+
+;;;;;;;;;;;;;;;
+
+(defparameter *rep-start-server* nil)
+(defparameter *rep-server-port* 9567)
