@@ -1,3 +1,14 @@
+2004-09-06  root  <root@gills.dancysoft.com>
+
+	* version.cl: 1.1.19
+
+	* If a fully qualiified left hand side is specified in the aliases
+	file, then the associated owner- alias (if there is one) must be
+	fully qualified as well.
+
+	* smtp-server.cl: Rudimentary EHLO support.  May add STARTTLS
+	soon.
+
 2004-08-16  root  <root@gills.dancysoft.com>
 
         * version.cl: 1.1.18

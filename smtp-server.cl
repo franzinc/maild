@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: smtp-server.cl,v 1.26 2003/12/18 19:16:58 dancy Exp $
+;; $Id: smtp-server.cl,v 1.27 2004/09/06 15:09:37 dancy Exp $
 
 (in-package :user)
 
@@ -236,6 +236,7 @@
 
 (defparameter *smtpcmdlist*
     '(("helo" smtp-helo)
+      ("ehlo" smtp-ehlo)
       ("quit" smtp-quit)
       ("noop" smtp-noop)
       ("rset" smtp-reset)
@@ -259,9 +260,15 @@
 (defun reset-smtp-session (sess)
   (setf (session-from sess) nil)
   (setf (session-to sess) nil))
-  
 
 (defun smtp-helo (sess text)
+  (smtp-helo-common sess text :helo))
+
+(defun smtp-ehlo (sess text)
+  (smtp-helo-common sess text :ehlo))
+
+(defun smtp-helo-common (sess text type)
+  (declare (ignore type)) ;;later
   (block nil
     (let ((sock (session-sock sess)))
       (when (session-helo sess)
@@ -281,14 +288,14 @@
 	       then (outline sock "501 Invalid domain name")
 		    (maild-log
 		     "Rejected HELO ~A from client ~A (invalid domain)"
-			       text (session-dotted sess))
+		     text (session-dotted sess))
 		    (inc-checker-stat connections-rejected-permanently
 				      "HELO domain checker")
 		    (return :quit)
 	       else ;; log only
 		    (maild-log
 		     "NOTE: HELO ~A from client ~A (invalid domain)"
-			       text (session-dotted sess))))
+		     text (session-dotted sess))))
 	  
 	  (when (null first)
 	    (if* (eq 't *helo-must-match-ip*)

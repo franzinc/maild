@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: aliases.cl,v 1.11 2003/07/09 16:15:27 dancy Exp $
+;; $Id: aliases.cl,v 1.12 2004/09/06 15:09:37 dancy Exp $
 
 (in-package :user)
 
@@ -191,28 +191,29 @@
 ;; 'thing' can be a string or an emailaddr struct
 ;; returns a list of recip structs
 ;; may include duplicates.
-(defun expand-alias (thing &key (wild t))
+(defun expand-alias (thing &key (wild t) (require-qualified nil))
   ;;; XXX - may want to move this out for performance reasons
   (update-aliases-info)
-  (expand-alias-inner 
-   (make-parsed-and-unparsed-address thing)
-   (aliases-info-aliases *aliases*) 
-   nil ;; seen
-   nil ;; owner
-   :wild wild))
+  (expand-alias-inner (make-parsed-and-unparsed-address thing)
+		      (aliases-info-aliases *aliases*) 
+		      nil ;; seen
+		      nil ;; owner
+		      :wild wild
+		      :require-qualified require-qualified))
 
 ;; tries long match (w/ full domain) first.. 
 ;; then wildcard match (*@domain) [if desired]
-;; then short match (just user part)
+;; then short match (just user part) [if require-qualified is nil]
 
-(defun expand-alias-inner (alias ht seen owner &key wild)
+(defun expand-alias-inner (alias ht seen owner &key wild require-qualified)
   (block nil
     ;; Check for loops
     (if (member alias seen :test #'equalp)
 	(error "Alias loop involving alias ~S" (emailaddr-orig alias)))
     
     (multiple-value-bind (lhs members)
-	(alias-get-entry alias ht :wild wild)
+	(alias-get-entry alias ht :wild wild 
+			 :require-qualified require-qualified)
 
       (if (null members)
 	  (return))
@@ -221,9 +222,9 @@
 
       (alias-expand-member-list lhs members ht seen owner))))
 
-  ;; returns values (lhs rhs) 
+;; returns values (lhs rhs) 
 ;; lhs is returned in case a wildcard match was hit.
-(defun alias-get-entry (alias ht &key wild)
+(defun alias-get-entry (alias ht &key wild require-qualified)
   (block nil
     (let (members)
       (if (not (local-domain-p alias))
@@ -243,6 +244,9 @@
 	  (setf members (gethash wildcard ht))
 	  (if members
 	      (return (values (parse-email-addr wildcard) members)))))
+    
+      (if require-qualified
+	  (return nil))
       
       ;; try just the local part.
       (let ((lookup (emailaddr-user alias)))
@@ -265,7 +269,8 @@
   (let (res type ownerstring ownerparsed)
     (setf ownerstring (concatenate 'string "owner-" (emailaddr-orig lhs)))
     (setf ownerparsed (parse-email-addr ownerstring))
-    (if (expand-alias ownerparsed :wild nil)
+    (if (expand-alias ownerparsed :wild nil 
+		      :require-qualified (emailaddr-domain lhs))
 	(setf owner ownerparsed))
     
     (dolist (member members)
