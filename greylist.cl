@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: greylist.cl,v 1.11 2003/09/19 17:30:34 dancy Exp $
+;; $Id: greylist.cl,v 1.12 2003/12/17 23:10:23 dancy Exp $
 
 (in-package :user)
 
@@ -102,8 +102,19 @@
 			   :user *greylist-db-user*
 			   :password *greylist-db-password*)))))
 
+
 (defun greylist-check-common (now ip from to)
   (block nil
+    
+    (ecase *greylist-operation-mode*
+      (:opt-out
+       (when (greylist-recipient-excluded-p to)
+	 (maild-log "Greylist: ~A is in the opt-out list" to)
+	 (return :ok)))
+      (:opt-in
+       (when (not (greylist-recipient-included-p to))
+	 (return :ok))))
+    
     (let ((triple (greylist-lookup-triple now ip from to)))
       (when (> (triple-blockexpire triple) now) 
 	;; block is still in place
@@ -150,13 +161,13 @@
 ;; :skip -- no need to check greylist.. accept the message
 ;; (:transient ...) -- something wrong connecting to database
 
-(defun greylist-init-common (ip from to)
+(defun greylist-init (ip from to)
   ;; Check ip whitelist.
   (dolist (net *greylist-ip-whitelist-parsed*)
     (when (addr-in-network-p ip net)
       (maild-log "Client from ~A:  Manually whitelisted client." 
 		 (ipaddr-to-dotted ip))
-      (return-from greylist-init-common :skip)))
+      (return-from greylist-init :skip)))
   
   ;; Hosts that are allowed to relay through us aren't subject
   ;; to greylisting.   Most (all?) relay checkers ignore the 'to'
@@ -166,43 +177,9 @@
   (when (relaying-allowed-p ip from to)
     (maild-log "Client from ~A:  Auto-whitelisted relay client."
 	       (ipaddr-to-dotted ip))
-    (return-from greylist-init-common :skip))
+    (return-from greylist-init :skip))
   
   (greylist-db-init))
-
-  
-(defun greylist-init-common-recip (to)
-  (setf to (emailaddr-orig to))
-    
-  (ecase *greylist-operation-mode*
-    (:opt-out
-     (if* (greylist-recipient-excluded-p to)
-	then
-	     (maild-log "Greylist: ~A is in the opt-out list" to)
-	     :skip
-	else
-	     :ok))
-    (:opt-in
-     (if (greylist-recipient-included-p to)
-	 :ok
-       :skip))))
-  
-
-;; Only returns :skip if all recipients would return :skip
-(defun greylist-init (ip from tos)
-  (if (not (listp tos))
-      (setf tos (list tos)))
-  (block nil
-    (let ((res (multiple-value-list (greylist-init-common ip from (first tos)))))
-      (ecase (first res)
-	(:transient
-	 (return (values-list res)))
-	(:skip
-	 (return :skip))
-	(:ok
-	 (dolist (to tos :skip)
-	   (if (eq :ok (greylist-init-common-recip to))
-	       (return :ok))))))))
 
 
 (defmacro with-greylist ((ip from to) &body body)
@@ -238,19 +215,29 @@
 
 
 ;; If any of the triples would delay, then the entire message is
-;; delayed.
+;; delayed.  However, all triples are checked anyway.. to make sure
+;; their greylists are updated properly (otherwise there will be a
+;; very long cascading delay as each of the recipients of the message
+;; are delayed and then whitelested, one at a time).
 (defun greylist-data-checker-common (ip from tos)
-  (with-greylist (ip from tos)
+  (with-greylist (ip from (first tos))
     (let ((now (get-universal-time))
-	  res)
+	  (ok t)
+	  res
+	  return-values-list)
+      
       (dolist (to tos)
-	(setf res 
-	  (multiple-value-list 
-	   (greylist-check-common now ip (emailaddr-orig from)
-				  (emailaddr-orig to))))
-	
-	(if (not (eq (first res) :ok))
-	    (return-from greylist-data-checker-common (values-list res))))
+	(setf res (multiple-value-list 
+		   (greylist-check-common now ip (emailaddr-orig from)
+					  (emailaddr-orig to))))
+	;; the return values from the first failed check are used.
+	(when (and ok (not (eq (first res) :ok)))
+	  (setf ok nil)
+	  (setf return-values-list res)))
+    
+      (if (not ok)
+	  (return-from greylist-data-checker-common 
+	    (values-list return-values-list)))
       
       ;; Reach here if all triples were :ok.  Before reporting :ok,
       ;; check to see if this is a message from <>.  If it is,

@@ -1,3 +1,13 @@
+2003-12-17  root  <root@gills.dancysoft.com>
+
+	* version.cl: 1.1.11
+
+	* greylist.cl: Shuffled around some checks to avoid duplicate
+	checking.  Also, when doing post-DATA checking, make sure the
+	check is run on all indenteded recipients, even if one of them
+	will cause the message to be delayed.  This way, the
+	auto-whitelisting will happen at the same time for all recips.
+
 2003-10-17  root  <root@gills.dancysoft.com>
 
         * maild.cl: Don't say "Maild terminating..." in the signal handler
