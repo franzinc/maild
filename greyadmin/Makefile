@@ -1,6 +1,8 @@
-# $Id: Makefile,v 1.6 2004/12/20 17:50:05 layer Exp $
+# $Id: Makefile,v 1.7 2005/03/16 03:35:07 dancy Exp $
 
-lisp=$(shell if test -x /fi/cl/7.0/bin/linux86/mlisp; then \
+lisp=$(shell if test -n "$(ACL)"; then \
+		echo $(ACL); \
+	     elif test -x /fi/cl/7.0/bin/linux86/mlisp; then \
 		echo /fi/cl/7.0/bin/linux86/mlisp; \
 	     elif test -x /usr/local/acl70/mlisp; then \
 		echo /usr/local/acl70/mlisp; \

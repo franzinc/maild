@@ -1,3 +1,12 @@
+2005-03-15  root  <root@gills.dancysoft.com>
+
+	* Makefile:
+	  If ACL environment variable exists, use that for the build lisp.
+
+	* greyadmin.cl/menu.clp/super.clp:
+	  support for a super user which can impersonate anyone.  To use, configure
+	  *admin-user* and *admin-password* in your /etc/greyadmin.cl.  
+
 2004-11-10  Kevin Layer  <layer@relay.known.net>
 
 	* Makefile:

@@ -9,6 +9,9 @@
 (defparameter *pop-auth-server* nil)
 ;; trailing slash is required
 (defparameter *libdir* "/usr/local/lib/greyadmin/")
+;; super user
+(defparameter *admin-user* nil)
+(defparameter *admin-password* nil)
 
 (defparameter *greylist-db-host* "localhost")
 (defparameter *greylist-db-name* "greylist")
@@ -89,6 +92,8 @@
 		       :index "login"
 		       :map '(("login" "login.clp")
 			      ("checklogin" check-login)
+			      ("super" "super.clp")
+			      ("impersonate" impersonate)
 			      ("menu" "menu.clp")
 			      ("update" update)
 			      ("whitelist" quick-whitelist-triple)
@@ -98,8 +103,14 @@
 ;; is in use or public argument is supplied.
 (def-clp-function ga_with-wrapper (req ent args body) 
   (let ((sess (websession-from-req req)))
-    (if (or (assoc "public" args :test #'equal)
-	    (websession-variable sess "user"))
+    (if (or 
+	 ;; public area
+	 (assoc "public" args :test #'equal) 
+	 ;; superuser can get anywhere
+	 (websession-variable sess "super")
+	 ;; authenticated user in non-superonly area.
+	 (and (null (assoc "superonly" args :test #'equal)) 
+	      (websession-variable sess "user")))
 	(html
 	 (:html
 	  (:head 
@@ -168,7 +179,14 @@
     (let* ((login (request-query-value "login" req))
 	   (pw (request-query-value "pw" req))
 	   (sess (websession-from-req req)))
-      (when (not (check-password login pw))
+      ;; Check for super user access
+      (when (and *admin-user* *admin-password* 
+		 (string= login *admin-user*)
+		 (string= pw *admin-password*))
+	(setf (websession-variable sess "error") nil)
+	(setf (websession-variable sess "super") t)
+	(return "super"))
+      (when (or (null login) (null pw) (not (check-password login pw)))
 	(setf (websession-variable sess "error") "Invalid login")
 	(return "login"))
       (setf (websession-variable sess "error") nil)
@@ -176,6 +194,20 @@
       (setf (websession-variable sess "greylisting")
 	(determine-greylist-status (user-address login)))
       "menu")))
+
+(defun impersonate (req ent)
+  (declare (ignore ent))
+  (block nil
+    (let* ((login (request-query-value "login" req))
+	   (sess (websession-from-req req)))
+      (if (null (websession-variable sess "super"))
+	  (return "login"))
+      (setf (websession-variable sess "error") nil)
+      (setf (websession-variable sess "user") login)
+      (setf (websession-variable sess "greylisting")
+	(determine-greylist-status (user-address login)))
+      "menu")))
+  
 
 (defun user-address (user)
   (if (find #\@ user)

@@ -25,6 +25,13 @@ Off
 <hr>
 <b>Your personal whitelist:</b><br>
 <ga_dump-personal-whitelist/>
-To whitelist an entire domain, use the *@domain form.  For example, to whitelist all google.com senders, use *@google.com.
+To whitelist an entire domain, use the *@domain form.  For example, to whitelist all google.com senders, use *@google.com.<br>
+
+ <clp_ifdef name="super" session>
+  <hr>
+  <form name="adminform" action="impersonate" method="post">
+  <input type=text name=login> <input type=submit value=Impersonate> <br>
+  </form>
+ </clp_ifdef>
 
 </ga_with-wrapper>
