@@ -1,3 +1,9 @@
+2004-09-13  Ahmon Dancy  <dancy@dancy>
+
+	* version.cl: 1.1.20
+	 
+	* Conditionalize tests in process-dead-p for 7.0
+
 2004-09-06  root  <root@gills.dancysoft.com>
 
 	* version.cl: 1.1.19

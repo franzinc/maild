@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: utils.cl,v 1.13 2003/09/30 17:56:42 dancy Exp $
+;; $Id: utils.cl,v 1.14 2004/09/13 22:55:56 dancy Exp $
 
 (in-package :user)
 
@@ -182,10 +182,9 @@
     (if (funcall checker addr from to)
 	(return t))))
 
-;; acl 7.0 will have something like this already in the mp
-;; package.
 (defun process-dead-p (process)
-  (null (mp:process-implementation process)))
+  #+(version= 6 2)(null (mp:process-implementation process))
+  #+(version>= 7 0)(not (mp:process-alive-p process)))
 
 (defun wait-for-process-to-die (process)
   (mp:process-wait 
