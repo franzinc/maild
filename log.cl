@@ -1,3 +1,5 @@
+;; $Id: log.cl,v 1.2 2003/07/08 18:05:24 layer Exp $
+
 (in-package :user)
 
 (defparameter *log-opened* nil)

@@ -1,11 +1,4 @@
-;; This software is Copyright (c) Franz Inc., 2001-2002.
-;; Franz Inc. grants you the rights to distribute
-;; and use this software as governed by the terms
-;; of the Lisp Lesser GNU Public License
-;; (http://opensource.franz.com/preamble.html),
-;; known as the LLGPL.
-;;
-;; $Id: ipaddr.cl,v 1.1.1.1 2003/04/23 17:23:16 dancy Exp $
+;; $Id: ipaddr.cl,v 1.2 2003/07/08 18:05:24 layer Exp $
 
 (in-package :user)
 

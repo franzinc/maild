@@ -1,3 +1,5 @@
+;; $Id: security.cl,v 1.4 2003/07/08 18:05:25 layer Exp $
+
 (in-package :user)
 
 (defun world-or-group-writable-p (file &key sb)

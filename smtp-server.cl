@@ -1,3 +1,5 @@
+;; $Id: smtp-server.cl,v 1.15 2003/07/08 18:05:25 layer Exp $
+
 (in-package :user)
 
 ;; handles an SMTP session
@@ -241,19 +243,27 @@
 	  (when (null first)
 	    (outline sock "401 Unable to resolve domain")
 	    (maild-log "Temporarily rejected client from ~A because we couldn't resolve the name supplied in the HELO command (~A)" 
-		       text)
+		       (session-dotted sess) text)
 	    (inc-checker-stat connections-rejected-temporarily
 			      "HELO domain checker")
 	    (return :quit))
 	  
 	  (let ((addrs (append (list first) rest)))
 	    (when (not (member (smtp-remote-host sock) addrs))
-	      (outline sock "501 HELO domain must match your IP address")
-	      (maild-log "Rejected HELO ~A from client ~A (No IP match)"
-			 text (session-dotted sess))
-	      (inc-checker-stat connections-rejected-permanently
-				"HELO domain checker")
-	      (return :quit)))))
+	      (if* (eq 't *helo-must-match-ip*)
+		 then ;; do it
+		      (outline sock
+			       "501 HELO domain must match your IP address")
+		      (maild-log
+		       "Rejected HELO ~A from client ~A (No IP match)"
+		       text (session-dotted sess))
+		      (inc-checker-stat connections-rejected-permanently
+					"HELO domain checker")
+		      (return :quit)
+		 else ;; log only
+		      (maild-log
+		       "NOTE: HELO ~A from client ~A (No IP match)"
+		       text (session-dotted sess)))))))
       
       (setf (session-helo sess) text)
       (outline sock "250 ~a Hi there." (fqdn)))))

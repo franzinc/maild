@@ -1,3 +1,5 @@
+;; $Id: lex.cl,v 1.2 2003/07/08 18:05:24 layer Exp $
+
 (in-package :user)
 
 (defun lex-list (spec string &key (pos 0) (max (length string)))

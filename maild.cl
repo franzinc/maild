@@ -1,3 +1,5 @@
+;; $Id: maild.cl,v 1.15 2003/07/08 18:05:24 layer Exp $
+
 (in-package :user)
 
 (defparameter *configfile* "/etc/maild.cl")

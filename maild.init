@@ -10,6 +10,7 @@
 # config: /etc/maild.cl
 
 # This script stolen from redhat's sendmail script
+# $Id: maild.init,v 1.2 2003/07/08 18:05:25 layer Exp $
 
 # Source function library.
 . /etc/rc.d/init.d/functions

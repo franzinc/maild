@@ -1,3 +1,5 @@
+;; $Id: utils.cl,v 1.8 2003/07/08 18:05:25 layer Exp $
+
 (in-package :user)
 
 (eval-when (compile load eval)

@@ -1,3 +1,5 @@
+;; $Id: load.cl,v 1.12 2003/07/08 18:05:24 layer Exp $
+
 (in-package :user)
 
 (defparameter *source-files*

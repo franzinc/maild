@@ -1,3 +1,5 @@
+;; $Id: input.cl,v 1.13 2003/07/08 18:05:24 layer Exp $
+
 (in-package :user)
 
 (defun trusted-user-p (us)

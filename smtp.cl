@@ -1,3 +1,5 @@
+;; $Id: smtp.cl,v 1.3 2003/07/08 18:05:25 layer Exp $
+
 (in-package :user)
 
 ;; Stuff common to the smtp server and client

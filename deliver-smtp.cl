@@ -1,3 +1,5 @@
+;; $Id: deliver-smtp.cl,v 1.8 2003/07/08 18:05:24 layer Exp $
+
 (in-package :user)
 
 ;; XXX --  Need a check to make sure that we never try to connect to

@@ -1,3 +1,5 @@
+;; $Id: config.cl,v 1.21 2003/07/08 18:05:24 layer Exp $
+
 (in-package :user)
 
 (defparameter *debug* nil)
@@ -76,9 +78,10 @@
 ;; address must succeed before mail is accepted.
 (defparameter *reverse-dns-required* nil)
 
-;; If non-nil, then the result of a DNS lookup on the name specified
-;; in the HELO command must match the IP address of the connected
-;; client
+;; If the value is t, then the result of a DNS lookup on the name
+;; specified in the HELO command must match the IP address of the connected
+;; client.  If non-nil and not t, then just log connections that would be
+;; rejected if the value of this variable were t.
 (defparameter *helo-must-match-ip* nil)
 
 

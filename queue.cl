@@ -1,3 +1,5 @@
+;; $Id: queue.cl,v 1.14 2003/07/08 18:05:25 layer Exp $
+
 (in-package :user)
 
 (defstruct queue 

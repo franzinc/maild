@@ -1,3 +1,14 @@
+2003-07-08  Kevin Layer  <layer@relay.known.net>
+
+	* smtp-server.cl:
+	- small bug fix to format call
+	- have a non-nil and non-t value of *helo-must-match-ip* means
+	  just log, don't really reject (unless problems resolving the
+	  domain are found) the connection.  It's useful for seeing what
+	  would happen if you set the variable to `t'.
+	* config.cl: doc changes to *helo-must-match-ip*
+	...add CVS Id to all .cl files
+
 2003-07-08  Ahmon Dancy  <dancy@dancy>
 
 	*honors -m and -oM options so the sender will get a copy of mail
