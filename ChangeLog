@@ -1,8 +1,16 @@
+2003-10-17  root  <root@gills.dancysoft.com>
+
+        * maild.cl: Don't say "Maild terminating..." in the signal handler
+	anymore.  Added *sighup* to the list of signals to catch.  Make
+	sure the signal hander returns t to indicate that it doesn't want
+	other signal handlers to execute.  This removes the need for (setf
+	(mp::process-interruptible-p process) nil) in queue.cl.
+
 2003-10-14  root  <root@gills.dancysoft.com>
 
-	* Added (setf (mp::process-interruptible-p process) nil) to the
-	code that creates the lock refresher thread so that the thread is
-	invisible to control-c's.
+	* queue.cl: Added (setf (mp::process-interruptible-p process) nil)
+	to the code that creates the lock refresher thread so that the
+	thread is invisible to control-c's.
 
 2003-09-30  root  <root@gills.dancysoft.com>
 

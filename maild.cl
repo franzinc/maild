@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: maild.cl,v 1.17 2003/08/22 20:41:47 dancy Exp $
+;; $Id: maild.cl,v 1.18 2003/10/17 22:18:05 dancy Exp $
 
 (in-package :user)
 
@@ -164,12 +164,12 @@
 
 (defun maild-signal-handler (sig tee)
   (declare (ignore tee))
-  (format t "Maild terminating...~%")
-  ;;(exit (+ 128 sig) :quiet t))
-  (excl::mp-safe-exit (+ 128 sig) :quiet t))
+  ;;(format t "Maild terminating...~%")
+  (excl::mp-safe-exit (+ 128 sig) :quiet t)
+  t) ;; for good measure
 
 (defun establish-signal-handlers ()
-  (dolist (sig `(,*sigint* ,*sigterm*))
+  (dolist (sig `(,*sigint* ,*sigterm* ,*sighup*))
     (set-signal-handler sig #'maild-signal-handler)))
 
 ;; XXX -- sendmail shows the expansions.  Will do that
