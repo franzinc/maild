@@ -1,3 +1,14 @@
+2003-07-21  Ahmon Dancy  <dancy@dancy>
+
+	* greylist.cl:  From Evan Harris' latest greylist announcement:
+
+	" - Discovered postfix normally uses <postmaster@some.domain> for
+	its envelope from address when doing SMTP callbacks.  Changed
+	milter to treat any email from postmaster@ as a callback and delay
+	the tempfail until after the DATA phase."
+
+	Made the corresponding change in maild.  
+
 2003-07-09  root  <root@gills.dancysoft.com>
 
 	* Don't do HELO domain check if connection is from localhost.

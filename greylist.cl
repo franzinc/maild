@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: greylist.cl,v 1.5 2003/07/08 18:15:52 layer Exp $
+;; $Id: greylist.cl,v 1.6 2003/07/21 22:10:25 dancy Exp $
 
 (in-package :user)
 
@@ -131,6 +131,11 @@
       (values :transient "Please try again later"))))
   
 
+(defun greylist-mailer-daemon-addr-p (addr)
+  (or (emailnullp addr)
+      (equalp "postmaster" (emailaddr-user addr))))
+  
+
 (defun greylist-rcpt-to-checker (ip from type to recips)
   (declare (ignore type recips))
   (block nil
@@ -145,9 +150,8 @@
 	(:transient
 	 (return (values-list res)))))
     
-    ;; mail from:<> is checked later 
-    (when (emailnullp from) ;; <>
-      (maild-log "greylist: mail is from <> so check will happen after DATA")
+    ;; mail from mailer daemon is checked later 
+    (when (greylist-mailer-daemon-addr-p from)
       (return :ok))
     
     (greylist-check-common (get-universal-time)
@@ -169,8 +173,7 @@
 	(:transient
 	 (return (values-list res)))))
     
-    (when (not (emailnullp from))
-      ;;(maild-log " not checking because mail is not from <>")
+    (when (not (greylist-mailer-daemon-addr-p from))
       (return :ok)) ;; we already passed the rcpt to test
 
     (let ((now (get-universal-time))
