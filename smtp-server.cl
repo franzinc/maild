@@ -33,13 +33,13 @@
   messages-rejected-temporarily ;; list of checker/count pairs
   (mails-accepted 0))
 
-(defparameter *smtp-server-stats* nil)
+(defparameter *smtp-server-stats* (make-statistics))
 
 (defmacro inc-smtp-stat (slot)
   (let ((accessor (intern (format nil "~A-~A" 'statistics slot))))
     `(without-interrupts
        (incf (,accessor *smtp-server-stats*)))))
-  
+
 (defmacro get-smtp-stat (slot)
   (let ((accessor (intern (format nil "~A-~A" 'statistics slot))))
     `(without-interrupts
