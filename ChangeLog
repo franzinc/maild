@@ -1,5 +1,9 @@
 2003-08-04  root  <root@gills.dancysoft.com>
 
+	* Added relaying-allowed-p utility function.  Use it in
+	smtp-conneciton-reverse-dns-checker to make an exception for
+	allowable relay clients.
+
 	* Bumped version to 1.1.2.
 
 	* greylist.cl: Added *greylist-ip-whitelist* configuration

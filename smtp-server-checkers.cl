@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: smtp-server-checkers.cl,v 1.9 2003/07/08 18:15:53 layer Exp $
+;; $Id: smtp-server-checkers.cl,v 1.10 2003/08/04 16:39:37 dancy Exp $
 
 (in-package :user)
 
@@ -54,8 +54,10 @@
 
 (defun smtp-connection-reverse-dns-checker (ip)
   (block nil
-    (if (not *reverse-dns-required*)
+    (if (or (not *reverse-dns-required*)
+	    (relaying-allowed-p ip nil nil))
 	(return :ok))
+    
     (let ((exists (domain-exists-p 
 		   (concatenate 'string (flip-ip ip) ".in-addr.arpa"))))
       (when (eq exists :unknown)
@@ -112,17 +114,18 @@
     (if (eq type :local)
 	(return :ok))
 
-    (dolist (checker *relay-checkers*)
-      (if (funcall checker ip from recip)
-	  (return-from smtp-rcpt-to-relay-checker :ok)))
+    (if (relaying-allowed-p ip from recip)
+	(return :ok))
     
     (values :err (format nil "~A... Relaying denied" (emailaddr-orig recip)))))
-	  
-(defun relaying-allowed-p (cliaddr from recip)
+
+(defun check-relay-access (cliaddr from recip)
   (declare (ignore from recip))
   (dolist (check *relay-access*)
     (if (addr-in-network-p cliaddr (parse-addr check))
 	(return t))))
+
+  
 
 (defun smtp-rcpt-to-dns-blacklist-checker (ip from type recip recips)
   (declare (ignore type recips))

@@ -1,4 +1,4 @@
-;; $Id: config.cl,v 1.22 2003/07/09 16:15:27 dancy Exp $
+;; $Id: config.cl,v 1.23 2003/08/04 16:39:37 dancy Exp $
 
 (in-package :user)
 
@@ -32,7 +32,7 @@
 ;; The function should return true (non-nil) if relaying is allowed,
 ;; otherwise nil.  The first function that returns true will
 ;; terminate the checking.
-(defparameter *relay-checkers* '(relaying-allowed-p))
+(defparameter *relay-checkers* '(check-relay-access))
 
 ;; List of IP addresses or networks.  This is used by the default
 ;; relay checker "relaying-allowed-p"

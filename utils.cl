@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: utils.cl,v 1.9 2003/07/08 18:15:53 layer Exp $
+;; $Id: utils.cl,v 1.10 2003/08/04 16:39:37 dancy Exp $
 
 (in-package :user)
 
@@ -238,3 +238,10 @@
 	   (ash (logand ip #x00ff0000) -8)
 	   (ash (logand ip #x0000ff00) 8)
 	   (ash (logand ip #x000000ff) 24))))
+
+(defun relaying-allowed-p (addr from to)
+  (dolist (checker *relay-checkers*)
+    (if (funcall checker addr from to)
+	(return t))))
+
+

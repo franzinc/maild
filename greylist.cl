@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: greylist.cl,v 1.9 2003/08/04 16:11:08 dancy Exp $
+;; $Id: greylist.cl,v 1.10 2003/08/04 16:39:37 dancy Exp $
 
 (in-package :user)
 
@@ -148,11 +148,10 @@
   
   ;; Hosts that are allowed to relay through us aren't subject
   ;; to greylisting.
-  (dolist (checker *relay-checkers*)
-    (when (funcall checker ip from to)
-      (maild-log "Client from ~A:  Auto-whitelisted relay client."
-		 (ipaddr-to-dotted ip))
-      (return-from greylist-init :skip)))
+  (when (relaying-allowed-p ip from to)
+    (maild-log "Client from ~A:  Auto-whitelisted relay client."
+	       (ipaddr-to-dotted ip))
+    (return-from greylist-init :skip))
   
   (let ((res (multiple-value-list (greylist-db-init))))
     (ecase (first res)
