@@ -53,11 +53,7 @@
 	   (t
 	    (push (make-emailaddr :user (addrspec-user addr)
 				  :domain (addrspec-domain addr)
-				  :orig (if (addrspec-domain addr)
-					    (format nil "~A@~A" 
-						    (addrspec-user addr)
-						    (addrspec-domain addr))
-					  (addrspec-user addr)))
+				  :orig (printable-from-addrspec addr))
 		  goods))))
 	(setf cruft 
 	  (with-output-to-string (s) (print-token-list remainder s)))
@@ -65,6 +61,14 @@
 	    (setf cruft ""))
 	(values (nreverse goods) (nreverse bads) cruft)))))
 		
+(defun printable-from-addrspec (addr)
+  (if (null (addrspec-user addr))
+      (if (null (addrspec-domain addr))
+	  "<>"
+	(format nil "@~A" (addrspec-domain addr)))
+    (if (null (addrspec-domain addr))
+	(addrspec-user addr)
+      (format nil "~A@~A" (addrspec-user addr) (addrspec-domain addr)))))
 
 (defun mailbox-to-addrspec (mailbox)
   (let ((thing (second mailbox)))

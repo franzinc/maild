@@ -3,9 +3,10 @@
 (defun deliver-smtp (recip q &key verbose)
   (block nil
     (let ((buf (make-string *maxlinelen*))
-	  (domain (emailaddr-domain recip))
-	  (sender 
-	   (emailaddr-orig (rewrite-smtp-envelope-sender (queue-from q))))
+	  (domain (emailaddr-domain (recip-addr recip)))
+	  (sender (emailaddr-orig 
+		   (rewrite-smtp-envelope-sender (recip-owner recip))))
+	  (recip-printable (emailaddr-orig (recip-addr recip)))
 	  errmsg)
       (multiple-value-bind (sock mxname status)
 	  (connect-to-mx domain :verbose verbose)
@@ -41,7 +42,7 @@
 	      ;; w/ the transaction. Bounces for the others will need
 	      ;; to be handled.
 	      (multiple-value-bind (res response)
-		  (smtp-send-rcpt-to sock buf mxname (emailaddr-orig recip) 
+		  (smtp-send-rcpt-to sock buf mxname recip-printable
 				     :verbose verbose)
 		(if (not (eq res :ok))
 		    (return (values res response))))
@@ -52,8 +53,7 @@
 		    (return (values res response))))
 	      
 	      (maild-log "Successful SMTP delivery to ~A (mx: ~A)" 
-			 (emailaddr-orig recip)
-			 mxname)
+			 recip-printable mxname)
 	      :delivered)
 	  ;; cleanup forms
 	  (if sock 

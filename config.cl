@@ -40,9 +40,12 @@
 
 ;; These functions will be called in order until one of them
 ;; returns true.  They are used to determine if a potential 
-;; local recipient address should be accepted.
+;; local recipient address should be accepted.  Order matters since
+;; this is also used to check for recipients which should generate
+;; an error message.  Currenly, this can only be done in the aliases
+;; file, so that check should happen first.
 (defparameter *local-recip-checks*
-    '(lookup-recip-in-passwd lookup-recip-in-aliases))
+    '(lookup-recip-in-aliases lookup-recip-in-passwd))
 
 (defparameter *queuedir* "/var/spool/maild")
 

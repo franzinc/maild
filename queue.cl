@@ -3,8 +3,7 @@
 (defstruct queue 
   id
   (ctime (get-universal-time)) ;; when this message was queued
-  (status "Reading message data...
-")
+  (status "Reading message data...")
   from
   recips ;; remaining recipients to be processed (list of recip structs)
   orig-recips ;; parsed email addrs, pre-alias expansion
@@ -84,10 +83,9 @@
 
 (defun queue-finalize (q recips headers cliaddr &key date add-from from-gecos)
   (setf (queue-orig-recips q) recips)
-  ;;; XXX -- need to check for owner- aliases and fork the envelope for
-  ;;; them.
-  (setf (queue-recips q) (expand-recips recips))
-
+  (setf (queue-recips q) (expand-addresses recips))
+  
+  ;; Add in any necessary headers.
   (setf (queue-headers q)
     (cons 
      (make-received-header cliaddr (queue-id q) (queue-orig-recips q))
@@ -125,7 +123,6 @@
   (let ((lockfile (queue-lockfile-from-id (queue-id q))))
     (probe-file lockfile)))
 
-;; A 0-length queue file is treated as one that does not exist.
 (defun queue-exists-p (id)
   (probe-file (queue-filename-from-id id)))
 1

@@ -1,3 +1,32 @@
+2003-05-12  root  <root@gills.dancysoft.com>
+
+	* aliases.cl:  Only allow one :error: thing on a right hand side
+	of an alias.
+
+	* bounce.cl:  Change the name of the bounce function to 'bounce'.
+	Added stuff so that bounces are sent to their proper owners.  Also
+	added an additional keyword argument to the bounce function so
+	that undeliverable recipients (due to timeout) will have a
+	sentence indicating so.
+
+	* config.cl:  Moved the aliases lookup in front of the passwd
+	lookup in the *local-recip-checks* parameter.  
+
+	* deliver-smtp.cl:  Uses new recip struct. 
+
+	* emailaddr.cl:  Make sure that the emailaddr-orig for <> is "<>".
+
+	* queue-process.cl:  queue-process-single-help uses the new recip
+	struct now.  The function is a smidge simpler now.
+
+	* recips.cl:  Added a 'status' slot to the recip struct.  
+	lookup-recip-in-passwd now returns a recip struct.
+
+	get-content-disposition modified since the lookup-recip-in-*
+	functions return recip structs now.  expand-recips is now
+	expand-addresses.  
+	
+
 2003-05-09  root  <root@gills.dancysoft.com>
 
 	* emailaddr.cl:  In parse-email-addr-list.  If cruft is all

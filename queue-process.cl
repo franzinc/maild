@@ -25,69 +25,67 @@
     (if (not (probe-file (queue-datafile q)))
 	(error "Queue id ~A doesn't have a data file!" (queue-id q)))
     
-    ;; XXX --  This really needs work.   We want to take advantage of 
-    ;; multiple recips per SMTP session... and also need to avoid
-    ;; sending more than one timeout bounce if there are multiple
-    ;; undelivered-to recips left.
-    (let (failed-recips)
-      (with-output-to-string (failure-msgs)
-	(with-output-to-string (transient-msgs)
-	  (dolist (recip (queue-recips q))
-	    (setf (queue-status q)
-	      (format nil "Working on delivery to ~A" (emailaddr-orig recip)))
-	    ;; XXX -- May want to move this outside the loop.
-	    (update-queue-file q)
+    ;; XXX --  This needs work.   We want to take advantage of 
+    ;; multiple recips per SMTP session.
+    (let (failed-recips recip-addr recip-printable)
+      (dolist (recip (queue-recips q))
+	(setf recip-addr (recip-addr recip))
+	(setf recip-printable (emailaddr-orig recip-addr))
+	(if (null (recip-owner recip))
+	    (setf (recip-owner recip) (queue-from q)))
+	(setf (queue-status q)
+	  (format nil "Working on delivery to ~A" recip-printable))
+	(setf (recip-status recip) "Attempting delivery")
 
-	    (multiple-value-bind (status response)
-		(if (local-domain-p recip)
-		    (deliver-local (emailaddr-user recip) q :verbose verbose)
-		  (deliver-smtp recip q :verbose verbose))
-	      (case status
-		(:delivered
-		 (setf (queue-recips q) (remove recip (queue-recips q))))
-		(:fail
-		 (maild-log "delivery to ~A failed: ~A" (emailaddr-orig recip)
-			    response)
-		 (format failure-msgs "~A: ~A~%" (emailaddr-orig recip)
-			 response)
-		 (push recip failed-recips)
-		 (setf (queue-recips q) 
-		   (delete recip (queue-recips q))))
-		;; Everything else is treated as a transient problem
-		(t
-		 (maild-log "delivery status for ~a is ~s." 
-			    (emailaddr-orig recip) status)
-		 (when response
-		   (format transient-msgs "~A: ~A~%" (emailaddr-orig recip)
-			   response)
-		   (maild-log "Error message is: ~A" response))))))
+	;; XXX -- May want to move this outside the loop.
+	(update-queue-file q)
 	  
-	  ;; See if we need to send a bounce message.
-	  (when failed-recips
-	    (maild-log "Sending bounce to ~A" (emailaddr-orig (queue-from q)))
-	    (create-bounce q failed-recips 
-			   (get-output-stream-string failure-msgs) :wait wait))
-	  
-	  ;; Done processing recips. 
-	  (when (null (queue-recips q))
-	    ;; Everything has been delivered.  Clean up
-	    (maild-log "Completed final delivery for queue id ~A" (queue-id q))
-	    (remove-queue-file q) 
-	    (return))
+	(multiple-value-bind (status response)
+	    (if (local-domain-p recip-addr)
+		(deliver-local (emailaddr-user recip-addr) q 
+			       :verbose verbose)
+	      (deliver-smtp recip q :verbose verbose))
+	  (case status
+	    (:delivered
+	     (setf (queue-recips q) (delete recip (queue-recips q))))
+	    (:fail
+	     (maild-log "delivery to ~A failed: ~A" 
+			recip-printable response)
+	     (setf (recip-status recip)
+	       (format nil "~A: ~A" recip-printable response))
+	     (push recip failed-recips)
+	     (setf (queue-recips q) 
+	       (delete recip (queue-recips q))))
+	    ;; Everything else is treated as a transient problem
+	    (t
+	     (maild-log "delivery status for ~a is ~s." 
+			recip-printable status)
+	     (when response
+	       (setf (recip-status recip)
+		 (format nil "~A: ~A" recip-printable response))
+	       (maild-log "Error message is: ~A" response))))))
       
-	  (setf (queue-status q) (get-output-stream-string transient-msgs))
-	  (update-queue-file q)
+      ;; See if we need to send bounces
+      (if failed-recips
+	  (bounce q failed-recips :wait wait))
+	
+      ;; Done processing recips. 
+      (when (null (queue-recips q))
+	;; Everything has been delivered.  Clean up
+	(maild-log "Completed final delivery for queue id ~A" (queue-id q))
+	(remove-queue-file q) 
+	(return))
       
-	  (when (queue-undeliverable-timeout-p q)
-	    (maild-log "Bouncing queue id ~A due to queue timeout" (queue-id q))
-	    (create-bounce q (queue-recips q) 
-			   (format nil "Could not deliver message for ~D days"
-				   *bounce-days*))
-	    (remove-queue-file q)
-	    (return))
-	  
-	  (maild-log "Terminating processing of queue id ~A" (queue-id q)))))))
-
+      (when (queue-undeliverable-timeout-p q)
+	(maild-log "Bouncing queue id ~A due to queue timeout" (queue-id q))
+	(bounce q (queue-recips q) :wait wait :timeout t)
+	(remove-queue-file q)
+	(return))
+      
+      (setf (queue-status q) "Will try during next queue run")
+      (update-queue-file q)
+      
+      (maild-log "Terminating processing of queue id ~A" (queue-id q)))))
 
 (defun queue-undeliverable-timeout-p (q)
   (> (get-universal-time)
@@ -122,7 +120,8 @@
 	(format t " Sender: ~A~%" (emailaddr-orig (queue-from q)))
 	(format t " Remaining recips: ~A~%"
 		(list-to-delimited-string
-		 (mapcar #'emailaddr-orig (queue-recips q))
+		 (mapcar #'(lambda (r) (emailaddr-orig (recip-addr r)))
+				   (queue-recips q))
 		 #\,))
 	(format t " Status: ~A~%" (queue-status q))))))
 

@@ -72,7 +72,7 @@
        (char= (schar string 0) #\\)))
 
 (defun parse-alias-right-hand-side (lhs line pos len)
-  (let (expansion ali)
+  (let (expansion ali have-error-type)
     (loop
       (multiple-value-bind (word newpos)
 	  (aliases-get-next-word #\, line pos len)
@@ -86,8 +86,11 @@
 	  (setf (alias-rhs-type ali) :include)
 	  (setf (alias-rhs-file ali) (subseq word #.(length ":include:"))))
 	 ((error-alias-p word)
+	  (setf have-error-type t)
 	  (setf (alias-rhs-type ali) :error)
-	  (setf (alias-rhs-errmsg ali) (subseq word #.(length ":error:"))))
+	  (setf (alias-rhs-errmsg ali) (subseq word #.(length ":error:")))
+	  (if (string= (alias-rhs-errmsg ali) "")
+	      (setf (alias-rhs-errmsg ali) nil)))
 	 ((file-alias-p word)
 	  (setf (alias-rhs-type ali) :file)
 	  (setf (alias-rhs-file ali) word))
@@ -117,6 +120,8 @@
 	(setf pos newpos)))
     (if (null expansion)
 	(error "Alias ~A has blank expansion" lhs))
+    (if (and have-error-type (> (length expansion) 1))
+	(error "Error in alias ~A: :error: must be the only thing on the right hand side" lhs))
     expansion))
 
   

@@ -10,7 +10,8 @@
   prog-user ;; for :prog recips
   errmsg ;; for :error recips
   expanded-from ;; string  (information only)
-  owner) ;; nil means just use the original envelope sender
+  owner ;; nil means just use the original envelope sender
+  status) 
 
 (defun local-domain-p (address)
   (let ((domain (emailaddr-domain address)))
@@ -22,91 +23,90 @@
 		:test #'equalp))))
   
 ;; Domain part is assumed to have been checked already.
-(defun lookup-recip-in-passwd (address)
-  (getpwnam (string-downcase (emailaddr-user address))))
+(defun lookup-recip-in-passwd (orig-address)
+  (let ((address (if (stringp orig-address)
+		     (parse-email-addr orig-address)
+		   orig-address)))
+    (if (null address)
+	(error "lookup-recip-in-passwd: Invalid address: ~A" orig-address))
+    (let ((pwent (getpwnam (string-downcase (emailaddr-user address)))))
+      (if (null pwent)
+	  nil
+	(list (make-recip :addr address))))))
 
-
-(defun get-recipient-disposition (addr)
+(defun get-recipient-disposition (orig-address)
   (block nil
-    (if (not (local-domain-p addr))
-	(return :non-local))
-    ;; Check for blacklisted recipients listed in the aliases file first.
-    (multiple-value-bind (found errmsg)
-	(lookup-recip-in-aliases addr)
-      (if (eq found :error)
-	  (return (values :error (if errmsg errmsg "Invalid user")))))
-    ;; Run other checkers 
-    (dolist (func *local-recip-checks* :local-unknown)
-      (multiple-value-bind (found errmsg)
-	  (funcall func addr)
-	(if (eq found :error)
-	    (return (values :error (if errmsg errmsg "Invalid user"))))
-	(if found
+    (let ((addr (if (stringp orig-address)
+		    (parse-email-addr orig-address)
+		  orig-address))
+	  recips)
+      (if (null addr)
+	  (error "get-recipient-disposition: Invalid address: ~S" orig-address))
+      (if (not (local-domain-p addr))
+	  (return :non-local))
+      (dolist (func *local-recip-checks* :local-unknown)
+	(setf recips (funcall func addr))
+	(if (and recips (= (length recips) 1) 
+		 (eq (recip-type (first recips)) :error))
+	    (return
+	      (values
+	       :error
+	       (if (recip-errmsg (first recips)) 
+		   (recip-errmsg (first recips))
+		 "Invalid user"))))
+	(if recips
 	    (return :local-ok))))))
 
-;; this stuff below needs to be updated to use the new stuff from
-;; aliases.cl
+(defun alias-exp-to-recip (exp)
+  (let ((rhs (alias-exp-rhs exp)))
+    (make-recip :type (alias-rhs-type rhs)
+		:addr (alias-rhs-addr rhs)
+		:file (alias-rhs-file rhs)
+		:prog-user (alias-rhs-prog-user rhs)
+		:errmsg (alias-rhs-errmsg rhs)
+		:expanded-from (alias-rhs-expanded-from rhs)
+		:owner (alias-exp-owner exp))))
 
-(defun lookup-recip-in-aliases (orig-address &key parsed)
+(defmacro alias-exps-to-recips (exps)
+  `(mapcar #'alias-exp-to-recip ,exps))
+
+(defun lookup-recip-in-aliases (orig-address)
   (let ((address (if (stringp orig-address)
 		     (parse-email-addr orig-address)
 		   orig-address)))
     (if (null address)
 	(error "lookup-recip-in-aliases: Invalid address: ~S" orig-address))
-    (multiple-value-bind (exp errmsg)
-	(lookup-recip-in-aliases-help address :parsed parsed)
-      (if exp
-	  (values exp errmsg)
-	(multiple-value-bind (exp errmsg)
-	    (lookup-recip-in-aliases-help (emailaddr-user address) 
-					  :parsed parsed)
-	  (values exp errmsg))))))
+    (let ((exp (expand-alias address)))
+      (if (null exp)
+	  nil
+	(alias-exps-to-recips exp)))))
+
+;; returns a list of recip structs w/ no duplicates.
+(defun expand-addresses (addrs)
+  (let (recips)
+    (dolist (addr addrs)
+      (if (not (local-domain-p addr))
+	  (push (make-recip :addr addr) recips)
+	(let ((expansion (lookup-recip-in-aliases addr)))
+	  (if expansion
+	      (setf recips (nconc recips expansion))
+	    (push (make-recip :addr addr) recips)))))
+    (delete-duplicates recips :test #'same-recip-p)))
     
-(defun lookup-recip-in-aliases-help (addr &key parsed)
+
+(defun same-recip-p (recip1 recip2)
   (block nil
-    (let ((exp (expand-alias addr :parsed parsed)))
-      (if (/= (length exp) 1)
-	  (return exp))
-      (let ((exp2 (first exp)))
-	(if parsed
-	    (setf exp2 (emailaddr-orig exp2)))
-	(if (prefix-of-p ":error:" exp2)
-	    (return (values :error
-			    (subseq exp2 #.(length ":error:")))))
-	(return exp)))))
+    (if (not (eq (recip-type recip1) (recip-type recip2)))
+	(return nil))
+    (if (null (recip-type recip1))
+	(return (emailaddr= (recip-addr recip1) (recip-addr recip2))))
+    (ecase (recip-type recip1)
+      (:prog
+	  (and
+	   (string= (recip-file recip1) (recip-file recip2))
+	   (equalp (recip-prog-user recip1) (recip-prog-user recip2))))
+      (:file
+       (string= (recip-file recip1) (recip-file recip2))))))
 
-;; Takes a parsed email addr and returns a list of recip structs.
 
-(defun expand-recip (addr expanded-from)
-  (block nil
-    (if (not (local-domain-p addr))
-	(return (list (make-recip :addr addr :owner owner))))
-    (let ((expansion (lookup-recip-in-aliases addr :parsed t))
-	  res)
-      (if (null expansion)
-	  (return (list (make-recip :addr addr :owner owner)))) 
-      (dolist (exp expansion)
-	(if (or (not (local-domain-p exp))
-		(equalp (emailaddr-user recip) (emailaddr-user exp)))
-	    (push 
-	     exp
-		  
-		  res)
-	  (setf res (append res (expand-recip exp)))))
-      res)))
 
-;; Duplicate-free
-(defun expand-recips (recips)
-  (let (res)
-    (dolist (recip recips)
-      (setf res (append res (expand-recip recip))))
-    (dedupe-recips res)))
-
-(defun dedupe-recips (recips)
-  (let (seen res)
-    (dolist (recip recips)
-      (if* (not (member recip seen :test #'emailaddr=))
-	 then
-	      (push recip res)
-	      (push recip seen)))
-    res))

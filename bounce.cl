@@ -1,15 +1,28 @@
 (in-package :user)
 
-;;; XXX -- message timeout bounce should look somewhat different.
-;;;   it needs to complain about not being able to send.. and show
-;;    the reasons why.
-(defun create-bounce (oldq failed-recips err &key wait)
+;; Makes something like:
+;; ((owner1 recip1 recip2) (owner2 recip3 recip4) (owner3 recip5))
+(defun group-failed-recips-by-owner (failed-recips)
+  (let (owners owner)
+    (dolist (recip failed-recips)
+      (setf owner (member (recip-owner recip) owners 
+			  :key #'car :test #'emailaddr=))
+      (if (null owner)
+	  (setf owners (cons (cons (recip-owner recip) (list recip)) owners))
+	(push recip (cdr (car owner)))))
+    owners))
+
+(defun bounce (oldq failed-recips &key wait undeliverable)
+  (dolist (entry (group-failed-recips-by-owner failed-recips))
+    (bounce-inner oldq (car entry) (cdr entry) 
+		  :wait wait :undeliverable undeliverable)))
+
+
+(defun bounce-inner (oldq bounce-to failed-recips &key wait undeliverable)
   ;; If this is a double-bounce, send the message to postmaster.
-  (let* ((original-sender (queue-from oldq))
-	 (bounce-to original-sender)
-	 (subject "Subject: Returned mail")
+  (let* ((subject "Subject: Returned mail")
 	 q errstatus)
-    (when (emailnullp original-sender)
+    (when (emailnullp bounce-to)
       (setf bounce-to (parse-email-addr "postmaster"))
       (setf subject "Subject: Postmaster notify"))
     (with-new-queue (q f errstatus (parse-email-addr "<>" :allow-null t))
@@ -17,10 +30,13 @@
        "   ----- The following addresses had permanent fatal errors -----"
        f)
       (dolist (recip failed-recips)
-	(write-line (emailaddr-orig recip) f))
+	(write-line (emailaddr-orig (recip-addr recip)) f))
       (write-line "" f)
       (write-line "   ----- Transcript of session follows -----" f)
-      (write-line err f)
+      (dolist (recip failed-recips)
+	(write-line (recip-status recip) f)
+	(if undeliverable
+	    (format f "Could not deliver message for ~D days" *bounce-days*)))
       (write-line "" f)
       
       (write-line "   ----- Original message follows -----" f)
