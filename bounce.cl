@@ -14,25 +14,13 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: bounce.cl,v 1.10 2003/07/08 18:15:52 layer Exp $
+;; $Id: bounce.cl,v 1.11 2003/07/23 14:44:23 dancy Exp $
 
 (in-package :user)
 
-;; Makes something like:
-;; ((owner1 recip1 recip2) (owner2 recip3 recip4) (owner3 recip5))
-(defun group-failed-recips-by-owner (failed-recips)
-  (let (owners owner)
-    (dolist (recip failed-recips)
-      (setf owner (member (recip-owner recip) owners 
-			  :key #'car :test #'emailaddr=))
-      (if (null owner)
-	  (setf owners (cons (cons (recip-owner recip) (list recip)) owners))
-	(push recip (cdr (car owner)))))
-    owners))
-
 (defun bounce (oldq failed-recips &key wait undeliverable)
-  (dolist (entry (group-failed-recips-by-owner failed-recips))
-    (bounce-inner oldq (car entry) (cdr entry) 
+  (dolist (entry (group-recips-by-owner failed-recips))
+    (bounce-inner oldq (first entry) (second entry) 
 		  :wait wait :undeliverable undeliverable)))
 
 

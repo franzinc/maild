@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: security.cl,v 1.5 2003/07/08 18:15:53 layer Exp $
+;; $Id: security.cl,v 1.6 2003/07/23 14:44:24 dancy Exp $
 
 (in-package :user)
 
@@ -27,12 +27,12 @@
 (defun verify-security (file &key writable-file-okay)
   (if (world-or-group-writable-p (dirname file))
       (error 
-       "~A is in a world writable directory.  Aborting for security reasons"
+       "~A is in a group/world writable directory.  Aborting for security reasons"
        file))
   (let ((sb (stat file)))
     (if (and (not writable-file-okay)
 	     (world-or-group-writable-p file :sb sb))   
-	(error "~A is a world writable file.  Aborting for security reasons"
+	(error "~A is a group/world writable file.  Aborting for security reasons"
 	       file))
     sb))
 

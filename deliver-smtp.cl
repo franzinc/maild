@@ -14,20 +14,76 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: deliver-smtp.cl,v 1.9 2003/07/08 18:15:52 layer Exp $
+;; $Id: deliver-smtp.cl,v 1.10 2003/07/23 14:44:23 dancy Exp $
 
 (in-package :user)
 
 ;; XXX --  Need a check to make sure that we never try to connect to
 ;; ourself.
 
-(defun deliver-smtp (recip q &key verbose)
+
+;; Makes a list like:
+;; ((domain1 (recip1 recip2)) (domain2 (recip3 recip4)) ...)
+(defun group-smtp-recips-by-domain (recips)
+  (let (domains)
+    (dolist (recip recips)
+      (let* ((domain (emailaddr-domain (recip-addr recip)))
+	     (group (find domain domains :key #'car :test #'equalp)))
+	(if (null group)
+	    (push (list domain (list recip)) domains)
+	  (push recip (second group)))))
+    domains))
+
+(defstruct smtp-delivery
+  unprocessed-recips
+  in-process-recips
+  good-recips
+  failed-recips
+  transient-recips)
+
+;; Caller determines which recips are smtp recips.
+(defun deliver-smtp (deliv q &key verbose)
+  (dolist (domaingroup (group-smtp-recips-by-domain 
+			(smtp-delivery-unprocessed-recips deliv)))
+    (let ((domain (first domaingroup))
+	  (recips (second domaingroup)))
+      (dolist (ownergroup (group-recips-by-owner recips))
+	(let* ((sender (first ownergroup))
+	       (recips (second ownergroup))
+	       (newdeliv (make-smtp-delivery :unprocessed-recips recips)))
+	  (multiple-value-bind (status msg)
+	      (deliver-smtp-help domain sender newdeliv q :verbose verbose)
+	    (ecase status
+	      (:transient
+	       (dolist (recip (smtp-delivery-unprocessed-recips newdeliv))
+		 (push (list recip msg)
+		       (smtp-delivery-transient-recips deliv))))
+	      (:fail
+	       (dolist (recip (smtp-delivery-unprocessed-recips newdeliv))
+		 (push (list recip msg)
+		       (smtp-delivery-failed-recips deliv))))
+	      (:ok
+	       ;; sanity check
+	       (if (smtp-delivery-unprocessed-recips newdeliv)
+		   (error "deliver-smtp-help returned :ok but there are still unprocessed recips"))))
+	    ;; :transient and :fail stats may still have the failed-recips
+	    ;; and transient-recips slots filled in.. so this is common
+	    ;; to all
+	    (setf (smtp-delivery-good-recips deliv)
+	      (nconc (smtp-delivery-good-recips deliv)
+		     (smtp-delivery-good-recips newdeliv)))
+	    (setf (smtp-delivery-failed-recips deliv)
+	      (nconc (smtp-delivery-failed-recips deliv)
+		     (smtp-delivery-failed-recips newdeliv)))
+	    (setf (smtp-delivery-transient-recips deliv)
+	      (nconc (smtp-delivery-transient-recips deliv)
+		     (smtp-delivery-transient-recips newdeliv)))))))))
+
+
+(defun deliver-smtp-help (domain sender deliv q &key verbose)
   (block nil
     (let ((buf (make-string *maxlinelen*))
-	  (domain (emailaddr-domain (recip-addr recip)))
-	  (sender (emailaddr-orig 
-		   (rewrite-smtp-envelope-sender (recip-owner recip))))
-	  (recip-printable (emailaddr-orig (recip-addr recip)))
+	  (sender (emailaddr-orig (rewrite-smtp-envelope-sender sender)))
 	  errmsg)
       (multiple-value-bind (sock mxname status)
 	  (connect-to-mx domain :verbose verbose)
@@ -42,6 +98,7 @@
 		    domain))
 	  (maild-log "~A" errmsg)
 	  (return (values :transient errmsg)))
+
 	;; Socket ready.
 	(unwind-protect
 	    (with-socket-timeout (sock :write *datatimeout*)
@@ -49,40 +106,75 @@
 		  (get-smtp-greeting sock buf mxname :verbose verbose)
 		(if (not (eq res :ok))
 		    (return (values res response))))
+	      ;; HELO
 	      (multiple-value-bind (res response)
 		  (smtp-say-hello sock buf mxname :verbose verbose)
 		(if (not (eq res :ok))
 		    (return (values res response))))
+	      ;; MAIL FROM:
 	      (multiple-value-bind (res response)
 		  (smtp-send-mail-from sock buf mxname sender :verbose verbose)
 		(if (not (eq res :ok))
 		    (return (values res response))))
 
-	      ;; when this is improved, there may be more than one
-	      ;; recipient..  As long as one of them is accepted, proceed
-	      ;; w/ the transaction. Bounces for the others will need
-	      ;; to be handled.
-	      (multiple-value-bind (res response)
-		  (smtp-send-rcpt-to sock buf mxname recip-printable
-				     :verbose verbose)
-		(if (not (eq res :ok))
-		    (return (values res response))))
-	   
+	      ;; RCPT TO:
+	      (let (recip)
+		(loop
+		  (setf recip (pop (smtp-delivery-unprocessed-recips deliv)))
+		  (if (null recip)
+		      (return)) ;; break from loop
+		  (multiple-value-bind (res response)
+		      (smtp-send-rcpt-to sock buf mxname 
+					 (recip-printable recip)
+					 :verbose verbose)
+		    ;; individual recipients may suffer transient or
+		    ;; permanent errors which do not affect the rest of
+		    ;; the session.
+		    
+		    (ecase res
+		      (:ok
+		       (push recip (smtp-delivery-in-process-recips deliv)))
+		      (:transient
+		       (push (list recip response) 
+			     (smtp-delivery-transient-recips deliv)))
+		      (:fail
+		       (push (list recip response) 
+			     (smtp-delivery-failed-recips deliv)))))))
+
+	      ;; Make sure there was at least one accepted recip
+	      (if (null (smtp-delivery-in-process-recips deliv))
+		  (return :ok))
+	      
+	      ;; DATA
 	      (multiple-value-bind (res response)
 		  (smtp-send-data sock buf mxname q :verbose verbose)
-		(if (not (eq res :ok))
-		    (return (values res response))))
-	      
-	      (maild-log "Successful SMTP delivery to ~A (mx: ~A)" 
-			 recip-printable mxname)
-	      :delivered)
-	  ;; cleanup forms
-	  (if sock 
-	      (ignore-errors
-	       ;; try to be polite.  But don't wait too long
-	       (mp:with-timeout (30)
-		 (smtp-finish sock buf mxname :verbose verbose))
-	       (close sock :abort t))))))))
+		(ecase res
+		  (:ok
+		   (let (recip)
+		     (while (setf recip 
+			      (pop (smtp-delivery-in-process-recips deliv)))
+			    (push recip (smtp-delivery-good-recips deliv))
+			    
+			    (maild-log 
+			     "Successful SMTP delivery to ~A (mx: ~A)" 
+			     (recip-printable recip)  
+			     mxname)))
+		   (return :ok))
+		  ((:transient :fail)
+		   (setf (smtp-delivery-unprocessed-recips deliv)
+		     (smtp-delivery-in-process-recips deliv))
+		   ;; not really necessary
+		   (setf (smtp-delivery-in-process-recips deliv) nil)
+		   (return (values res response)))))))
+	;; cleanup forms
+	(if sock 
+	    (ignore-errors
+	     ;; try to be polite.  But don't wait too long
+	     (mp:with-timeout (30)
+	       (smtp-finish sock buf mxname :verbose verbose))
+	     (close sock :abort t)))))))
+
+
 
 (defun smtp-finish (sock buf mxname &key verbose)
   (if verbose
@@ -254,8 +346,3 @@
     (setf (second info) (ignore-errors (lookup-hostname (first info))))
     (if (null (second info))
 	(maild-log "Couldn't get address of MX ~A" (first info)))))
-
-
-	
-	
-	

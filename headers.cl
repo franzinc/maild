@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: headers.cl,v 1.9 2003/07/08 18:15:52 layer Exp $
+;; $Id: headers.cl,v 1.10 2003/07/23 14:44:23 dancy Exp $
 
 (in-package :user)
 
@@ -96,6 +96,12 @@
 	    id
 	    (fqdn))))
 
+(defun get-message-id (headers)
+  (multiple-value-bind (h pos)
+      (locate-header "Message-ID:" headers)
+    (if (null h)
+	"<none>"
+      (subseq h pos))))
 
 (defun make-received-header (cliaddr id)
   (let ((h (make-header)))
@@ -171,8 +177,12 @@
 ;; Returns the first matching header.  
 (defun locate-header (header headers)
   (dolist (h headers nil)
-    (if (prefix-of-p header h)
-	(return h))))
+    (when (prefix-of-p header h)
+      (let* ((aftercolonpos (1+ (position #\: h)))
+	     (pos (position-of-first-nonspace-character h aftercolonpos)))
+	(return 
+	  (values h (if pos pos aftercolonpos)))))))
+
 
 ;; Removes all instances
 (defun remove-header (header headers)

@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: queue.cl,v 1.15 2003/07/08 18:15:52 layer Exp $
+;; $Id: queue.cl,v 1.16 2003/07/23 14:44:24 dancy Exp $
 
 (in-package :user)
 
@@ -146,7 +146,16 @@
       (funcall *extra-headers-func* q))
   
   (setf (queue-valid q) t)
-  (update-queue-file q))
+  (update-queue-file q)
+  
+  (maild-log "~A: msgid=~A, from=~A, to=~A"
+	     (queue-id q)
+	     (get-message-id (queue-headers q))
+	     (emailaddr-orig (queue-from q))
+	     (list-to-delimited-string 
+	      (mapcar #'recip-printable (queue-recips q)) #\,)))
+
+
 
 ;; reads a queue file.  Doesn't lock.
 (defun queue-read (id)

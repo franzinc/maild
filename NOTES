@@ -23,13 +23,13 @@ Delivery to files: If the file does not exist, it is created w/ mode
 (file locking is used (via with-stream-lock) to avoid scrambled
 files).  Files in world/group writable directories are not allowed.
 World/group writable files are allowed, however.
-
-For safety, the program will abort operations if any of the following
+	
+For safety, maild will abort operations if any of the following
 are world/group writable.. or in world/group writable directories... or
 not owned by root:
   * The config file 
   * The aliases file 
-  * Programs on the right-hand-side of aliases
+  * Programs on the right-hand-side of aliases (okay if not owned by root)
   * The local delivery program 
   * The spool directory 
 

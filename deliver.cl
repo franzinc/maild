@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: deliver.cl,v 1.15 2003/07/08 18:15:52 layer Exp $
+;; $Id: deliver.cl,v 1.16 2003/07/23 14:44:23 dancy Exp $
 
 (in-package :user)
 
@@ -120,7 +120,6 @@
   (block nil
     (let* ((prgvec (coerce (cons (car prglist) prglist) 'vector))
 	   (prgname (svref prgvec 0)))
-      (verify-root-only-file prgname)
       (multiple-value-bind (output errput status writerstatus)
 	  (send-message-to-program q prgvec :rewrite rewrite
 				   :run-as run-as)

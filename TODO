@@ -4,15 +4,6 @@ and log a complaint?  I prefer to err on the side of not bouncing.. so
 that a sysadmin can make fixes and get a message to go through after
 discovering the problem.
 
-
-When sending messages via SMTP, use a single session for sending to
-multiple recipients in the same domain.  This increases efficiency but
-adds complexity.
-
-Allow SIGHUP to make the config reload on a running server.  This
-probably isn't doable since things like (push thing *some-config*)
-would be reexecuted, resulting in duplicate entries on the list.
-
 Optionally honor Errors-To header.
 
 Possibility:

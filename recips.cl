@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: recips.cl,v 1.15 2003/07/08 18:15:52 layer Exp $
+;; $Id: recips.cl,v 1.16 2003/07/23 14:44:24 dancy Exp $
 
 (in-package :user)
 
@@ -407,3 +407,17 @@
 	    (:local-unknown
 	     (format t "~A... User unknown~%" (recip-orig recip))))))))
     good-recips))
+
+;;;
+
+;; Returns a list like 
+;; ((owner1 (recip1 recip2)) (owner2 (recip3 recip4)) (owner3 (recip5)))
+(defun group-recips-by-owner (recips)
+  (let (groups)
+    (dolist (recip recips)
+      (let* ((owner (recip-owner recip))
+	     (group (find owner groups :key #'car :test #'emailaddr=)))
+	(if (null group)
+	    (push (list owner (list recip)) groups)
+	  (push recip (second group)))))
+    groups))

@@ -1,3 +1,20 @@
+2003-07-23  root  <root@gills.dancysoft.com>
+
+	* SMTP delivery:  Now uses a single SMTP session for delivery of a
+	message for recipients at the particular domain.  I had avoided
+	adding this complexity but it was necessary to avoid recipients
+	getting multiple copies of a message.   [Lotsa new code here
+	<scary noises>]
+
+	* Program alias delivery: Removed requirement that programs use on
+	the right-hand side of aliases must be owned by root.  That's too
+	restrictive.
+
+	* Added a consistent syslog entry when a mail is received from any
+	source (SMTP or stdin).  Message ID is included to help tracking a
+	message.  
+
+
 2003-07-22  root  <root@gills.dancysoft.com>
 
 	* greylist.cl: *greylist-db-host* variable for specifying the
