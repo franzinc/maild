@@ -33,6 +33,12 @@
   (use-package :dbi.mysql)
   (require :socket))
 
+(defmacro greysql (&rest rest)
+  ;; gah!
+  `(mp:with-process-lock (*greylist-lock*)
+     (sql ,@rest :db *greylist-db*)))
+
+
 
 (defun debug-main ()
   (main "greyadmin" "-d"))
@@ -85,7 +91,8 @@
 			      ("checklogin" check-login)
 			      ("menu" "menu.clp")
 			      ("update" update)
-			      ("whitelist" quick-whitelist-triple)))))
+			      ("whitelist" quick-whitelist-triple)
+			      ("modify-personal-whitelist" modify-personal-whitelist)))))
 
 ;; no output is generated unless an authenticated session
 ;; is in use or public argument is supplied.
@@ -95,7 +102,8 @@
 	    (websession-variable sess "user"))
 	(html
 	 (:html
-	  (:head (:title "Greylist administration"))
+	  (:head 
+	   (:title "Greylist administration"))
 	  ((:body :if* (assoc "login" args :test #'equal) :onload "document.loginform.login.focus()")
 	   (:h3 "Greylist administration")
 	   (emit-clp-entity req ent body)))))))
@@ -319,6 +327,89 @@
   (declare (ignore args body ent))
   (html (:princ (ceiling (/ *greylist-lifetime* 86400.0)))))
 
+(def-clp-function ga_dump-personal-whitelist (req ent args body)
+  (declare (ignore ent args body))
+  (let* ((sess (websession-from-req req))
+	 (user (websession-variable sess "user"))
+	 (addr (user-address user))
+	 (entries (mapcar #'car (greysql (format nil "select sender from whitelist where receiver=~S order by sender" (mysql-escape-sequence addr))))))
+    (if (null entries)
+	(setf entries '("<no entries>")))
+    (html 
+     ((:form :action "modify-personal-whitelist" :method :post)
+      ((:table :border 0)
+       (:tr
+	(:td
+	 ((:select :name "senders" :multiple t :size 10)
+	  (dolist (entry entries)
+	    (html (:option (:princ-safe entry)))))
+	 :br
+	 ((:input :type :submit :value "Remove selected" :name "remove")))
+	((:td :valign :center)
+	 "Sender address to add:" :br
+	 ((:input :type :edit :name "sender" :size 50))
+	 :br
+	 ((:input :type :submit :name "add" :value "<< Add")))))))))
+
+(defun multiple-request-query-value (key req)
+  (mapcar #'cdr
+	  (remove-if-not (lambda (thing) (equal (car thing) key)) 
+			 (request-query req))))
+      
+    
+
+(defun modify-personal-whitelist (req ent)
+  (declare (ignore ent))
+  (block nil
+    (let* ((sess (websession-from-req req))
+	   (user (websession-variable sess "user"))
+	   (addr (user-address user))
+	   (remove (request-query-value "remove" req))
+	   (sender (request-query-value "sender" req))
+	   (senders (multiple-request-query-value "senders" req)))
+      
+      (if (null user)
+	  (return "login"))
+      
+      (when remove
+	(when (null senders)
+	  (setf (websession-variable sess "error")
+	    "You must select addresses to remove from the list")
+	  (return "menu"))
+	
+	(dolist (sender senders)
+	  (greysql
+	   (format nil
+		   "delete from whitelist where receiver=~S and sender=~S"
+		   (mysql-escape-sequence addr)
+		   (mysql-escape-sequence sender))))
+	
+	(setf (websession-variable sess "error")
+	  "Personal whitelist updated.")
+	(return "menu"))
+      
+      ;; assume that an add is desired..  The user might have submitted
+      ;; the form by hitting the enter key in their browser, in which
+      ;; case the 'add' submit button will not have been triggered..
+      ;; so we don't explicitly check for it.
+      
+      (setf sender (string-trim '(#\space) sender))
+      (when (string= sender "")
+	(setf (websession-variable sess "error")
+	  "You must specify the sender email address which you want to add")
+	(return "menu"))
+      
+      (greysql 
+       (format nil 
+	       "insert into whitelist (sender, receiver, source) values (~S, ~S, 'user')" 
+	       (mysql-escape-sequence sender) 
+	       (mysql-escape-sequence addr)))
+      
+      (setf (websession-variable sess "error")
+	"Personal whitelist updated.")
+      
+      "menu")))
+
 
 ;; db stuff
 
@@ -343,11 +434,6 @@
 			   :user *greylist-db-user*
 			   :password *greylist-db-password*)))))
 
-
-(defmacro greysql (&rest rest)
-  ;; gah!
-  `(mp:with-process-lock (*greylist-lock*)
-     (sql ,@rest :db *greylist-db*)))
 
 (defun greylist-recipient-excluded-p (to)
   (ensure-greylist-db)

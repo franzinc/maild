@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: greylist.cl,v 1.15 2004/07/08 21:25:34 dancy Exp $
+;; $Id: greylist.cl,v 1.16 2004/07/14 22:49:34 dancy Exp $
 
 (in-package :user)
 
@@ -184,7 +184,7 @@
     (when (not (eq res :ok))
       (return-from greylist-init (values res string))))
       
-  (when (greylist-whitelisted-sender-p (emailaddr-orig from))
+  (when (greylist-whitelisted-sender-p from to)
     (maild-log "Client from ~A:  Manually whitelisted sender: ~A" 
 	       (ipaddr-to-dotted ip)
 	       (emailaddr-orig from))
@@ -371,9 +371,15 @@
       t
     nil))
 
-(defun greylist-whitelisted-sender-p (sender)
-  (>= (caar 
-       (greysql 
-	(format nil "select count(*) from whitelist where sender=~S"
-		(dbi.mysql:mysql-escape-sequence sender))))
-      1))
+(defun greylist-whitelisted-sender-p (from to)
+  (>= 
+   (caar 
+    (greysql
+     (format nil "select count(*) from whitelist where 
+       (sender = ~S or sender = '*@~A')
+       and
+       (receiver=~S or receiver='*')"
+	     (dbi.mysql:mysql-escape-sequence (emailaddr-orig from))
+	     (dbi.mysql:mysql-escape-sequence (emailaddr-domain from))
+	     (dbi.mysql:mysql-escape-sequence (emailaddr-orig to)))))
+   1))

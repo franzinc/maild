@@ -22,6 +22,9 @@ Off
 <form action="menu">
 <input type=submit value="Refresh"><br>
 </form>
-
+<hr>
+<b>Your personal whitelist:</b><br>
+<ga_dump-personal-whitelist/>
+To whitelist an entire domain, use the *@domain form.  For example, to whitelist all google.com senders, use *@google.com.
 
 </ga_with-wrapper>
