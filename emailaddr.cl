@@ -23,7 +23,6 @@
   (and (null (emailaddr-user addr)) 
        (null (emailaddr-domain addr))))
 
-
 ;; Front ends to the complex stuff below.
 ;; This is intended to be used for envelope addresses.
 
@@ -35,7 +34,7 @@
 					  allow-null)
   (block nil
     (let* ((tokens (emailaddr-lex string :pos pos :max max))
-	   goods bads string addr)
+	   goods bads string addr cruft)
       (multiple-value-bind (mblist remainder)
 	  (parse-mailbox-list tokens)
 	(dolist (mailbox (second mblist))
@@ -54,18 +53,18 @@
 	   (t
 	    (push (make-emailaddr :user (addrspec-user addr)
 				  :domain (addrspec-domain addr)
-				  :orig (strip-angle-brackets string))
+				  :orig (if (addrspec-domain addr)
+					    (format nil "~A@~A" 
+						    (addrspec-user addr)
+						    (addrspec-domain addr))
+					  (addrspec-user addr)))
 		  goods))))
-	(values (nreverse goods) (nreverse bads) 
-		(with-output-to-string (s) (print-token-list remainder s)))))))
-
-;; Doesn't strip if string= "<>"
-(defun strip-angle-brackets (string)
-  (if (string= string "<>")
-      string
-    (replace-regexp string "^<\\(.*\\)>$" "\\1")))
-		  
-  
+	(setf cruft 
+	  (with-output-to-string (s) (print-token-list remainder s)))
+	(if (match-regexp "^\\b*$" cruft)
+	    (setf cruft ""))
+	(values (nreverse goods) (nreverse bads) cruft)))))
+		
 
 (defun mailbox-to-addrspec (mailbox)
   (let ((thing (second mailbox)))

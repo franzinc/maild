@@ -1,9 +1,9 @@
 (in-package :user)
 
-;; XXX -- Might want to make 'recip' a struct... w/ one slot
-;; being the parsed emailaddr.. and another slot being the
-;; alias from which it expanded.  This would help w/ generating useful
-;; bounce messages. 
+(defstruct recip
+  addr ;; parsed email addr
+  expanded-from ;; string? probably only for diagnostics
+  owner) ;; parse email addr
 
 (defstruct queue 
   id
@@ -12,7 +12,7 @@
 ")
   from
   recips ;; remaining recipients to be processed 
-  orig-recips ;; pre-alias expansion
+  orig-recips ;; parsed email addrs, pre-alias expansion
   headers
   valid) ;; not valid until the data file has been written
 
@@ -46,7 +46,7 @@
     (format nil "~12,'0d" seqnum)))
 
 
-(defun make-queue-file (from recips)
+(defun make-queue-file (from)
   (let ((status :try-again)
 	id lockfile qfile q)
     (while (eq status :try-again)
@@ -56,11 +56,7 @@
       (when (lock-file lockfile) 
 	(unwind-protect
 	    (when (null (probe-file qfile))
-	      (setf q (make-queue 
-		       :id id
-		       :from from
-		       :orig-recips recips
-		       :recips (expand-recips recips)))
+	      (setf q (make-queue :id id :from from))
 	      (update-queue-file q) ;; write it out
 	      (setf status :ok))
 	  ;; cleanup forms
@@ -91,26 +87,31 @@
   (queue-unlock q))
 
 
-(defun queue-init-headers (queue headers cliaddr &key date add-from from-gecos)
-  (setf (queue-headers queue)
+(defun queue-finalize (q recips headers cliaddr &key date add-from from-gecos)
+  (setf (queue-orig-recips q) recips)
+  ;;; XXX -- need to check for owner- aliases and fork the envelope for
+  ;;; them.
+  (setf (queue-recips q) (expand-recips recips))
+
+  (setf (queue-headers q)
     (cons 
-     (make-received-header cliaddr (queue-id queue) (queue-orig-recips queue))
+     (make-received-header cliaddr (queue-id q) (queue-orig-recips q))
      headers))
   (if (null (locate-header "Message-Id:" headers))
-      (setf (queue-headers queue)
-	(append (queue-headers queue) 
-		(list (make-message-id-header (queue-id queue))))))
+      (setf (queue-headers q)
+	(append (queue-headers q) 
+		(list (make-message-id-header (queue-id q))))))
   (if (and date (null (locate-header "Date:" headers)))
-      (setf (queue-headers queue)
-	(append (queue-headers queue) 
+      (setf (queue-headers q)
+	(append (queue-headers q) 
 		(list (make-date-header)))))
   (if (and add-from (null (locate-header "From:" headers)))
-      (setf (queue-headers queue)
-	(append (queue-headers queue) 
-		(list (make-from-header (queue-from queue) from-gecos)))))
-
-  (setf (queue-valid queue) t)
-  (update-queue-file queue))
+      (setf (queue-headers q)
+	(append (queue-headers q) 
+		(list (make-from-header (queue-from q) from-gecos)))))
+  
+  (setf (queue-valid q) t)
+  (update-queue-file q))
 
 ;; reads a queue file.  Doesn't lock.
 (defun queue-read (id)
@@ -158,9 +159,9 @@
 
 ;; 'q' and 'errvar' should be variables that are already in scope.  
 ;; shame on me.
-(defmacro with-new-queue ((q streamvar errvar from recips) &body body)
+(defmacro with-new-queue ((q streamvar errvar from) &body body)
   `(let (,streamvar)
-     (setf ,q (make-queue-file ,from ,recips))
+     (setf ,q (make-queue-file ,from))
      (unwind-protect
 	 (block nil
 	   (handler-case 

@@ -1,6 +1,5 @@
 (in-package :user)
 
-
 (defun main (&rest args)
   (if (and (probe-file "/etc/maild.cl") 
 	   (verify-root-only-file "/etc/maild.cl"))
@@ -10,10 +9,8 @@
       (error "Queue directory ~A doesn't exist!" *queuedir*))
   (verify-root-only-file *queuedir*)
   (let ((prgname (pop args)))
-    ;; contend w/ with-command-line-arguments 
     (if (null args)
-	(error "~a: recipients must be specified on the command line."
-	       prgname))
+	(error "Recipient names must be specified"))
     (with-command-line-arguments 
 	(("F" :short fullname :required)
 	 ("f" :short from :required)
@@ -21,9 +18,10 @@
 	 ("b" :short runmode :required)
 	 ("o" :short options :required)
 	 ("q" :short processqueue :optional)
-	 ("v" :short verbose nil))
+	 ("v" :short verbose nil)
+	 ("t" :short grab-recips nil))
       (recips :command-line-arguments args)
-      
+
       (establish-signal-handlers)
 
       (when processqueue
@@ -51,12 +49,10 @@
 	(verify-real-user-is-root)
 	(queue-process-all :verbose verbose)
 	(exit 0 :quiet t))
-	  
-      
-      (if (null recips)
-	  (error "~a: recipients must be specified on the command line."
-		 prgname))
-      
+
+      (if (and (not grab-recips) (null recips))
+	  (error "Recipient names must be specified"))
+
       (let (parsed-recips)
 	(dolist (reciplist recips)
 	  (multiple-value-bind (parsedlist badlist cruft)
@@ -69,11 +65,12 @@
 	
 	(setf parsed-recips (weed-bogus-local-recips parsed-recips))
 	
-	(if parsed-recips
+	(if (or parsed-recips grab-recips)
 	    (send-from-stdin parsed-recips
 			     :dot (if ignoredot nil t)
 			     :gecos fullname
 			     :from from
+			     :grab-recips grab-recips
 			     :verbose verbose)
 	  (error "~a: No valid recipients specified." prgname))))))
 

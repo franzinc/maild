@@ -49,16 +49,20 @@
      (pwent-name pwent))))
   
 
-(defun send-from-stdin (recips &key (dot t) gecos from verbose)
+(defun send-from-stdin (recips &key (dot t) gecos from verbose grab-recips)
   (multiple-value-bind (fromaddr gecos authwarn realuser)
       (compute-sender-info from gecos)
     (let (q errstatus)
-      (with-new-queue (q f errstatus fromaddr recips)
+      (with-new-queue (q f errstatus fromaddr)
 	;; body doesn't execute if datafile open failed.
 	(multiple-value-bind (status headers msgsize)
 	    (read-message-stream *standard-input* f :dot dot)
 	  (if (not (member status '(:eof :dot)))
 	      (error "got status ~s from read-message-stream" status))
+	  
+	  (if grab-recips
+	      (setf recips 
+		(append recips (grab-recips-from-headers headers))))
 	  
 	  (if authwarn
 	      (setf headers 
@@ -69,7 +73,7 @@
 	      (error "Message exceeded max message size (~D)" *maxmsgsize*))
 	  
 	  ;; This marks the message as complete.
-	  (queue-init-headers q headers (dotted-to-ipaddr "127.0.0.1")
+	  (queue-finalize q recips headers (dotted-to-ipaddr "127.0.0.1")
 			      :date t
 			      :add-from t 
 			      :from-gecos gecos)))
@@ -92,7 +96,22 @@
 		(if (and (not *debug*) (not verbose))
 		    (detach-from-terminal))
 		(queue-process-single (queue-id q) :wait t :verbose t))))))
-		  
+
+(defun grab-recips-from-headers (headers)
+  (let (header recips)
+    (dolist (hname '("To:" "Cc:" "Bcc:"))
+      (setf header (locate-header hname headers))
+      (when header
+	(multiple-value-bind (accepted rejected cruft)
+	    (parse-email-addr-list header :pos (length hname))
+	  (if accepted
+	      (setf recips (nconc recips accepted)))
+	  (if rejected
+	      (dolist (rej rejected)
+		(format t "~A...~A~%" (first rej) (second rej))))
+	  (if (string/= cruft "")
+	      (format t "Unrecognized data: ~A~%" cruft)))))
+    recips))
 
 (defun read-message-stream (s bodystream &key smtp dot)
   (let ((res (multiple-value-list 

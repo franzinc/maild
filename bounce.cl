@@ -12,8 +12,7 @@
     (when (emailnullp original-sender)
       (setf bounce-to (parse-email-addr "postmaster"))
       (setf subject "Subject: Postmaster notify"))
-    (with-new-queue (q f errstatus (parse-email-addr "<>" :allow-null t)
-		       (list bounce-to))
+    (with-new-queue (q f errstatus (parse-email-addr "<>" :allow-null t))
       (write-line
        "   ----- The following addresses had permanent fatal errors -----"
        f)
@@ -30,8 +29,8 @@
       (finish-output f)
       (fsync f)
       
-      (queue-init-headers 
-       q 
+      (queue-finalize 
+       q (list bounce-to)
        (list subject  (format nil "To: ~a" (emailaddr-orig bounce-to)))
        (dotted-to-ipaddr "127.0.0.1")
        :date t

@@ -1,3 +1,28 @@
+2003-05-09  root  <root@gills.dancysoft.com>
+
+	* emailaddr.cl:  In parse-email-addr-list.  If cruft is all
+	whitespace, then convert it to "".  Also, emailaddr-orig is now
+	set to just the user@domain string.  No comments or other stuff is
+	included.  
+
+	* headers.cl:  Fixed bug in make-from-header when 'from' is <>.  
+
+	* input.cl:  New function:  grab-recips-from-headers for use w/
+	the -t flag.  send-from-stdin now uses this function if it is
+	called w/ grab-recips keyword argument.  
+
+	* maild.cl:  Added -t support.
+
+	* queue-process.cl:  Delivery failure messages for a particular
+	queue item are collected and sent in a single bounce message now.
+
+	* queue.cl:  make-queue-file doesn't take the recips list now.
+	That is saved for the new queue-finalize function (which is mostly
+	queue-init-headers renamed).   Updated the with-new-queue macro
+	for this as well.
+
+	* several places:  Changes due to the changes in queue.cl.
+
 2003-05-08  root  <root@dancy>
 
 	* aliases.cl:  Aliases file must be owned by root and have safe

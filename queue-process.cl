@@ -29,55 +29,64 @@
     ;; multiple recips per SMTP session... and also need to avoid
     ;; sending more than one timeout bounce if there are multiple
     ;; undelivered-to recips left.
-    (with-output-to-string (errmsgs)
-      (dolist (recip (queue-recips q))
-	(setf (queue-status q)
-	  (format nil "Working on delivery to ~A" (emailaddr-orig recip)))
-	;; XXX -- May want to move this outside the loop.
-	(update-queue-file q)
+    (let (failed-recips)
+      (with-output-to-string (failure-msgs)
+	(with-output-to-string (transient-msgs)
+	  (dolist (recip (queue-recips q))
+	    (setf (queue-status q)
+	      (format nil "Working on delivery to ~A" (emailaddr-orig recip)))
+	    ;; XXX -- May want to move this outside the loop.
+	    (update-queue-file q)
 
-	(multiple-value-bind (status response)
-	    (if (local-domain-p recip)
-		(deliver-local (emailaddr-user recip) q :verbose verbose)
-	      (deliver-smtp recip q :verbose verbose))
-	  (case status
-	    (:delivered
-	     (setf (queue-recips q) (remove recip (queue-recips q))))
-	    (:fail
-	     (maild-log "delivery to ~A failed: ~A" (emailaddr-orig recip)
-			response)
-	     (maild-log "Sending bounce to ~A" (emailaddr-orig (queue-from q)))
-	     (create-bounce q (list recip) response :wait wait)
-	     (setf (queue-recips q) 
-	       (delete recip (queue-recips q))))
-	    (t
-	     (maild-log "delivery status for ~a is ~s." 
-			(emailaddr-orig recip) status)
-	     (if* response
-		then
-		     (format errmsgs "~A: ~A~%" (emailaddr-orig recip)
-			     response)
-		     (maild-log "Error message is: ~A" response))))))
+	    (multiple-value-bind (status response)
+		(if (local-domain-p recip)
+		    (deliver-local (emailaddr-user recip) q :verbose verbose)
+		  (deliver-smtp recip q :verbose verbose))
+	      (case status
+		(:delivered
+		 (setf (queue-recips q) (remove recip (queue-recips q))))
+		(:fail
+		 (maild-log "delivery to ~A failed: ~A" (emailaddr-orig recip)
+			    response)
+		 (format failure-msgs "~A: ~A~%" (emailaddr-orig recip)
+			 response)
+		 (push recip failed-recips)
+		 (setf (queue-recips q) 
+		   (delete recip (queue-recips q))))
+		;; Everything else is treated as a transient problem
+		(t
+		 (maild-log "delivery status for ~a is ~s." 
+			    (emailaddr-orig recip) status)
+		 (when response
+		   (format transient-msgs "~A: ~A~%" (emailaddr-orig recip)
+			   response)
+		   (maild-log "Error message is: ~A" response))))))
+	  
+	  ;; See if we need to send a bounce message.
+	  (when failed-recips
+	    (maild-log "Sending bounce to ~A" (emailaddr-orig (queue-from q)))
+	    (create-bounce q failed-recips 
+			   (get-output-stream-string failure-msgs) :wait wait))
+	  
+	  ;; Done processing recips. 
+	  (when (null (queue-recips q))
+	    ;; Everything has been delivered.  Clean up
+	    (maild-log "Completed final delivery for queue id ~A" (queue-id q))
+	    (remove-queue-file q) 
+	    (return))
       
-      ;; Done processing recips. 
-      (when (null (queue-recips q))
-	;; Everything has been delivered.  Clean up
-	(maild-log "Completed final delivery for queue id ~A" (queue-id q))
-	(remove-queue-file q) 
-	(return))
+	  (setf (queue-status q) (get-output-stream-string transient-msgs))
+	  (update-queue-file q)
       
-      (setf (queue-status q) (get-output-stream-string errmsgs))
-      (update-queue-file q)
-      
-      (when (queue-undeliverable-timeout-p q)
-	(maild-log "Bouncing queue id ~A due to queue timeout" (queue-id q))
-	(create-bounce q (queue-recips q) 
-		       (format nil "Could not deliver message for ~D days"
-			       *bounce-days*))
-	(remove-queue-file q)
-	(return))
-      
-      (maild-log "Terminating processing of queue id ~A" (queue-id q)))))
+	  (when (queue-undeliverable-timeout-p q)
+	    (maild-log "Bouncing queue id ~A due to queue timeout" (queue-id q))
+	    (create-bounce q (queue-recips q) 
+			   (format nil "Could not deliver message for ~D days"
+				   *bounce-days*))
+	    (remove-queue-file q)
+	    (return))
+	  
+	  (maild-log "Terminating processing of queue id ~A" (queue-id q)))))))
 
 
 (defun queue-undeliverable-timeout-p (q)

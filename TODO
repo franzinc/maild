@@ -4,14 +4,7 @@ if I'm not adding any additional restrictions, it should be fine.
 
 Sort queue items by id in queue-process-all
 
-Need to work on the '-t' command line arg.  Necessary for Charley's mail.
-
-Bounces for a given delivery attempt should be coalesced into one
-message.
-
 Allow SIGHUP to make the config reload on a running server.
-
-[maybe: Have program drop privs and run as user/group 'maild']
 
 Parameterize the blacklist SMTP response.  If it is multiline, make
 sure the SMTP multiline response happens properly.
@@ -56,6 +49,7 @@ root is required:
     that it?
  newer versions of sendmail seem to run in two or more processes to
  do this.  
+ [maybe: Have program drop privs and run as user/group 'maild']
 
 sendmail has a connect timeout (defaults to the kernel's timeout) and
 an iconnect timeout.  The latter is used to immediately send mail to

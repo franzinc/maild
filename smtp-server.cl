@@ -306,7 +306,7 @@
 	(return-from smtp-data 
 	  (outline sock "503 5.0.0 Need RCPT (recipient)")))
 
-    (with-new-queue (q f err (session-from sess) (session-to sess))
+    (with-new-queue (q f err (session-from sess))
       (outline sock "354 Enter mail, end with \".\" on a line by itself")
       (handler-case 
 	  (multiple-value-setq (status headers msgsize)
@@ -368,10 +368,10 @@
       
       (when (and (not err) (not rejected))
 	;; This finalizes and unlocks the queue item.
-	(queue-init-headers q headers 
-			    (if (socketp sock)
-				(socket:remote-host sock)
-			      (dotted-to-ipaddr "127.0.0.1")))))
+	(queue-finalize q (session-to sess) headers 
+			(if (socketp sock)
+			    (socket:remote-host sock)
+			  (dotted-to-ipaddr "127.0.0.1")))))
     
     ;; At this point, the queue file is saved on disk.. or it has been
     ;; deleted due to an error/rejection in processing.

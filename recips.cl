@@ -44,6 +44,7 @@
 ;;; function is only called when we've determined that a "local"
 ;;; domain name was specified.
 
+;; called by queue-expand-aliases and get-recipient-disposition
 (defun lookup-recip-in-aliases (address &key parsed)
   (multiple-value-bind (exp errmsg)
       (lookup-recip-in-aliases-help address :parsed parsed)
@@ -97,15 +98,3 @@
 	      (push recip res)
 	      (push recip seen)))
     res))
-
-	  
-      
-
-
-      
-	
-	
-    
-    
-    
-    

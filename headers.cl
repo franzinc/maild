@@ -57,11 +57,9 @@
 ;; It is okay for gecos to be nil..
 (defun make-from-header (addr gecos)
   (let ((h (make-header))
-	(addr (if (emailaddr-p addr)
-		  (emailaddr-orig addr)
-		addr)))
-    (if (string= addr "<>")
-	(setf addr *mailer-daemon*))
+	(addr (if (emailnullp addr) 
+		  *mailer-daemon*
+		(emailaddr-orig addr))))
     (add-header-word h "From:")
     (if* gecos
        then
