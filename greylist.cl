@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: greylist.cl,v 1.8 2003/07/23 20:28:46 dancy Exp $
+;; $Id: greylist.cl,v 1.9 2003/08/04 16:11:08 dancy Exp $
 
 (in-package :user)
 
@@ -28,6 +28,7 @@
 (defparameter *greylist-db-password* "unset")
 ;; :opt-in or :opt-out.  
 (defparameter *greylist-operation-mode* :opt-out)
+(defparameter *greylist-ip-whitelist* '("127.0.0.1"))
 
 ;; times are in seconds
 
@@ -41,6 +42,9 @@
 (defparameter *greylist-db* nil)
 
 (defparameter *greylist-lock* nil)
+
+(defparameter *greylist-ip-whitelist-parsed* nil)
+
 
 (defstruct triple
   ip
@@ -56,8 +60,10 @@
 (defun enable-greylist (configfile)
   (setf *greylist-configfile* configfile)
   (add-smtp-rcpt-to-checker "Greylist checker" 'greylist-rcpt-to-checker)
-  (add-smtp-data-pre-checker "Greylist checker" 'greylist-data-pre-checker))
-
+  (add-smtp-data-pre-checker "Greylist checker" 'greylist-data-pre-checker)
+  (setf *greylist-ip-whitelist-parsed* nil)
+  (dolist (ip *greylist-ip-whitelist*)
+    (push (parse-addr ip) *greylist-ip-whitelist-parsed*)))
   
 (defun ensure-greylist-db ()
   (without-interrupts
@@ -133,6 +139,13 @@
 ;; (:transient ...) -- something wrong connecting to database
 
 (defun greylist-init (ip from to)
+  ;; Check ip whitelist.
+  (dolist (net *greylist-ip-whitelist-parsed*)
+    (when (addr-in-network-p ip net)
+      (maild-log "Client from ~A:  Manually whitelisted client." 
+		 (ipaddr-to-dotted ip))
+      (return-from greylist-init :skip)))
+  
   ;; Hosts that are allowed to relay through us aren't subject
   ;; to greylisting.
   (dolist (checker *relay-checkers*)

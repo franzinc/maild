@@ -1,3 +1,13 @@
+2003-08-04  root  <root@gills.dancysoft.com>
+
+	* Bumped version to 1.1.2.
+
+	* greylist.cl: Added *greylist-ip-whitelist* configuration
+	parameter which specifies a list of IP addresses or networks to
+	skip greylisting for.  Evan Harris maintains a list in his
+	greylist cvs module.  I may do another update which can read his
+	file directly.. perhaps at runtime.
+
 2003-07-30  Ahmon Dancy  <dancy@dancy>
 
 	* Bumped version to 1.1.1
