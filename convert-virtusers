@@ -1,0 +1,29 @@
+#!/usr/bin/perl
+# Usage:  convert-virusers virtusertable-file
+#  writes new aliases entries to stdout
+
+$argc=scalar(@ARGV);
+
+if ($argc != 1) {
+    die("Usage: $0 virtusertable-file\n");
+}
+
+open(F, $ARGV[0]) ||
+    die("$0: Failed to open $ARGV[0] for reading: $!\n");
+
+while (<F>) {
+    chop;
+    next if /^#/;
+    
+    ($alias,$expansion)=split;
+
+    if ($alias =~ /^@/) {
+	print "*";
+    }
+    print "$alias: $expansion\n";
+
+}
+
+close(F);
+
+    

@@ -1,0 +1,29 @@
+#!/usr/bin/perl
+
+$argc=scalar(@ARGV);
+
+if ($argc != 1) {
+    die("Usage: $0 sendmail.cw or local-host-names file\n");
+}
+
+open(F, $ARGV[0]) ||
+    die("$0: Failed to open $ARGV[0] for reading: $!\n");
+
+print "(defparameter *localdomains* '(\n";
+
+while (<F>) {
+    chop;
+    next if /^#/;
+    
+    print "\t\"$_\"\n";
+    
+}
+
+close(F);
+
+print "\t))\n";
+
+
+    
+
+
