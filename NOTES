@@ -21,14 +21,17 @@ difficulty of forking the lisp when multithreading is in use.
 Delivery to files: If the file does not exist, it is created w/ mode
 0600 and owned by root.  If the file does exist, it is simply appended
 (file locking is used (via with-stream-lock) to avoid scrambled
-files).  Files in world writable directories are not allowed.  World
-writable files are allowed, however.
+files).  Files in world/group writable directories are not allowed.
+World/group writable files are allowed, however.
 
 For safety, the program will abort operations if any of the following
-are world writable.. or in world writable directories:
-  * The aliases file
+are world/group writable.. or in world/group writable directories... or
+not owned by root:
+  * The config file 
+  * The aliases file 
   * Programs on the right-hand-side of aliases
-  * The local delivery program
+  * The local delivery program 
+  * The spool directory 
 
 :include: files in aliases: For safety, :include: files may not
 contain additional :include: directives, nor file delivery
@@ -41,5 +44,8 @@ regular users from snooping around.  I also made the -bp and -q
 command line arguments root-only.  Regular users don't need to know
 what mail is going where. 
 
+The Received: header includes the original envelope recipients to help
+track down spam recipients.  This renders Bcc: ineffective (in terms
+of blindness).
 
 

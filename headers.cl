@@ -81,7 +81,7 @@
 	    (fqdn))))
 
 
-(defun make-received-header (cliaddr id)
+(defun make-received-header (cliaddr id recips)
   (let ((h (make-header)))
     (add-header-word h "Received:")
     (add-header-word h "from")
@@ -92,11 +92,16 @@
 	      (add-header-word h (format nil "(~A)" (ipaddr-to-dotted cliaddr)))
 	 else
 	      (add-header-word h (ipaddr-to-dotted cliaddr))))
-    (dolist (word (list
-		   "by" (fqdn) "(Allegro maild)" 
-		   "id" (format nil "~A;" id)
-		   (datetime)))
-      (add-header-word h word))
+    (add-header-word h "by")
+    (add-header-word h (fqdn))
+    (add-header-word h "(Allegro maild)")
+    (add-header-word h "(for")
+    (dolist (recip recips)
+      (add-header-word h (format nil "<~A>" (emailaddr-orig recip))))
+    (add-header-word h ")" :nospace t)
+    (add-header-word h "id")
+    (add-header-word h (format nil "~A;" id))
+    (add-header-word h (datetime))
     (header-buffer h)))
 
 (defun datetime ()

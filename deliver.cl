@@ -71,12 +71,12 @@
 
 ;; Blocks until the lock is acquired.
 (defun get-file-delivery-lock (file)
-  (mp:without-scheduling
+  (without-interrupts
     (if (null *file-delivery-locks*)
 	(setf *file-delivery-locks* (make-hash-table :test #'equal 
 						     :values nil))))
   (loop
-    (mp:without-scheduling
+    (without-interrupts
       (if (null (gethash file *file-delivery-locks*))
 	  (progn
 	    (setf (gethash file *file-delivery-locks*) t)
@@ -134,7 +134,7 @@
   (block nil
     (let* ((prgvec (coerce (cons (car prglist) prglist) 'vector))
 	   (prgname (svref prgvec 0)))
-      (verify-security prgname)
+      (verify-root-only-file prgname)
       (multiple-value-bind (output errput status writerstatus)
 	  (send-message-to-program q prgvec :rewrite rewrite
 				   :run-as run-as)
@@ -188,9 +188,9 @@
 	(values output errput status (wmts-async-status async))))))
 
 
-(defun write-message-to-stream (stream queue rewrite-type 
+(defun write-message-to-stream (stream q rewrite-type 
 				&key smtp noclose)
-  (if (null (queue-headers queue))
+  (if (null (queue-headers q))
       (error "write-message-to-stream: queue-headers is null.  This can't be right"))
   (with-socket-timeout (stream :write *datatimeout*)
     (macrolet ((endline () `(if smtp 
@@ -201,7 +201,7 @@
       ;; headers might span lines.  Need to handle the EOL characters
       ;; correctly.
       (let (char)
-	(dolist (header (rewrite-headers (queue-headers queue) rewrite-type))
+	(dolist (header (rewrite-headers (queue-headers q) rewrite-type))
 	  (dotimes (n (length header))
 	    (setf char (schar header n))
 	    (if (eq char #\newline)
@@ -212,7 +212,7 @@
       ;; write the header boundary.
       (endline)
 
-      (with-open-file (f (queue-datafile queue))
+      (with-open-file (f (queue-datafile q))
 	(let (char (freshline t))
 	  (while (setf char (read-char f nil nil))
 	    (if* (char= char #\newline)
@@ -242,7 +242,7 @@
 				 :smtp smtp
 				 :noclose noclose)
       (t (c)
-	(maild-log "write-message-to-stream got error ~A" c)
+	(maild-log "write-message-to-stream error: ~A" c)
 	(setf (wmts-async-status async) c)
 	;; Gotta do this, otherwise the listening party won't know
 	;; what the deal is.

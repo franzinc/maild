@@ -1,5 +1,6 @@
 (in-package :user)
 
+
 (defun queue-process-single (id &key wait verbose (if-does-not-exist :error))
   (let ((res (with-locked-queue (q id :noexist)
 	       (queue-process-single-help q :wait wait :verbose verbose))))
@@ -84,6 +85,8 @@
      (+ (queue-ctime q) (* *bounce-days* 86400))))
       
 
+;; XXX -- todo: sort the directory list so that queue items
+;; will be processed in the order which they were created.
 (defun get-all-queue-ids ()
   (let* ((prefix (concatenate 'string *queuedir* "/qf"))
 	 (prefixlen (length prefix))

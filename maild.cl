@@ -2,11 +2,13 @@
 
 
 (defun main (&rest args)
-  (if (probe-file "/etc/maild.cl")
+  (if (and (probe-file "/etc/maild.cl") 
+	   (verify-root-only-file "/etc/maild.cl"))
       (load "/etc/maild.cl" :verbose nil))
   ;; sanity check.
   (if (not (probe-file *queuedir*))
       (error "Queue directory ~A doesn't exist!" *queuedir*))
+  (verify-root-only-file *queuedir*)
   (let ((prgname (pop args)))
     ;; contend w/ with-command-line-arguments 
     (if (null args)
@@ -32,21 +34,21 @@
       (when runmode
 	(cond
 	 ((string= runmode "d")
-	  (verify-root)
+	  (verify-real-user-is-root)
 	  (smtp-server-daemon :queue-interval processqueue)
 	  (exit 0 :quiet t)) ;; parent gets here.
 	 ((string= runmode "s")
 	  (do-smtp *terminal-io* :fork t :verbose verbose)
 	  (exit 0 :quiet t))
 	 ((string= runmode "p")
-	  (verify-root)
+	  (verify-real-user-is-root)
 	  (queue-list)
 	  (exit 0 :quiet t))
 	 (t
 	  (error "-b~A option invalid" runmode)))) 
       
       (when processqueue
-	(verify-root)
+	(verify-real-user-is-root)
 	(queue-process-all :verbose verbose)
 	(exit 0 :quiet t))
 	  
@@ -133,7 +135,8 @@
 (defun maild-signal-handler (sig tee)
   (declare (ignore tee))
   (format t "Maild terminating...~%")
-  (exit (+ 128 sig) :quiet t))
+  ;;(exit (+ 128 sig) :quiet t))
+  (excl::mp-safe-exit (+ 128 sig) :quiet t))
 
 (defun establish-signal-handlers ()
   (dolist (sig `(,*sigint* ,*sigterm*))

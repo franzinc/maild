@@ -1,12 +1,18 @@
 (in-package :user)
 
+;; XXX -- Might want to make 'recip' a struct... w/ one slot
+;; being the parsed emailaddr.. and another slot being the
+;; alias from which it expanded.  This would help w/ generating useful
+;; bounce messages. 
+
 (defstruct queue 
   id
   (ctime (get-universal-time)) ;; when this message was queued
   (status "Reading message data...
 ")
   from
-  recips ;; remaining recipients to be processed
+  recips ;; remaining recipients to be processed 
+  orig-recips ;; pre-alias expansion
   headers
   valid) ;; not valid until the data file has been written
 
@@ -24,63 +30,44 @@
   `(concatenate 'string *queuedir* "/df" (queue-id ,queue)))
 
 
-(defun queue-expand-aliases (recips)
-  (let (expandedrecips)
-    (dolist (recip recips)
-      (if (local-domain-p recip)
-	  (let ((expanded (lookup-recip-in-aliases recip :parsed t)))
-	    (setf expandedrecips
-	      (nconc expandedrecips
-		     (if expanded 
-			 expanded 
-		       (list recip)))))
-	(push recip expandedrecips)))
-    (queue-dedupe-recips expandedrecips)))
-    
-(defun queue-dedupe-recips (recips)
-  (let (seen res)
-    (dolist (recip recips)
-      (if* (not (member recip seen :test #'emailaddr=))
-	 then
-	      (push recip res)
-	      (push recip seen)))
-    res))
+;; The sequence file holds the last used sequence number.
+(defun create-queue-id ()
+  (let ((seqnum 0)
+	(lockfile (format nil "~A/.seq.lck" *queuedir*)))
+    (with-lock-file (lockfile nil :wait t)
+      (with-os-open-file (f (format nil "~A/.seq" *queuedir*)
+			    (logior *o-rdwr* *o-creat*) #o0600)
+	(if (> (file-length f) 0)
+	    ;; read last sequence number.
+	    (setf seqnum (parse-integer (file-contents f))))
+	(incf seqnum)
+	(file-position f 0)
+	(format f "~d" seqnum)))
+    (format nil "~12,'0d" seqnum)))
 
-;; Returns the locked queue struct
+
 (defun make-queue-file (from recips)
-  (let ((prefix (format nil "~A/tf" *queuedir*))
-	id
-	tmpfile
-	queue)
-    (loop
-      (multiple-value-bind (f filename)
-	  (mkstemp (concatenate 'string prefix "XXXXXX"))
-	(setf tmpfile filename)
-	(close f)
-	(setf id (subseq filename (length prefix)))
-	
-	;; We've safely selected a possible id.  Make sure it's not used
-	;; on any qf.  
-	(if (not (queue-exists-p id))
-	    (return)) ;; break from the loop
-	
-	(delete-file filename)))
-    
-    ;; we now have a tf file which has put a claim on our id.
-    ;; Now create the regular lockfile so that we don't have
-    ;; to worry about the file be processed while it's still
-    ;; being created.
-    (queue-lock id)
-    (delete-file tmpfile)
-
-    (setf queue
-      (make-queue 
-       :id id
-       :from from
-       :recips (queue-expand-aliases recips)))
-    (update-queue-file queue)
-    queue))
-    
+  (let ((status :try-again)
+	id lockfile qfile q)
+    (while (eq status :try-again)
+      (setf id (create-queue-id))
+      (setf lockfile (queue-lockfile-from-id id))
+      (setf qfile (queue-filename-from-id id))
+      (when (lock-file lockfile) 
+	(unwind-protect
+	    (when (null (probe-file qfile))
+	      (setf q (make-queue 
+		       :id id
+		       :from from
+		       :orig-recips recips
+		       :recips (expand-recips recips)))
+	      (update-queue-file q) ;; write it out
+	      (setf status :ok))
+	  ;; cleanup forms
+	  (when (eq status :try-again)
+	    (delete-file lockfile)))))
+    q))
+  
 
 (defun update-queue-file (queue)
   (let ((filename (queue-filename queue))
@@ -93,7 +80,7 @@
       (write queue :stream f)
       (finish-output f)
       (fsync f))
-    (rename-file tmpfile filename)))
+    (rename tmpfile filename)))
 
       
 (defun remove-queue-file (q)
@@ -106,8 +93,9 @@
 
 (defun queue-init-headers (queue headers cliaddr &key date add-from from-gecos)
   (setf (queue-headers queue)
-    (cons (make-received-header cliaddr (queue-id queue))
-	  headers))
+    (cons 
+     (make-received-header cliaddr (queue-id queue) (queue-orig-recips queue))
+     headers))
   (if (null (locate-header "Message-Id:" headers))
       (setf (queue-headers queue)
 	(append (queue-headers queue) 
@@ -141,9 +129,10 @@
   (let ((lockfile (queue-lockfile-from-id (queue-id q))))
     (probe-file lockfile)))
 
+;; A 0-length queue file is treated as one that does not exist.
 (defun queue-exists-p (id)
   (probe-file (queue-filename-from-id id)))
-
+1
 ;; locks and reads.  Returns nil if it couldn't get a lock.
 (defun queue-get (id)
     (if (null (queue-lock id))
@@ -161,7 +150,7 @@
 	(idvar (gensym)))
     `(let* ((,idvar ,id)
 	    (,lockfilevar (queue-lockfile-from-id ,idvar)))
-       (with-lock-file-nowait (,lockfilevar :locked)
+       (with-lock-file (,lockfilevar :locked)
 	 (if (not (queue-exists-p ,idvar))
 	     ,noexistform
 	   (let ((,qvar (queue-read ,idvar)))

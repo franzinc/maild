@@ -2,12 +2,13 @@
 
 
 (defun lock-file (filename &key wait)
-  (loop
-    (if (lock-file-help filename)
-	(return t))
-    (if (not wait)
-	(return nil))
-    (sleep 1)))
+  (let ((whostate (format nil "Waiting on ~A" filename)))
+    (loop
+      (if (lock-file-help filename)
+	  (return t))
+      (if (not wait)
+	  (return nil))
+      (sleep 1 whostate))))
   
 (defun lock-file-help (filename)
   (handler-case
@@ -20,17 +21,24 @@
       (if (= (syscall-error-errno e) *eexist*) 
 	  nil
 	(error e)))))
-    
-(defmacro with-lock-file-nowait ((filename nolockform) &body body)
+
+(defmacro with-lock-file ((filename nolockform &key wait) &body body)
   (let ((filenamevar (gensym))
-	(lockresvar (gensym)))
+	(lockresvar (gensym))
+	(waitvar (gensym)))
     `(let* ((,filenamevar ,filename)
-	    (,lockresvar (lock-file ,filenamevar)))
-       (if (null ,lockresvar)
-	   ,nolockform
-	 (unwind-protect
-	     (progn
-	       ,@body)
-	   ;; It's okay for the body to delete the lockfile
-	   (if (probe-file ,filenamevar)
-	       (delete-file ,filenamevar)))))))
+	    (,waitvar ,wait)
+	    (,lockresvar (lock-file ,filenamevar :wait ,waitvar)))
+       (if* (null ,lockresvar) ;; couldn't get the lock
+	  then
+	       (if ,waitvar
+		   (error "with-lock-file: lock-file returned nil when it shouldn't have")
+		 (progn
+		   ,nolockform))
+	  else
+	       (unwind-protect
+		   (progn
+		     ,@body)
+		 ;; It's okay for the body to delete the lockfile
+		 (if (probe-file ,filenamevar)
+		     (delete-file ,filenamevar)))))))

@@ -1,7 +1,28 @@
-Need to work on the '-t' command line arg.
+:include: files are allowed to have full header-style email addresses
+(comments, display names).. parse-email-addr handles these right.. so
+if I'm not adding any additional restrictions, it should be fine.
+
+Sort queue items by id in queue-process-all
+
+Need to work on the '-t' command line arg.  Necessary for Charley's mail.
+
+Bounces for a given delivery attempt should be coalesced into one
+message.
+
+Allow SIGHUP to make the config reload on a running server.
+
+[maybe: Have program drop privs and run as user/group 'maild']
+
+Parameterize the blacklist SMTP response.  If it is multiline, make
+sure the SMTP multiline response happens properly.
+
+OMeToo... can I make this work w/o breaking stuff?
 
 If there are bounces due to mailing to an :include: alias, check for
-an owner-* alias for bounce redirection.
+an owner-* alias for bounce redirection.  Does this work for any
+general alias?
+
+Optionally honor Errors-To header.
 
 Possibility:
   Messages w/o a To, Cc: or Bcc: header should have one of them

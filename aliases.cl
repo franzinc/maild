@@ -13,7 +13,7 @@
   (let ((mtime (file-write-date *aliasesfile*)))
     (if* (> mtime (aliases-info-mtime *aliases*))
        then
-	    (verify-security *aliasesfile*)
+	    (verify-root-only-file *aliasesfile*)
 	    (if *debug* (maild-log "Reparsing aliases"))
 	    (setf (aliases-info-aliases *aliases*)
 	      (parse-aliases-file))
@@ -225,4 +225,3 @@
 	    (push member res)
 	  (setf res (append exp res))))))
     res))
-

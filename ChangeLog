@@ -1,3 +1,30 @@
+2003-05-08  root  <root@dancy>
+
+	* aliases.cl:  Aliases file must be owned by root and have safe
+	permissions.
+
+	* deliver.cl:  Delivery programs (aliases and defined local
+	delivery program) must be owned by root and have safe
+	permissions.  I may relax this if it turns out to be too
+	restrictive.
+
+	* headers.cl:  Received header now includes the original envelope
+	recipients per Charley's request.  Note that this makes Bcc:
+	ineffective (in terms of blindness).
+
+	* lock.cl:  Generalized with-lock-file-nowait to with-lock-file
+	and a keyword arg.
+
+	* maild.cl:  /etc/maild/cl must be owned by root and have safe
+	permissions.  Same w/ *queuedir*.
+
+	* queue.cl:  Queue files are generated in a different way now.
+	Simpler.
+
+	* recips.cl:  Moved some of the recipient alias expansion stuff
+	out of queue.cl and into this file.   Fixed a bug w/ "user:
+	user@localdomain" type expansion.
+
 2003-04-30  root  <root@gills.dancysoft.com>
 
 	* Makefile:  Make maild/maild depend on *.cl

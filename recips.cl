@@ -66,7 +66,42 @@
 	    (return (values :error
 			    (subseq exp2 #.(length ":error:")))))
 	(return exp)))))
+
+(defun expand-recip (recip)
+  (block nil
+    (if (not (local-domain-p recip))
+	(return (list recip)))
+    (let ((expansion (lookup-recip-in-aliases recip :parsed t))
+	  res)
+      (if (null expansion)
+	  (return (list recip)))
+      (dolist (exp expansion)
+	(if (or (not (local-domain-p exp))
+		(equalp (emailaddr-user recip) (emailaddr-user exp)))
+	    (push exp res)
+	  (setf res (append res (expand-recip exp)))))
+      res)))
+
+;; De-dupes as well.
+(defun expand-recips (recips)
+  (let (res)
+    (dolist (recip recips)
+      (setf res (append res (expand-recip recip))))
+    (dedupe-recips res)))
+
+(defun dedupe-recips (recips)
+  (let (seen res)
+    (dolist (recip recips)
+      (if* (not (member recip seen :test #'emailaddr=))
+	 then
+	      (push recip res)
+	      (push recip seen)))
+    res))
+
+	  
       
+
+
       
 	
 	

@@ -247,7 +247,7 @@
 	  
 	  (multiple-value-bind (disp errmsg)
 	      (get-recipient-disposition addr)
-	    (case disp
+	    (ecase disp
 	      (:error
 	       (outline sock "550 ~a... ~a" 
 			(emailaddr-orig addr) errmsg)
@@ -266,7 +266,10 @@
 	       (maild-log "Client from ~A: rcpt to:~A... User unknown"
 			  (session-dotted sess)
 			  (emailaddr-orig addr))
-	       (return))))
+	       (return))
+	      (:non-local
+	       ))) ;; don't do anything for just.. just a sanity check
+	    
 	  
 	  ;; not a local recipient... see if we allow relaying.
 	  (if* (or (not (socketp (session-sock sess)))
