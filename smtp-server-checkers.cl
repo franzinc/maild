@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: smtp-server-checkers.cl,v 1.10 2003/08/04 16:39:37 dancy Exp $
+;; $Id: smtp-server-checkers.cl,v 1.11 2003/08/15 21:18:48 dancy Exp $
 
 (in-package :user)
 
@@ -58,13 +58,14 @@
 	    (relaying-allowed-p ip nil nil))
 	(return :ok))
     
-    (let ((exists (domain-exists-p 
-		   (concatenate 'string (flip-ip ip) ".in-addr.arpa"))))
-      (when (eq exists :unknown)
+    ;; When doing :ptr lookups, dns-query automatically flips the address
+    ;; and adds .in-addr.arpa for us.
+    (let ((res (dns-record-exists-p ip :ptr)))
+      (when (eq res :unknown)
 	(return 
 	  (values :transient "Domain resolution error")))
       
-      (when (null exists)
+      (when (or (null res) (eq res :nxdomain))
 	(return
 	  (values :err "Client reverse DNS record must exist")))
       
@@ -95,14 +96,14 @@
     (let ((domain (emailaddr-domain from)))
       (if (null domain)
 	  (return :ok))
-      (let ((exists (domain-exists-p domain)))
-	(when (eq exists :unknown)
+      (let ((res (valid-email-domain-p domain)))
+	(when (eq res :unknown)
 	  (return 
 	    (values :transient "Domain resolution error")))
 	
-	(when (null exists)
+	(when (null res)
 	  (return
-	    (values :err "Sender domain must exist")))
+	    (values :err "Sender domain must resolve")))
 	
 	:ok))))
 

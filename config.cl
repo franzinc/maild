@@ -1,4 +1,4 @@
-;; $Id: config.cl,v 1.23 2003/08/04 16:39:37 dancy Exp $
+;; $Id: config.cl,v 1.24 2003/08/15 21:18:48 dancy Exp $
 
 (in-package :user)
 
@@ -136,9 +136,8 @@
 
 (defparameter *smtp-mail-from-checkers* 
     '(("Blacklisted sender checker" smtp-mail-from-blacklist-checker)
-      ("Sender domain required checker" 
-       smtp-mail-from-domain-required-checker)
-      ("Sender domain exists checker" smtp-mail-from-domain-checker)))
+      ("Sender domain required checker" smtp-mail-from-domain-required-checker)
+      ("Sender domain must resolve checker" smtp-mail-from-domain-checker)))
 
 ;; Same idea as the above.  Checkers are called with
 ;; client ip address, sender, recip-type, new recipient, existing recipients.

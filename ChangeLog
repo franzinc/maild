@@ -1,3 +1,25 @@
+2003-08-15  Ahmon Dancy  <dancy@dancy>
+
+	* version.cl: Bumped version to 1.1.3.
+
+	* config.cl: Changed text name of smtp-mail-from-domain-checker to
+	"Sender domain must resolve checker" (easier to understand in the
+	statistics web page this way).
+
+	* utils.cl:  Removed domain-exists-p and added dns-record-exists-p
+	and valid-email-domain-p.  These new functions are more exacting
+	in their answers... and dns-record-exists-p is a bit more general
+	than the old domain-exists-p.  valid-email-domain-p has follows a
+	more specific definition of what it means for an email domain to
+	exist (see the code for details).
+
+	* smtp-server-checkers.cl:  In smtp-mail-from-domain-checker, use
+	valid-email-domain-p instead of domain-exists-p.  Update the
+	response message as well.
+
+	In the reverse DNS checker, use dns-record-exists-p instead of
+	domain-exists-p.
+
 2003-08-04  root  <root@gills.dancysoft.com>
 
 	* Added relaying-allowed-p utility function.  Use it in

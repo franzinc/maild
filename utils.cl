@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: utils.cl,v 1.10 2003/08/04 16:39:37 dancy Exp $
+;; $Id: utils.cl,v 1.11 2003/08/15 21:18:48 dancy Exp $
 
 (in-package :user)
 
@@ -162,19 +162,66 @@
       (apply #'dns-query (cons domain rest)))))
 
 
-;; t -> definitely yes
-;; nil -> definitely no
-;; :unknown -> no sure [didn't get an answer or something]
+;; Only follows one CNAME lookup.   If there is any more than that,
+;; the sender's domain has a really jacked up setup.
 
-(defun domain-exists-p (domain)
-  (let ((resp (useful-dns-query domain :decode nil :type :any)))
-    (cond 
-     ((null resp)
-      :unknown)
-     ((member :no-such-domain (dns-response-flags resp))
-      nil)
-     (t
-      t))))
+;; possible answers
+;;  t -- yes, there exists a record of that type.
+;;  nil -- no record of that type exists
+;;  :nxdomain -- the domain itself doesn't exist
+;;  :unknown -- couldn't get any answers.
+(defun dns-record-exists-p (domain type &key (try-cname t))
+  (block nil
+    (let ((resp (useful-dns-query domain :decode nil :type type)))
+      (if (null resp)
+	  (return :unknown))
+      (let ((flags (dns-response-flags resp))
+	    (answer (dns-response-answer resp)))
+	(cond 
+	 ((member :nameserver-internal-error flags)
+	  (return :unknown))
+	 ((member :no-such-domain flags)
+	  (return :nxdomain))
+	 ((null answer)
+	  (return nil)) ;; no records of that type for that name
+	 ((member :cname answer
+		  :test #'eq :key #'dns-rr-type)
+	  (if (not try-cname)
+	      (return nil)
+	    ;; There should only be one cname answer.
+	    (return (dns-record-exists-p (dns-rr-answer (first answer))
+				       type :try-cname nil))))
+	 (t
+	  t))))))
+  
+;; A valid email domain is one that has an MX record or an A record
+;; or a CNAME to an MX or A record.
+
+;; possible answers:  
+;;  t -- there is either an MX or A record for that domain
+;;  nil -- there is neither an MX nor A record for that domain
+;          (possibly because the domain does not exist at all)
+;; :unknown -- couldn't get answers
+(defun valid-email-domain-p (domain)
+  (block nil
+    (let ((res (dns-record-exists-p domain :mx)))
+      (cond
+       ((eq res t)
+	(return t))
+       ((eq res :nxdomain)
+	(return nil))
+       ((eq res :unknown)
+	(return :unknown)))
+      (setf res (dns-record-exists-p domain :a))
+      (cond
+       ((eq res t)
+	(return t))
+       ((eq res :nxdomain)
+	(return nil))
+       ((eq res :unknown)
+	(return :unknown)))
+      nil)))
+	  
 
 (defmacro with-already-open-file ((f) &body body)
   `(when ,f
