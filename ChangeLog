@@ -1,3 +1,14 @@
+2003-09-02  root  <root@dancy>
+
+	* version.cl: Bumped version to 1.1.6
+	
+	* smtp-server-checkers.cl: In sender domain checker, when
+	complaining about a resolution problem, include the domain in
+	question.
+
+	* smtp-server.cl: Tell queue-finalize to add a Date header to
+	received messages if they don't have one already.  
+
 2003-08-22  Ahmon Dancy  <dancy@dancy>
 
 	* version.cl: Bumped version to 1.1.5.

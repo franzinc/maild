@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: smtp-server.cl,v 1.22 2003/08/22 20:41:47 dancy Exp $
+;; $Id: smtp-server.cl,v 1.23 2003/09/02 21:45:33 dancy Exp $
 
 (in-package :user)
 
@@ -551,7 +551,8 @@ in the HELO command (~A) from client ~A"
       
       (when (and (not err) (not rejected))
 	;; This finalizes and unlocks the queue item.
-	(queue-finalize q (session-to sess) headers (smtp-remote-host sock))))
+	(queue-finalize q (session-to sess) headers (smtp-remote-host sock)
+			:date t)))
     
     ;; At this point, the queue file is saved on disk.. or it has been
     ;; deleted due to an error/rejection in processing.

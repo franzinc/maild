@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: smtp-server-checkers.cl,v 1.12 2003/08/19 21:23:59 dancy Exp $
+;; $Id: smtp-server-checkers.cl,v 1.13 2003/09/02 21:45:33 dancy Exp $
 
 (in-package :user)
 
@@ -99,11 +99,11 @@
       (let ((res (valid-email-domain-p domain)))
 	(when (eq res :unknown)
 	  (return 
-	    (values :transient "Domain resolution error")))
-	
+	    (values :transient 
+		    (format nil "Domain (~A) resolution error" domain))))
 	(when (null res)
 	  (return
-	    (values :err "Sender domain must resolve")))
+	    (values :err (format nil "Sender domain (~A) must resolve" domain))))
 	
 	:ok))))
 
