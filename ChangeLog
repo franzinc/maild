@@ -1,3 +1,14 @@
+2004-01-12  Ahmon Dancy  <dancy@dancy>
+
+	* version.cl: 1.1.14
+
+	* log.cl:  Added function maild-log-and-print for use with verbose
+	operation modes.
+
+	* deliver-smtp.cl, queue-process.cl: improve verbosity.
+
+	* greylist.sql.notes:  Minor reformat.
+
 2004-01-07  root  <root@gills.dancysoft.com>
 
 	* version.cl: 1.1.13

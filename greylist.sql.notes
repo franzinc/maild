@@ -11,8 +11,9 @@ source greylist.sql;
 quit
 
 Some default installations of mysql have access permissions set up in
-such a way that maild's login using the greylist account fail.  If you
-see errors in the mail log about mysql connection failures, try this:
+such a way that maild's login using the greylist account fails.  If
+you see errors in the mail log about mysql connection failures, try
+this:
 
 mysql mysql
 delete from user where user is null or user = "";

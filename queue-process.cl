@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: queue-process.cl,v 1.15 2003/09/30 17:56:42 dancy Exp $
+;; $Id: queue-process.cl,v 1.16 2004/01/12 22:42:19 dancy Exp $
 
 (in-package :user)
 
@@ -38,15 +38,16 @@
 
 (defun queue-process-single-help (q &key wait verbose)
   (block nil
-    (maild-log "Processing queue id ~A" (queue-id q))
+    (maild-log-and-print verbose "Processing queue id ~A" (queue-id q))
     ;; Sanity checks
     (when (not (queue-valid q))
-      (maild-log "Queue id ~A is incomplete.  Removing." (queue-id q))
+      (maild-log-and-print 
+       verbose "Queue id ~A is incomplete.  Removing." (queue-id q))
       (remove-queue-file q)
       (return))
     (when (not (probe-file (queue-datafile q)))
-      (maild-log "Queue id ~A doesn't have a data file.  Removing." 
-		 (queue-id q))
+      (maild-log-and-print
+       verbose "Queue id ~A doesn't have a data file.  Removing." (queue-id q))
       (remove-queue-file q)
       (return))
     
@@ -82,8 +83,9 @@
 		  (:delivered
 		   (setf (queue-recips q) (delete recip (queue-recips q))))
 		  (:fail
-		   (maild-log "delivery to ~A failed: ~A" 
-			      recip-printable response)
+		   (maild-log-and-print
+		    verbose
+		    "delivery to ~A failed: ~A" recip-printable response)
 		   (setf (recip-status recip)
 		     (format nil "~A: ~A" recip-printable response))
 		   (push recip failed-recips)
@@ -91,12 +93,14 @@
 		     (delete recip (queue-recips q))))
 		  ;; Everything else is treated as a transient problem
 		  (t
-		   (maild-log "delivery status for ~a is ~s." 
-			      recip-printable status)
+		   (maild-log-and-print
+		    verbose "delivery status for ~a is ~s." 
+		    recip-printable status)
 		   (when response
 		     (setf (recip-status recip)
 		       (format nil "~A: ~A" recip-printable response))
-		     (maild-log "Error message is: ~A" response))))
+		     (maild-log-and-print 
+		      verbose "Error message is: ~A" response))))
 	   else
 		(push recip smtp-recips)))
       
@@ -114,7 +118,7 @@
 		(response (second entry)))
 	    (setf (recip-status recip)
 	      (format nil "~A: ~A" (recip-printable recip) response))
-	    (maild-log "Delivery defered: ~A" (recip-status recip))))
+	    (maild-log "Delivery deferred: ~A" (recip-status recip))))
 	(dolist (entry (smtp-delivery-failed-recips deliv))
 	  (let ((recip (first entry))
 		(response (second entry)))
@@ -132,12 +136,14 @@
       ;; Done processing recips. 
       (when (null (queue-recips q))
 	;; Everything has been delivered.  Clean up
-	(maild-log "Completed final delivery for queue id ~A" (queue-id q))
+	(maild-log-and-print
+	 verbose "Completed final delivery for queue id ~A" (queue-id q))
 	(remove-queue-file q) 
 	(return))
       
       (when (queue-undeliverable-timeout-p q)
-	(maild-log "Bouncing queue id ~A due to queue timeout" (queue-id q))
+	(maild-log-and-print
+	 verbose "Bouncing queue id ~A due to queue timeout" (queue-id q))
 	(bounce q (queue-recips q) :wait wait :undeliverable t)
 	(remove-queue-file q)
 	(return))
@@ -145,7 +151,8 @@
       (setf (queue-status q) "Will try during next queue run")
       (update-queue-file q)
       
-      (maild-log "Terminating processing of queue id ~A" (queue-id q)))))
+      (maild-log-and-print
+       verbose "Terminating processing of queue id ~A" (queue-id q)))))
 
 (defun queue-undeliverable-timeout-p (q)
   (> (get-universal-time)

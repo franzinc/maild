@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: deliver-smtp.cl,v 1.13 2003/09/10 20:13:21 dancy Exp $
+;; $Id: deliver-smtp.cl,v 1.14 2004/01/12 22:42:19 dancy Exp $
 
 (in-package :user)
 
@@ -89,14 +89,18 @@
 	  (connect-to-mx domain :verbose verbose)
 	(when (eq status :no-such-domain)
 	  (setf errmsg (format nil "~A: Host not found" domain))
-	  (maild-log "~A" errmsg)
+	  (maild-log-and-print verbose "~A" errmsg)
 	  (return (values :fail errmsg)))
+	(when (eq status :servfail)
+	  (setf errmsg (format nil "~A: DNS lookup error" domain))
+	  (maild-log-and-print verbose "~A" errmsg)
+	  (return (values :transient errmsg)))
 	(when (null sock)
 	  (setf errmsg 
 	    (format nil 
 		    "Failed to connect to any mail exchanger for domain ~A"
 		    domain))
-	  (maild-log "~A" errmsg)
+	  (maild-log-and-print verbose "~A" errmsg)
 	  (return (values :transient errmsg)))
 
 	;; Socket ready.
@@ -155,7 +159,8 @@
 			      (pop (smtp-delivery-in-process-recips deliv)))
 			    (push recip (smtp-delivery-good-recips deliv))
 			    
-			    (maild-log 
+			    (maild-log-and-print 
+			     verbose
 			     "Successful SMTP delivery to ~A (mx: ~A)" 
 			     (recip-printable recip)  
 			     mxname)))
@@ -203,7 +208,7 @@
 	    (setf report
 	      (format nil "Error ~A while sending message data to ~A" 
 		      c mxname)))
-	  (maild-log "~A" report)
+	  (maild-log-and-print verbose "~A" report)
 	  (return (values :transient report)))))
     (if verbose
 	(format t ">>> .~%"))
@@ -247,13 +252,18 @@
 	  (format t "~A~%" line))
       (cond
        ((eq line :longline)
-	(maild-log "Got excessively long response from ~A while reading the SMTP greeting" mxname)
+	(maild-log-and-print
+	 verbose 
+	 "Got excessively long response from ~A while reading the SMTP greeting"
+	 mxname)
 	(return (values :transient line)))
        ((eq line :eof)
-	(maild-log "Remote SMTP server ~A hung up on us" mxname)
+	(maild-log-and-print 
+	 verbose "Remote SMTP server ~A hung up on us" mxname)
 	(return (values :transient "<unexpected disconnect>")))
        ((eq line :timeout)
-	(maild-log "Timeout while waiting for SMTP greeting from ~A" mxname)
+	(maild-log 
+	 verbose "Timeout while waiting for SMTP greeting from ~A" mxname)
 	(return (values :transient "<communication timeout>")))
        ((stringp line)
 	nil)
@@ -261,7 +271,8 @@
 	(error "Unexpected return value from smtp-get-line: ~S" line)))
       (if* (< (length line) 4)
 	 then
-	      (maild-log "Got short reply line from ~A: ~A" mxname line)
+	      (maild-log-and-print
+	       verbose "Got short reply line from ~A: ~A" mxname line)
 	      (return (values :transient line)))
       (setf char (schar line 3))
       (case char
@@ -270,7 +281,8 @@
 	(#\space ;; final reply line.  Use this for processing the code
 	 (return (smtp-response-disposition line mxname)))
 	(t
-	 (maild-log "Got weird reply line from ~A: ~A" mxname line)
+	 (maild-log-and-print
+	  verbose "Got weird reply line from ~A: ~A" mxname line)
 	 (return (values :transient line)))))))
 	 
 (defun smtp-response-disposition (line mxname)
@@ -299,8 +311,8 @@
 (defun connect-to-mx (domain &key verbose)
   (block nil
     (let ((mxs (get-good-mxs domain)))
-      (if (eq mxs :no-such-domain)
-	  (return (values nil nil :no-such-domain)))
+      (if (or (eq mxs :no-such-domain) (eq mxs :servfail))
+	  (return (values nil nil mxs)))
       (dolist (mx mxs)
 	(let (sock)
 	  (handler-case 
@@ -322,18 +334,20 @@
 		  (return (values sock (cdr mx) :ok))))))))
 
 ;; return a list of (addr . name)
-(defun get-good-mxs (domain)
+(defun get-good-mxs (domain &key verbose)
   (let (res)
     (multiple-value-bind (best ttl others disp)
 	(dns-query domain :type :mx :search t)
       (declare (ignore ttl))
       (if (member :no-such-domain disp)
 	  (return-from get-good-mxs :no-such-domain))
+      (if (member :nameserver-internal-error disp)
+	  (return-from get-good-mxs :servfail))
       (let ((mxs (cons best others)))
 	(if (null best)  ;; use the A record if there's no MX record
 	    (setf mxs (list (list domain nil 0))))
 	(dolist (mx mxs)
-	  (complete-mx-info mx)
+	  (complete-mx-info mx :verbose verbose)
 	  (if (second mx)
 	      (push (cons (second mx) (first mx)) res)))))
     (nreverse res))) ;; order matters
@@ -341,8 +355,9 @@
 ;; do a name lookup if (second info) is nil
 ;; XXX -- this is bogus because a host could have multiple addresses and
 ;; lookup-hostname only returns one.
-(defun complete-mx-info (info)
+(defun complete-mx-info (info &key verbose)
   (when (null (second info))
     (setf (second info) (ignore-errors (lookup-hostname (first info))))
     (if (null (second info))
-	(maild-log "Couldn't get address of MX ~A" (first info)))))
+	(maild-log-and-print 
+	 verbose "Couldn't get address of MX ~A" (first info)))))

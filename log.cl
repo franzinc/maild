@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: log.cl,v 1.3 2003/07/08 18:15:52 layer Exp $
+;; $Id: log.cl,v 1.4 2004/01/12 22:42:19 dancy Exp $
 
 (in-package :user)
 
@@ -31,5 +31,8 @@
 	  "~?"
 	  (first args) (rest args)))
 
-	  
-
+(defun maild-log-and-print (verbose &rest args)
+  (when verbose
+    (format t "~?" (first args) (rest args))
+    (terpri))
+  (apply #'maild-log args))
