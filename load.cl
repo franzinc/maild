@@ -36,7 +36,4 @@
 	   (mapcar #'(lambda (f) 
 		       (concatenate 'string f ".fasl"))
 		   *source-files*)))
-  (chmod "maild/maild" #o4555) ;; setuid
-  ;; To ease sendmail drop-in
-  (symlink "maild.dxl" "maild/sendmail.dxl" :raw t)
-  (symlink "maild.lic" "maild/sendmail.lic" :raw t))
+  (chmod "maild/maild" #o4555)) ;; setuid

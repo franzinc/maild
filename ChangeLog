@@ -1,3 +1,12 @@
+2003-06-18  root  <root@gills.dancysoft.com>
+
+	* Makefile:  Added 'install' rule.
+
+	* deliver.cl:  Downcase local recipient name.
+
+	* load.cl: Don't do the sendmail.dxl and sendmail.lic symlinks
+	anymore.  Not necessary w/ new patches.
+
 2003-06-18  Ahmon Dancy  <dancy@dancy>
 
 	* maild.cl: Make use of updated with-command-line-arguments
