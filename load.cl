@@ -3,18 +3,21 @@
 (defparameter *source-files*
     '(
       "error" "utils" "security" "lex"
-      "emailaddr" "log"  
-      "ipaddr" "blacklist" 
+      "emailaddr" "log" "ipaddr" "blacklist" 
       "aliases" "recips" "headers" "rewrite" 
-      "lock" "queue" "input" "smtp" "smtp-server"
-      "deliver" "deliver-smtp" "queue-process" "maild"
+      "lock" "smtp" "queue" "deliver" "deliver-smtp" 
+      "queue-process" 
+      "input" "smtp-server"
+      "bounce" 
+      "maild"
       "localmods"))
 
 (defun compile-sources (&key load)
-  (dolist (file *source-files*)
-    (compile-file-if-needed (concatenate 'string file ".cl"))
-    (if load (load (concatenate 'string file ".fasl")))))
-
+  (with-compilation-unit ()
+    (dolist (file *source-files*)
+      (compile-file-if-needed (concatenate 'string file ".cl"))
+      (if load (load (concatenate 'string file ".fasl"))))))
+  
 (eval-when (compile load eval)
   (require :osi)
   (use-package :excl.osi)
