@@ -12,19 +12,24 @@
     (if (null args)
 	(error "Recipient names must be specified"))
     (with-command-line-arguments 
-	(("F" :short fullname :required)
-	 ("f" :short from :required)
+	(("F" :short fullname :required-companion)
+	 ("f" :short from :required-companion)
 	 ("i" :short ignoredot nil)
-	 ("b" :short runmode :required)
-	 ("o" :short options :required)
-	 ("q" :short processqueue :optional)
+	 ("b" :short runmode :required-companion)
+	 ("o" :short options :required-companion :allow-multiple-options)
+	 ("q" :short processqueue :optional-companion)
 	 ("v" :short verbose nil)
 	 ("t" :short grab-recips nil))
       (cmdline-recips :command-line-arguments args)
-      (declare (ignore options))
-
+      
       (establish-signal-handlers)
 
+      ;; process options.  Ignores ones which we don't implement
+      (dolist (option options)
+	(cond
+	 ((string= option "i")
+	  (setf ignoredot t))))
+      
       (when processqueue
 	(if (stringp processqueue)
 	    (setf processqueue (parse-queue-interval processqueue))
@@ -45,6 +50,9 @@
 	  (exit 0 :quiet t))
 	 ((string= runmode "v")
 	  (verify-cmdline-addrs cmdline-recips)
+	  (exit 0 :quiet t))
+	 ((string= runmode "i")
+	  ;; ignore.
 	  (exit 0 :quiet t))
 	 (t
 	  (error "-b~A option invalid" runmode)))) 
@@ -129,5 +137,3 @@
   (dolist (string strings)
     (get-good-recips-from-string string :verbose t)))
 
-	
-	

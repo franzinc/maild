@@ -1,3 +1,9 @@
+2003-06-18  Ahmon Dancy  <dancy@dancy>
+
+	* maild.cl: Make use of updated with-command-line-arguments
+	patches.  Process -oi option... ignores other unrecognized
+	options.  Ignores -bi command line arg.
+
 2003-06-08  root  <root@gills.dancysoft.com>
 
 	* deliver.cl: Add the "From " separator to messages being
