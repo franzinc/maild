@@ -35,6 +35,8 @@
 (defparameter *relay-access* '("127.0.0.1"))
 
 
+;; Addresses to reject during the MAIL FROM: transaction
+(defparameter *blacklist-from* '("big@boss.com"))
 
 ;; Can be a list of IP addresses and masks.. or domain names.
 ;; If a domain like example.com is supplied, then connections
@@ -45,12 +47,17 @@
 ;; a blacklisted client.  
 (defparameter *blacklisted-response* "We do not accept mail from you")
 
+;;;;; DNSNL stuff
+
 (defparameter *dns-blacklists* nil)
 ;; can be :transient or :permanent
 (defparameter *dns-blacklisted-response-type* :transient)
+;; List of recipients that are never subject to DNS blacklisting
+(defparameter *dns-blacklist-recipient-exceptions* nil)
 
-;; Addresses to reject during the MAIL FROM: transaction
-(defparameter *blacklist-from* '("big@boss.com"))
+;;;;;;
+
+
 
 ;; If non-nil, then envelope senders in the SMTP session must have
 ;; a domain name part.

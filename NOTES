@@ -44,8 +44,3 @@ regular users from snooping around.  I also made the -bp and -q
 command line arguments root-only.  Regular users don't need to know
 what mail is going where. 
 
-The Received: header includes the original envelope recipients to help
-track down spam recipients.  This renders Bcc: ineffective (in terms
-of blindness).
-
-

@@ -109,6 +109,12 @@
 (defun smtp-rcpt-to-dns-blacklist-checker (ip from type recip recips)
   (declare (ignore type recips))
   (block nil
+    ;; check exceptions first
+    (let ((orig (emailaddr-orig recip)))
+      (dolist (string *dns-blacklist-recipient-exceptions*)
+	(if (equalp string orig)
+	    (return-from smtp-rcpt-to-dns-blacklist-checker :ok))))
+    
     (let ((domain (connection-dns-blacklisted-p ip)))
       (if (null domain)
 	  (return :ok))

@@ -1,3 +1,9 @@
+2003-07-02  root  <root@gills.dancysoft.com>
+
+	* Added new *dns-blacklist-recipient-exceptions* parameter for
+	specifying recipients that should not be subject to DNS
+	blacklisting.  
+
 2003-07-01  root  <root@gills.dancysoft.com>
 
 	* maild.cl: Allow alternate config file to be specified.  Must be
@@ -403,7 +409,4 @@
 
 	* sockets are now hiper sockets so that I can use read and write
 	timeouts w/ ease.
-
-	
-
 
