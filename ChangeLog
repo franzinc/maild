@@ -1,5 +1,8 @@
 2003-07-01  root  <root@gills.dancysoft.com>
 
+	* maild.cl: Allow alternate config file to be specified.  Must be
+	running as root to do this.
+
 	* smtp-server*.cl: Added hook for initial connection checkers.
 	Moved the regular blacklisting stuff into a checker.
 
