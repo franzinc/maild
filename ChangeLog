@@ -1,3 +1,11 @@
+2003-08-19  Ahmon Dancy  <dancy@dancy>
+
+	* verison.cl: Bumped version to 1.1.4.
+
+	* emailaddr.cl:  Allow carriage return characters to be treated as
+	whitespace even though it's not allowed in the RFC.  This helps
+	deal w/ bogus mail headers that spammers create sometimes.
+
 2003-08-15  Ahmon Dancy  <dancy@dancy>
 
 	* version.cl: Bumped version to 1.1.3.

@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: emailaddr.cl,v 1.10 2003/07/08 18:15:52 layer Exp $
+;; $Id: emailaddr.cl,v 1.11 2003/08/19 18:41:45 dancy Exp $
 
 (in-package :user)
 
@@ -111,7 +111,8 @@
 
 ;; stuff from RFC 2822
 
-(defparameter *wsp* '(:or #\tab #\space))
+;; Added #\return even though it's not in the spec
+(defparameter *wsp* '(:or #\tab #\space #\return))
 
 (defparameter *obs-fws* '((:one-or-more *wsp*)
 			  (:zero-or-more 
