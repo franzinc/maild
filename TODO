@@ -1,0 +1,51 @@
+Anything that makes a queue lock needs an unwind protect to unlock it
+due to the process being killed or something.  Also, if the program is
+shut down during reception of an email, the queue file needs to be
+deleted.
+
+Need to work on the '-t' command line arg.
+
+Possibility:
+  Messages w/o a To, Cc: or Bcc: header should have one of them
+  automatically addeded.  The method in which this is done should be
+  configurable.  Sendmail has the following options:
+   don't do anything
+   add a To: header
+   add Apparently-To: header 
+   add empty Bcc: header 
+   add To: undisclosed:; header 
+
+
+RFCs 1891 and 1894 discuss standards for delivery status notification 
+ (bounces, return receipts, etc).  Gotta make MIME messages, etc. bleh
+
+change the way I have the local hooks.  They should be things that can
+be in the config file.. or calls to external programs... that way, no
+recompile will be necessary for user changes.  Just need to describe
+how the external programs should report their status.  I only use one
+status, though..  good==0, bad==nonzero.
+
+Need loop detection.  RFC2821 says that counting Received: headers is
+a somewhat bogus bogus method for detecting loops.. but if it is used,
+the threshold should be at least 100.
+
+Do I want to make it so that it rarely runs as root?  Situations where
+root is required:
+    local delivery (to setuid to the user)
+    checkers which might require running as a different user.
+    getting port 25.
+    that it?
+ newer versions of sendmail seem to run in two or more processes to
+ do this.
+
+sendmail has a connect timeout (defaults to the kernel's timeout) and
+an iconnect timeout.  The latter is used to immediately send mail to
+responsive hosts.  It is a short timeout (a few seconds).  If it times
+out, the messsage is send backgrounded instead.
+
+Disk space checker.  Don't accept mails if the spool directory has
+less than 'x' blocks free.  The error message:
+   452 4.4.5 Insufficient disk space; try again later  
+ Waiting for osi mods from Kevin
+
+Limit the number of threads.

@@ -1,0 +1,41 @@
+Security thoughts and philosophies:
+
+.forward files aren't supported.  We don't use them at Franz and
+they seem to represent a buttload of annoying security issues.
+
+The variable *local-delivery-user* specifies the user under which the
+local delivery program is executed.   It is "root" by default.
+
+Delivery to programs via the aliases file (e.g., majordomo:
+|/home/majordomo/wrapper...) is executed under user
+*program-alias-user* which defaults to "mailnull".  This is the same
+as sendmail.  The user can be overridden on a per-alias basis by using
+special syntax:   |(user)/path/to/program.  This way, if you need to
+have something run as root, you can do so without having to make the
+program setuid root.
+
+Delivery to files via the aliases file (e.g., archive:
+/home/archives/archivefile) is done as root.  This is due to the
+difficulty of forking the lisp when multithreading is in use.
+
+Delivery to files: If the file does not exist, it is created w/ mode
+0600 and owned by root.  If the file does exist, it is simply appended
+(file locking is used (via with-stream-lock) to avoid scrambled
+files).  Files in world writable directories are not allowed.  World
+writable files are allowed, however.
+
+For safety, the program will abort operations if any of the following
+are world writable.. or in world writable directories:
+  * The aliases file
+  * Programs on the right-hand-side of aliases
+  * The local delivery program
+
+:include: files in aliases: For safety, :include: files may not
+contain additional :include: directives, nor file delivery
+destinations, nor program delivery destinations.   This means that a
+mailing list can still be set up for a random user, but they will not
+gain any privileges beyond adding email addresses to that list.
+
+
+
+
