@@ -1,5 +1,7 @@
 2003-07-09  root  <root@gills.dancysoft.com>
 
+	* Don't do HELO domain check if connection is from localhost.
+
 	* SMTP server statistics are stored in a file so they can be read
 	back in during future server restarts.
 
