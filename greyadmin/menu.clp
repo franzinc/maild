@@ -20,7 +20,7 @@ Off
 <b>Greylisting statistics</b><br>
 
 <ul>
-<li> For <ga_domain/> </li>
+<li> For all users and mailing lists (of which you might be a member): </li>
   <ul>
 	<li>Number of delivery attempts that have been delayed: 
 	    <ga_num-blocked-triples/></li>
@@ -31,7 +31,7 @@ Off
 	<li>Number of delivery attempts that have been accepted:
 		 <ga_num-passed-triples/></li>
   </ul>
-<li> For <ga_user-address/> </li>
+<li> For <ga_user-address/>: </li>
   <ul>
 	<li>Number of delivery attempts that have been delayed: 
 	    <ga_num-blocked-triples user=t/></li>
