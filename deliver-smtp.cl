@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: deliver-smtp.cl,v 1.11 2003/07/23 16:56:42 dancy Exp $
+;; $Id: deliver-smtp.cl,v 1.12 2003/07/23 19:53:14 dancy Exp $
 
 (in-package :user)
 
@@ -140,7 +140,7 @@
 		      (:fail
 		       (push (list recip response) 
 			     (smtp-delivery-failed-recips deliv)))))))
-
+	      
 	      ;; Make sure there was at least one accepted recip
 	      (if (null (smtp-delivery-in-process-recips deliv))
 		  (return :ok))
@@ -165,14 +165,14 @@
 		     (smtp-delivery-in-process-recips deliv))
 		   ;; not really necessary
 		   (setf (smtp-delivery-in-process-recips deliv) nil)
-		   (return (values res response)))))))
-	;; cleanup forms
-	(if sock 
-	    (ignore-errors
-	     ;; try to be polite.  But don't wait too long
-	     (mp:with-timeout (30)
-	       (smtp-finish sock buf mxname :verbose verbose))
-	     (close sock :abort t)))))))
+		   (return (values res response))))))
+	  ;; cleanup forms
+	  (if sock 
+	      (ignore-errors
+	       ;; try to be polite.  But don't wait too long
+	       (mp:with-timeout (30)
+		 (smtp-finish sock buf mxname :verbose verbose))
+	       (close sock :abort t))))))))
 
 
 
