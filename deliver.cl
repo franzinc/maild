@@ -15,6 +15,7 @@
   rewrite-type
   smtp
   noclose
+  add-mbox-from
   (gate (mp:make-gate nil))
   (status :ok)) ;; :ok or an error condition
 
@@ -91,9 +92,7 @@
     (with-os-open-file (stream file (logior *o-wronly* *o-creat* *o-append*)
 			       #o0600)
       (with-stream-lock (stream)
-	(format stream "From ~A  ~A~%" 
-		(emailaddr-orig (queue-from q)) (ctime))
-	(write-message-to-stream stream q :local :noclose t)
+	(write-message-to-stream stream q :local :noclose t :add-mbox-from t)
 	(terpri stream)
 	(maild-log "Delivered to file ~A" file)
 	:delivered))))
@@ -146,7 +145,8 @@
     (with-pipe (readfrom writeto) 
       (setf async (make-wmts-async :stream writeto
 				   :queue q
-				   :rewrite-type rewrite))
+				   :rewrite-type rewrite
+				   :add-mbox-from t))
       (mp:process-run-function "message text generator"
 	#'write-message-to-stream-async async)
       (multiple-value-bind (output errput status)
@@ -166,7 +166,7 @@
 
 
 (defun write-message-to-stream (stream q rewrite-type 
-				&key smtp noclose)
+				&key smtp noclose add-mbox-from)
   (if (null (queue-headers q))
       (error "write-message-to-stream: queue-headers is null.  This can't be right"))
   (with-socket-timeout (stream :write *datatimeout*)
@@ -175,6 +175,11 @@
 				  (write-char #\return stream)
 				  (write-char #\linefeed stream))
 			      (write-char #\newline stream))))
+
+      (when add-mbox-from
+	(format stream "From ~A  ~A" (emailaddr-orig (queue-from q)) (ctime))
+	(endline))
+      
       ;; headers might span lines.  Need to handle the EOL characters
       ;; correctly.
       (let (char)
@@ -213,11 +218,13 @@
 	(queue (wmts-async-queue async))
 	(rewrite-type (wmts-async-rewrite-type async))
 	(smtp (wmts-async-smtp async))
-	(noclose (wmts-async-noclose async)))
+	(noclose (wmts-async-noclose async))
+	(add-mbox-from (wmts-async-add-mbox-from async)))
     (handler-case 
 	(write-message-to-stream stream queue rewrite-type
 				 :smtp smtp
-				 :noclose noclose)
+				 :noclose noclose
+				 :add-mbox-from add-mbox-from)
       (t (c)
 	(maild-log "write-message-to-stream error: ~A" c)
 	(setf (wmts-async-status async) c)

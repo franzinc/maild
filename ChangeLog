@@ -1,5 +1,8 @@
 2003-06-08  root  <root@gills.dancysoft.com>
 
+	* deliver.cl: Add the "From " separator to messages being
+	delivered to programs and to files.
+
 	* aliases.cl:  Supports wildcard aliases now.
 
 	* checkers.cl:  Added support for external checker programs.
