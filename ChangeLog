@@ -1,9 +1,11 @@
 2003-07-23  Kevin Layer  <layer@relay.known.net>
+1.0.1
 
 	* smtp-server.cl: final *helo-must-match-ip* changes, which really
 	  only have an effect if the value is `t'.
 
 2003-07-23  root  <root@gills.dancysoft.com>
+1.0
 
 	* Dubbed this version 1.0 and updated several places to include
 	the version number.
