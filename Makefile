@@ -10,6 +10,7 @@ install: maild/maild
 	mkdir -p $(libdir) $(bindir)
 	rm -fr $(libdir)/maild
 	cp -pr maild $(libdir)
+	chown root $(libdir)/*
 	ln -sf $(libdir)/maild/maild $(bindir)/maild
 
 install-init:

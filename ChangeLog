@@ -1,5 +1,7 @@
 2003-06-25  root  <root@gills.dancysoft.com>
 
+	* Makefile:  chown installed files to 'root'
+
 	* Update greylist.sql for faster setup.
 
 	* Added greylisting feature.
