@@ -1,3 +1,13 @@
+2004-11-10  Kevin Layer  <layer@relay.known.net>
+
+	* Makefile: work in progress for building an RPM package
+	* (NEW) config-greyadmin.cl -- demo config file
+	* (NEW) config-maild-greylist.cl -- demo config file
+	* (NEW) config-maild.cl -- demo config file
+	* deliver-smtp.cl: change maild-log call to maild-log-and-print to
+	  fix wrong number of args problem
+	* log.cl: bullet proof the logging against possible errors
+
 2004-09-26  root  <root@gills.dancysoft.com>
 
 	* version.cl: 1.1.21:

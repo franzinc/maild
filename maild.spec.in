@@ -1,0 +1,107 @@
+# spec file for package maild (Version 1.1)
+# $Id: maild.spec.in,v 1.1 2004/11/10 15:51:53 layer Exp $
+
+Name:         maild
+URL:          http://www.franz.com/
+License:      GPL
+#Copyright:   Franz Inc.
+Group:        Productivity/Networking/Email/Servers
+PreReq:       mysql fileutils sed fillup /sbin/insserv
+Provides:     smtp_daemon
+Requires:     filesystem procmail netcfg
+Conflicts:    smail postfix sendmail
+Autoreqprov:  on
+Version:      1.1.21
+Release:      1
+Summary:      Allegro Maild
+##### IMPORTANT: make sure this is not just __SOURCE__!
+########set in Makefile
+#####BuildRoot:    __SOURCE__/buildroot.tmp
+
+%description
+Allegro Maild
+
+%prep
+	echo 'Nothing to %prep...'
+
+%build
+    cd ${RPM_BUILD_ROOT}/../..
+    make
+    cd greyadmin
+    make
+
+%install
+    cd ${RPM_BUILD_ROOT}/../..
+    DESTDIR=${RPM_BUILD_ROOT}/BUILD
+    mkdir -p ${DESTDIR}/usr/sbin
+    mkdir -p ${DESTDIR}/usr/lib
+    mkdir -p ${DESTDIR}/usr/local/sbin
+    mkdir -p ${DESTDIR}/usr/local/lib/maild
+    mkdir -p ${DESTDIR}/usr/local/lib/check-mail-virus
+    mkdir -p ${DESTDIR}/usr/local/lib/greyadmin
+    mkdir -p ${DESTDIR}/etc/init.d
+    make BUILD_FOR_RPM=t DESTDIR=${DESTDIR} install
+    mkdir -p           ${DESTDIR}/var/spool/maild
+    install -m 0755 maild.init.suse9 ${DESTDIR}/etc/init.d/maild
+    ln -s /etc/init.d/maild ${DESTDIR}/usr/sbin/rcmaild
+#   cp -p config-maild.cl          ${DESTDIR}/etc/maild.cl
+#   cp -p config-maild-greylist.cl ${DESTDIR}/etc/maild-greylist.cl
+#   cp -p config-greyadmin.cl      ${DESTDIR}/etc/greyadmin.cl
+#   chmod 0644 ${DESTDIR}/etc/maild.cl
+#   chmod 0600 ${DESTDIR}/etc/maild-greylist.cl
+#   chmod 0600 ${DESTDIR}/etc/greyadmin.cl
+    cd greyadmin
+    make BUILD_FOR_RPM=t DESTDIR=${DESTDIR} install
+
+%clean
+    cd ${RPM_BUILD_ROOT}/../..
+    DESTDIR=${RPM_BUILD_ROOT}/BUILD
+    rm -rf ${DESTDIR}
+
+%pre
+    echo 'Nothing to %pre...'
+
+%post
+%{fillup_and_insserv -nYps maild maild SMTP}
+%{fillup_only -an mail}
+
+%preun
+%{stop_on_removal maild}
+
+%postun
+%{restart_on_update maild}
+%{insserv_cleanup}
+
+%files
+%attr(-, root, root) /usr/local/lib/maild/maild
+%attr(-, root, root) /usr/local/lib/maild/maild.dxl
+%attr(-, root, root) /usr/local/lib/maild/maild.lic
+%attr(-, root, root) /usr/local/lib/maild/maild.rc
+%attr(-, root, root) /usr/local/lib/maild/libacli701.so
+#
+%attr(-, root, root) /usr/local/lib/check-mail-virus/check-mail-virus
+%attr(-, root, root) /usr/local/lib/check-mail-virus/check-mail-virus.dxl
+%attr(-, root, root) /usr/local/lib/check-mail-virus/check-mail-virus.lic
+%attr(-, root, root) /usr/local/lib/check-mail-virus/check-mail-virus.rc
+%attr(-, root, root) /usr/local/lib/check-mail-virus/libacli701.so
+#
+%attr(-, root, root) /usr/local/lib/greyadmin/greyadmin
+%attr(-, root, root) /usr/local/lib/greyadmin/greyadmin.dxl
+%attr(-, root, root) /usr/local/lib/greyadmin/greyadmin.lic
+%attr(-, root, root) /usr/local/lib/greyadmin/greyadmin.rc
+%attr(-, root, root) /usr/local/lib/greyadmin/libacli701.so
+%attr(-, root, root) /usr/local/lib/greyadmin/login.clp
+%attr(-, root, root) /usr/local/lib/greyadmin/menu.clp
+#
+%attr(-, root, root) /usr/local/sbin/maild
+%attr(-, root, root) /usr/local/sbin/mailq
+%attr(-, root, root) /usr/local/sbin/check-mail-virus
+%attr(-, root, root) /usr/local/sbin/greyadmin
+#
+%attr(-, root, root) /etc/init.d/maild
+#
+%attr(0700, root, root) /var/spool/maild
+
+%changelog
+* Sun Nov 7 2004 - layer@known.net
+- Initial RPM version

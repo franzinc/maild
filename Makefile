@@ -1,9 +1,9 @@
-# $Id: Makefile,v 1.11 2003/07/23 19:21:48 dancy Exp $
+# $Id: Makefile,v 1.12 2004/11/10 15:51:53 layer Exp $
 
 lisp=$(shell if test -x /storage1/acl/mlisp; then \
 		echo /storage1/acl/mlisp; \
 	     else \
-		echo /backup/acl/acl62/mlisp; \
+		echo /backup/acl/acl70/mlisp; \
 	     fi)
 libdir=/usr/local/lib
 bindir=/usr/local/sbin
@@ -24,21 +24,45 @@ install-common:
 	mkdir -p $(libdir) $(bindir)
 
 install-maild: maild/maild install-common
-	rm -fr $(libdir)/maild.old
-	-mv $(libdir)/maild $(libdir)/maild.old
-	cp -pr maild $(libdir)
-	chown root $(libdir)/maild/*
-	ln -sf $(libdir)/maild/maild $(bindir)/maild
+	rm -fr $(DESTDIR)$(libdir)/maild.old
+	-mv $(DESTDIR)$(libdir)/maild $(DESTDIR)$(libdir)/maild.old
+	cp -pr maild $(DESTDIR)$(libdir)
+ifndef BUILD_FOR_RPM
+	chown root $(DESTDIR)$(libdir)/maild/*
+endif
+	ln -sf ../lib/maild/maild $(DESTDIR)$(bindir)/maild
+	ln -sf ../lib/maild/maild $(DESTDIR)$(bindir)/mailq
 
 install-check-mail-virus: check-mail-virus/check-mail-virus install-common
-	rm -fr $(libdir)/check-mail-virus
-	cp -pr check-mail-virus $(libdir)
-	chown root $(libdir)/check-mail-virus/*
-	ln -sf $(libdir)/check-mail-virus/check-mail-virus $(bindir)/check-mail-virus
+	rm -fr $(DESTDIR)$(libdir)/check-mail-virus
+	cp -pr check-mail-virus $(DESTDIR)$(libdir)
+ifndef BUILD_FOR_RPM
+	chown root $(DESTDIR)$(libdir)/check-mail-virus/*
+endif
+	ln -sf ../lib/check-mail-virus/check-mail-virus \
+	       $(DESTDIR)$(bindir)/check-mail-virus
 
-install-init:
-	cp -p maild.init /etc/init.d/maild
+install-init: FORCE
+	cp -p maild.init $(DESTDIR)/etc/init.d/maild
 
-clean:
+clean: FORCE
 	rm -f *.fasl
-	rm -fr maild
+	rm -fr maild check-mail-virus rpmbuild maild.spec
+
+HERE := $(shell pwd)
+
+BUILDROOT = $(HERE)/rpmbuild
+
+rpm: FORCE
+	rm -fr $(BUILDROOT)
+	mkdir  $(BUILDROOT)
+	mkdir  $(BUILDROOT)/BUILD
+	mkdir  $(BUILDROOT)/RPMS
+	mkdir  $(BUILDROOT)/SOURCES
+	mkdir  $(BUILDROOT)/SPECS
+	mkdir  $(BUILDROOT)/SRPMS
+	rm -f maild.spec
+	sed -e 's,__SOURCE__,$(HERE),g' < maild.spec.in > maild.spec 
+	rpmbuild -vv --buildroot=$(BUILDROOT)/BUILD -bb maild.spec
+
+FORCE:

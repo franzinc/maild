@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: deliver-smtp.cl,v 1.14 2004/01/12 22:42:19 dancy Exp $
+;; $Id: deliver-smtp.cl,v 1.15 2004/11/10 15:51:53 layer Exp $
 
 (in-package :user)
 
@@ -262,7 +262,7 @@
 	 verbose "Remote SMTP server ~A hung up on us" mxname)
 	(return (values :transient "<unexpected disconnect>")))
        ((eq line :timeout)
-	(maild-log 
+	(maild-log-and-print
 	 verbose "Timeout while waiting for SMTP greeting from ~A" mxname)
 	(return (values :transient "<communication timeout>")))
        ((stringp line)

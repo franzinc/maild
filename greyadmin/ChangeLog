@@ -1,3 +1,7 @@
+2004-11-10  Kevin Layer  <layer@relay.known.net>
+
+	* Makefile: the start of rpm build support
+
 2003-08-04  root  <root@gills.dancysoft.com>
 
 	* Be polite after doing POP auth (use QUIT command)
