@@ -116,7 +116,8 @@
 ;; user checks are done.
 
 (defparameter *smtp-rcpt-to-checkers* 
-    '(("Relay checker" smtp-rcpt-to-relay-checker)))
+    '(("Relay checker" smtp-rcpt-to-relay-checker)
+      ("DNS blacklist checker" smtp-rcpt-to-dns-blacklist-checker)))
 
 ;; Same idea as above.  Checkers are called with 
 ;; client ip address, sender, recips (all email addresses parse).

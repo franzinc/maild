@@ -1,5 +1,8 @@
 2003-06-25  root  <root@gills.dancysoft.com>
 
+	* Changed the DNS blacklisting to a rcpt-to checker so that sender
+	and recipient can be logged.
+
 	* Makefile:  chown installed files to 'root'
 
 	* Update greylist.sql for faster setup.

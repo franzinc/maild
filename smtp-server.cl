@@ -94,22 +94,6 @@
 			   dotted)
 		(return-from do-smtp))
 	      
-	      ;; Check DNS-based blacklists
-	      (setf bl (connection-dns-blacklisted-p (smtp-remote-host sock)))
-	      
-	      (when bl
-		(ecase *dns-blacklisted-response-type*
-		  (:transient
-		   (outline sock "400 Please try again later")
-		   (maild-log "Temporarily rejecting client from ~A due to entry in ~A DNS blacklist"
-			      dotted bl))
-		  (:permanent
-		   (outline sock "500 ~A (~A)" *blacklisted-response* bl)
-		   (maild-log "Rejecting client from ~A due to entry in ~A DNS blacklist"
-			      dotted bl)))
-		(return-from do-smtp))
-
-	
 	      (outline sock "220 ~A Allegro mail server ready" (fqdn)) ;; Greet
 	      (loop
 		(setf cmd 

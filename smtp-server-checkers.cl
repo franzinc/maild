@@ -67,3 +67,23 @@
     (if (addr-in-network-p cliaddr (parse-addr check))
 	(return t))))
 
+(defun smtp-rcpt-to-dns-blacklist-checker (ip from type recip recips)
+  (declare (ignore type recips))
+  (block nil
+    (let ((domain (connection-dns-blacklisted-p ip)))
+      (if (null domain)
+	  (return :ok))
+      (maild-log "(~A/~A/~A) blacklisted by ~A"
+		 (socket:ipaddr-to-dotted ip) 
+		 (emailaddr-orig from)
+		 (emailaddr-orig recip)
+		 domain)
+      (ecase *dns-blacklisted-response-type*
+	(:transient
+	 (return 
+	   (values :transient 
+		   (format nil "Please try again later (~A)" domain))))
+	(:permanent
+	 (return 
+	   (values :err 
+		   (format nil "Blacklisted by ~A" domain))))))))
