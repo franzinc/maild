@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: smtp-server.cl,v 1.19 2003/07/23 16:56:42 dancy Exp $
+;; $Id: smtp-server.cl,v 1.20 2003/07/23 17:16:30 layer Exp $
 
 (in-package :user)
 
@@ -277,20 +277,32 @@
 	    (useful-dns-query text)
 	  (declare (ignore ttl))
 	  (when (member :no-such-domain flags)
-	    (outline sock "501 Invalid domain name")
-	    (maild-log "Rejected HELO ~A from client ~A (invalid domain)"
-		       text (session-dotted sess))
-	    (inc-checker-stat connections-rejected-permanently
-			      "HELO domain checker")
-	    (return :quit))
+	    (if* (eq 't *helo-must-match-ip*)
+	       then (outline sock "501 Invalid domain name")
+		    (maild-log
+		     "Rejected HELO ~A from client ~A (invalid domain)"
+			       text (session-dotted sess))
+		    (inc-checker-stat connections-rejected-permanently
+				      "HELO domain checker")
+		    (return :quit)
+	       else ;; log only
+		    (maild-log
+		     "NOTE: HELO ~A from client ~A (invalid domain)"
+			       text (session-dotted sess))))
 	  
 	  (when (null first)
-	    (outline sock "401 Unable to resolve domain")
-	    (maild-log "Temporarily rejected client from ~A because we couldn't resolve the name supplied in the HELO command (~A)" 
-		       (session-dotted sess) text)
-	    (inc-checker-stat connections-rejected-temporarily
-			      "HELO domain checker")
-	    (return :quit))
+	    (if* (eq 't *helo-must-match-ip*)
+	       then (outline sock "401 Unable to resolve domain")
+		    (maild-log "Temporarily rejected client from ~A ~
+because we couldn't resolve the name supplied in the HELO command (~A)" 
+			       (session-dotted sess) text)
+		    (inc-checker-stat connections-rejected-temporarily
+				      "HELO domain checker")
+		    (return :quit)
+	       else ;; log only
+		    (maild-log "NOTE: couldn't resolve the name supplied ~
+in the HELO command (~A) from client ~A"
+			       text (session-dotted sess))))
 	  
 	  (let ((addrs (append (list first) rest)))
 	    (when (not (member (smtp-remote-host sock) addrs))
