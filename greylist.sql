@@ -19,4 +19,7 @@ create table optin (receiver text not null);
 create index ind2 on optout (receiver(50));
 create index ind3 on optin (receiver(50));
 
+create table whitelist (sender text not null, source text not null);
+create index ind4 on whitelist (sender(50));
+
 grant all on greylist.* to greylist identified by "greypasswd";

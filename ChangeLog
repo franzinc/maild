@@ -1,3 +1,18 @@
+2004-07-08  Ahmon Dancy  <dancy@dancy>
+
+	* version.cl: 1.1.15
+
+	* greylist.cl: If a particular sender address is in the
+	'whitelist' table of the greylist database, excuse from
+	greylisting.  This feature should be used with care since it is
+	trivial for spammers to forge sender addresses.  If you are
+	upgrading from a prior version, you'll need to create the
+	whitelist table and index.  See greylist.sql for the two sql
+	statements.
+
+	* greylist.sql: Updated to include creation of the whitelist table
+	and index.
+
 2004-01-12  Ahmon Dancy  <dancy@dancy>
 
 	* version.cl: 1.1.14

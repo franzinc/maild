@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: greylist.cl,v 1.13 2004/01/07 22:10:23 dancy Exp $
+;; $Id: greylist.cl,v 1.14 2004/07/08 21:06:02 dancy Exp $
 
 (in-package :user)
 
@@ -179,7 +179,17 @@
 	       (ipaddr-to-dotted ip))
     (return-from greylist-init :skip))
   
-  (greylist-db-init))
+  (multiple-value-bind (res string)
+      (greylist-db-init) ;; check below needs the db
+    (when (not (eq res :ok))
+      (return-from greylist-init (values res string))))
+      
+  (when (greylist-whitelisted-sender-p (emailaddr-orig from))
+    (maild-log "Client from ~A:  Manually whitelisted sender: ~A" 
+	       ip (emailaddr-orig from))
+    (return-from greylist-init :skip))
+  
+  :ok)
 
 
 (defmacro with-greylist ((ip from to) &body body)
@@ -360,4 +370,9 @@
       t
     nil))
 
-
+(defun greylist-whitelisted-sender-p (sender)
+  (>= (caar 
+       (greysql 
+	(format nil "select count(*) from whitelist where sender=~S"
+		(dbi.mysql:mysql-escape-sequence sender))))
+      1))
