@@ -108,14 +108,28 @@
 		    (detach-from-terminal))
 		(queue-process-single (queue-id q) :wait t :verbose t))))))
 
-;; Works right even if there are multiple To:, Cc: or Bcc: headers
+;; Works right even if there are multiple To:, Cc: or Bcc: headers.
+;; Works on folded headers now too.
 (defun grab-recips-from-headers (headers)
-  (let (good-recips pos)
-    (dolist (header headers)
-      (setf pos (recip-header-p header))
-      (when pos
-	(setf good-recips
-	  (nconc good-recips (get-good-recips-from-string header :pos pos)))))
+  (let (good-recips pos h nextline)
+    (while headers
+	   (setf h (pop headers))
+	   (when (recip-header-p h)
+	     (while (setf nextline (pop headers))
+		    (if (or (= 0 (length nextline))
+			    (not (whitespace-p (schar nextline 0))))
+			(return)) ;; break
+		    (setf h (header-unfold h nextline)))
+	     ;; get here if nextline wasn't there.. or if it was
+	     ;; the beginning of a new header
+	     (if nextline 
+		 (push nextline headers))
+	     
+	     (setf pos (recip-header-p h))
+	     (when pos
+	       (setf good-recips
+		 (nconc good-recips 
+			(get-good-recips-from-string h :pos pos))))))
     good-recips))
 
 (defun read-message-stream (s bodystream &key smtp dot)
