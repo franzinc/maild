@@ -14,11 +14,15 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: maild.cl,v 1.18 2003/10/17 22:18:05 dancy Exp $
+;; $Id: maild.cl,v 1.19 2004/12/15 19:32:51 layer Exp $
 
 (in-package :user)
 
 (defparameter *configfile* "/etc/maild.cl")
+
+(eval-when (compile eval load)
+;; useful when telnet'ing in:
+  (require :trace))
 
 (defun main (&rest args)
   (setf *load-verbose* nil)
@@ -28,7 +32,7 @@
       (verify-real-user-is-root)
       (queue-list)
       (exit 0 :quiet t))
-
+    
     (if (null args)
 	(error "Recipient names must be specified"))
     (with-command-line-arguments 
@@ -79,6 +83,13 @@
 	(cond
 	 ((string= runmode "d")
 	  (verify-real-user-is-root)
+	  
+	  (setq excl::*trace-timestamp* t)
+	  (setq *trace-output*
+	    (open "/tmp/maild.trace" :direction :output
+		  :if-does-not-exist :create
+		  :if-exists :append))    
+	  
 	  (smtp-server-daemon :queue-interval processqueue)
 	  (exit 0 :quiet t)) ;; parent gets here.
 	 ((string= runmode "s")

@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: blacklist.cl,v 1.5 2003/07/08 18:15:52 layer Exp $
+;; $Id: blacklist.cl,v 1.6 2004/12/15 19:32:51 layer Exp $
 
 (in-package :user)
 
@@ -79,7 +79,8 @@
 (defun connection-dns-blacklisted-p (ip)
   (let ((flipped (flip-ip ip)))
     (dolist (domain *dns-blacklists* nil)
-      (if (socket:dns-query (concatenate 'string flipped "." domain))
+      (if (socket:dns-query (concatenate 'string flipped "." domain)
+			    :ignore-cache *ignore-dns-cache*)
 	  (return domain)))))
 
 

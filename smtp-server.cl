@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: smtp-server.cl,v 1.28 2004/11/15 04:09:13 layer Exp $
+;; $Id: smtp-server.cl,v 1.29 2004/12/15 19:32:51 layer Exp $
 
 (in-package :user)
 
@@ -77,20 +77,27 @@
   
 
 (defun smtp-server-daemon (&key queue-interval)
-  (let ((pid (fork)))
-    (case pid
-      (0 ;; child
-       (detach-from-terminal)
-       (maild-log "Allegro Maild ~A SMTP server starting"
-		  *allegro-maild-version*)
-       (if (and queue-interval (> queue-interval 0))
-	   (queue-process-daemon queue-interval))
-       (smtp-server)
-       (exit 1 :quiet t)) ;; just in case
-      (-1
-       (error "Ack! smtp-server-daemon fork failed"))
-      (t ;; parent
-       )))) ;; just return
+  (flet ((startup ()
+	   (maild-log "Allegro Maild ~A SMTP server starting"
+		      *allegro-maild-version*)
+	   (if (and queue-interval (> queue-interval 0))
+	       (queue-process-daemon queue-interval))
+	   (smtp-server)))
+    (if* *debug*
+       then (startup)
+	    (loop (sleep 200000))
+       else (let ((pid (fork)))
+	      (case pid
+		(0 ;; child
+		 (detach-from-terminal)
+		 (startup)
+		 
+		 (exit 1 :quiet t)) ;; just in case
+		(-1
+		 (error "Ack! smtp-server-daemon fork failed"))
+		(t ;; parent
+		 ;; just return
+		 ))))))
 
 (defvar *rep-server-started* nil)
 
@@ -290,7 +297,7 @@
 	(setf text (string-left-trim '(#\space) text))
 	
 	(multiple-value-bind (first ttl rest flags)
-	    (dns-query text :search t)
+	    (dns-query text :search t :ignore-cache *ignore-dns-cache*)
 	  (declare (ignore ttl))
 	  (when (member :no-such-domain flags)
 	    (if* (eq 't *helo-must-match-ip*)

@@ -31,3 +31,9 @@ less than 'x' blocks free.  The error message:
  Waiting for osi mods from Kevin
 
 Limit the number of threads.  
+
+spammer torture:
+- when delivery is attempted to an unknown user hold onto the
+  connection for some period of time before answering the client
+- do the same "wait before answer" trick for DNS blacklisted hosts
+ 

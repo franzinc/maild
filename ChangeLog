@@ -1,3 +1,15 @@
+2004-12-15  Kevin Layer  <layer@relay.known.net>
+
+	* TODO: additions
+	* blacklist.cl: *ignore-dns-cache* support
+	* config.cl: add *ignore-dns-cache*
+	* deliver-smtp.cl: *ignore-dns-cache* support
+	* dns.cl: *ignore-dns-cache* support
+	* maild.cl:
+	- require :trace, for debugging
+	- when debugging, trace to /tmp/maild.trace
+	* smtp-server.cl: when debugging, don't detach-from-terminal
+
 2004-11-14  Kevin Layer  <layer@relay.known.net>
 1.1.23
 

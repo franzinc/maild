@@ -1,4 +1,4 @@
-;; $Id: config.cl,v 1.27 2004/11/15 04:09:13 layer Exp $
+;; $Id: config.cl,v 1.28 2004/12/15 19:32:51 layer Exp $
 
 (in-package :user)
 
@@ -255,3 +255,5 @@
 
 (defparameter *rep-start-server* nil)
 (defparameter *rep-server-port* 9567)
+
+(defparameter *ignore-dns-cache* nil)

@@ -13,7 +13,8 @@
 ;;  :unknown -- couldn't get any answers.
 (defun dns-record-exists-p (domain type &key (try-cname t))
   (block nil
-    (let ((resp (dns-query domain :decode nil :type type :search t)))
+    (let ((resp (dns-query domain :decode nil :type type :search t
+			   :ignore-cache *ignore-dns-cache*)))
       (if (null resp)
 	  (return :unknown))
       (let ((flags (dns-response-flags resp))
@@ -65,7 +66,8 @@
 
 ;; Requires properly set up forward and reverse DNS
 (defun compute-fqdn ()
-  (let ((mainip (dns-query (gethostname) :search t))
+  (let ((mainip (dns-query (gethostname) :search t
+			   :ignore-cache *ignore-dns-cache*))
 	fqdn)
     (if (null mainip)
 	(error "Could not resolve our hostname (~A) via DNS" (gethostname)))
