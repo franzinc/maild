@@ -1,5 +1,8 @@
 2004-07-08  Ahmon Dancy  <dancy@dancy>
 
+	* greylist.cl [updated]: Print ip address properly when logging
+	manually whitelisted senders.
+
 	* version.cl: 1.1.15
 
 	* greylist.cl: If a particular sender address is in the

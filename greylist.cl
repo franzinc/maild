@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: greylist.cl,v 1.14 2004/07/08 21:06:02 dancy Exp $
+;; $Id: greylist.cl,v 1.15 2004/07/08 21:25:34 dancy Exp $
 
 (in-package :user)
 
@@ -186,7 +186,8 @@
       
   (when (greylist-whitelisted-sender-p (emailaddr-orig from))
     (maild-log "Client from ~A:  Manually whitelisted sender: ~A" 
-	       ip (emailaddr-orig from))
+	       (ipaddr-to-dotted ip)
+	       (emailaddr-orig from))
     (return-from greylist-init :skip))
   
   :ok)
