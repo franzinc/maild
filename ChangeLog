@@ -1,0 +1,11 @@
+2003-04-24  root  <root@dancy>
+
+	* config.cl:  Call local delivery program w/ -f.
+	Added comments to the timeouts section.
+
+	* sockets are now hiper sockets so that I can use read and write
+	timeouts w/ ease.
+
+	
+
+

@@ -2,12 +2,14 @@
 
 ;; Stuff common to the smtp server and client
 
-;; handle's CRLF or LF  end-of-line.  
+;; handles Newline or CR/LF EOL convention.
 (defun smtp-get-line (sock buf timeout)
   (let ((pos 0)
 	longline
 	lastchar
 	char)
+    ;; with-timeout is simpler here than with-socket-timeout and error
+    ;; handling
     (mp:with-timeout (timeout :timeout)
       (loop
 	(setf char (ignore-errors (read-char sock nil nil)))

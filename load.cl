@@ -2,7 +2,7 @@
 
 (defparameter *source-files*
     '(
-      "error" "utils" "security" "lex"
+      "utils" "security" "lex"
       "emailaddr" "log" "ipaddr" "blacklist" 
       "aliases" "recips" "headers" "rewrite" 
       "lock" "smtp" "queue" "deliver" "deliver-smtp" 

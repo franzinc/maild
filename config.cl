@@ -88,10 +88,10 @@
     nil)
 
 (defun my-deliver-local-command (user queue)
-  (declare (ignore queue))
   (list
    "/usr/local/sbin/deliver-via-spamc" 
-   ;;(emailaddr-orig (rewrite-local-envelope-sender (queue-from queue)))
+   "-f"
+   (emailaddr-orig (rewrite-local-envelope-sender (queue-from queue)))
    "-d"
    user))
 
@@ -108,13 +108,37 @@
 
 
 ;; Minimum recommended timeouts from RFC2821
-(defparameter *cmdtimeout* (* 5 60)) ;; idle timeout for clients
-(defparameter *datatimeout* (* 3 60))
+;;
+;; idle timeout for clients
+(defparameter *cmdtimeout* (* 5 60)) 
+
+;; read/write timeout for blocks of data during message headers/body
+;; reception/transmission.  Also used as a write timeout for any
+;; reponses sent to clients and other SMTP servers during delivery.
+(defparameter *datatimeout* (* 3 60)) 
+
+;; How long to wait for the SMTP connection greeting and the response
+;; to the HELO command (when delivering mail via SMTP)
 (defparameter *greetingtimeout* (* 5 60))
+
+;; How long to wait for the response to a MAIL FROM: command (when 
+;; delivering mail via SMTP)
 (defparameter *mailcmdtimeout* (* 5 60))
+
+;; How long to wait for the response to a RCPT TO: command (when delivering
+;; mail via SMTP)
 (defparameter *rcptcmdtimeout* (* 5 60))
+
+;; How long to wait for the response to a DATA command (when delivering
+;; mail via SMTP)
 (defparameter *datainitiationtimeout* (* 2 60))
+
+;; How long to wait for the response to the termination of a DATA command
+;; (via "." on a blank line, when delivering mail via SMTP)
 (defparameter *dataterminationtimeout* (* 10 60))
+
+;; How long to wait for the response to a QUIT command (when delivering
+;; mail via SMTP)
 (defparameter *quittimeout* (* 2 60))
 
 ;; not really a maximum.. it's just the buffer size... but it must

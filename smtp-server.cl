@@ -23,7 +23,9 @@
     (let ((ent (getservbyname "smtp" "tcp")))
       (if ent
 	  (setf port (servent-port ent))))
-    (let ((sock (make-socket :local-port port :connect :passive
+    (let ((sock (make-socket :local-port port 
+			     :type :hiper
+			     :connect :passive
 			     :reuse-address t)))
       (unwind-protect
 	  (loop
@@ -35,54 +37,55 @@
 
 (defun do-smtp (sock &key fork)
   (unwind-protect
-      (let* ((dotted (if (socketp sock) 
-			 (ipaddr-to-dotted (remote-host sock))
-		       "127.0.0.1"))
-	     (sess (make-session :sock sock :dotted dotted
-				 :fork fork))
-	     bl cmd)
+      (with-socket-timeout (sock :write *datatimeout*)
+	(let* ((dotted (if (socketp sock) 
+			   (ipaddr-to-dotted (remote-host sock))
+			 "localhost"))
+	       (sess (make-session :sock sock :dotted dotted
+				   :fork fork))
+	       bl cmd)
 	
-	(if (socketp sock)
-	    (setf bl (connection-blacklisted-p (remote-host sock))))
+	  (if (socketp sock)
+	      (setf bl (connection-blacklisted-p (remote-host sock))))
 	
-	(maild-log "SMTP connection from ~A" dotted)
+	  (maild-log "SMTP connection from ~A" dotted)
 	
-	(if* bl
-	   then
-		(outline sock "221 ~a We do not accept mail from you (~A)"
-			 (fqdn) bl)
-		(maild-log "Rejecting blacklisted SMTP client (~A)"
-			   dotted)
-		(return-from do-smtp))
+	  (if* bl
+	     then
+		  (outline sock "221 ~a We do not accept mail from you (~A)"
+			   (fqdn) bl)
+		  (maild-log "Rejecting blacklisted SMTP client (~A)"
+			     dotted)
+		  (return-from do-smtp))
 	
-	(outline sock "220 ~A Allegro mail server ready" (fqdn)) ;; Greet
-	(loop
-	  (setf cmd 
-	    (smtp-get-line (session-sock sess) (session-buf sess) 
-			   *cmdtimeout*))
-	  (case cmd
-	    (:timeout 
-	     (maild-log "Closing idle SMTP connection from ~A" dotted)
+	  (outline sock "220 ~A Allegro mail server ready" (fqdn)) ;; Greet
+	  (loop
+	    (setf cmd 
+	      (smtp-get-line (session-sock sess) (session-buf sess) 
+			     *cmdtimeout*))
+	    (case cmd
+	      (:timeout 
+	       (maild-log "Closing idle SMTP connection from ~A" dotted)
 
-	     (outline sock "421 Control connection idle for too long")
-	     (return :timeout)) 
-	    (:eof
-	     ;; client closed the connection or something.
-	     (return :eof))
-	    (:longline
-	     (maild-log "SMTP client ~A sent excessively long command"
-			dotted)
-	     (outline sock "500 Line too long."))
-	    (t
-	     (if (eq (process-smtp-command sess cmd) :quit)
-		 (return :quit))))))
+	       (outline sock "421 Control connection idle for too long")
+	       (return :timeout)) 
+	      (:eof
+	       ;; client closed the connection or something.
+	       (return :eof))
+	      (:longline
+	       (maild-log "SMTP client ~A sent excessively long command"
+			  dotted)
+	       (outline sock "500 Line too long."))
+	      (t
+	       (if (eq (process-smtp-command sess cmd) :quit)
+		   (return :quit)))))))
     ;; cleanup forms
     (maild-log "Closing SMTP session with ~A" 
 	       (if (socketp sock)
 		   (ipaddr-to-dotted (remote-host sock))
 		 "127.0.01."))
     (if (socketp sock)
-	(ignore-errors (close sock)))))
+	(ignore-errors (close sock :abort t)))))
 
 
 (defparameter *smtpcmdlist*
@@ -266,6 +269,7 @@
 (defun smtp-data (sess text)
   (declare (ignore text))
   (let* ((sock (session-sock sess))
+	 (dotted (session-dotted sess))
 	 q status headers msgsize err rejected f)
     ;; Sanity checks first
     (if (null (session-from sess))
@@ -277,6 +281,11 @@
     
     ;; Returns a locked queue struct
     (setf q (make-queue-file (session-from sess) (session-to sess)))
+    ;; XXX -- at this point we could use an unwind protect
+    ;; to unlock the queue file in case of unexpected error...
+    ;; on the other hand, if an unexpected error does occur, we may
+    ;; not want to process this queue item until it is fixed.  It
+    ;; depends on what the error is.
     
     (handler-case 
 	(setf f (open (queue-datafile q) 
@@ -292,15 +301,20 @@
     
     ;; doesn't happen if f is null
     (with-already-open-file (f)
-      (fchmod f #o0600) ;; prevent folks from lookin in'
+      (fchmod f #o0600) ;; prevent folks from lookin' in
+      ;; XXX -- need error checking here in case of socket error.
+      ;;        the queue item should be deleted in this case.
+      ;;        In fact, the queue item should always be deleted in
+      ;;        case of error until we send out the "message accepted
+      ;;        for delivery" code.
       (outline sock "354 Enter mail, end with \".\" on a line by itself")
       (handler-case 
 	  (multiple-value-setq (status headers msgsize)
 	    (read-message-stream sock f :smtp t))
-	(data-read-timeout ()
-	  (maild-log 
-	   "Client from ~A stopped responding.  Closing SMTP session"
-	   (session-dotted sess))
+	(socket-error (c)
+	  (if (eq (stream-error-identifier c) :read-timeout)
+	      (maild-log "Client from ~A stopped transmitting." dotted)
+	    (maild-log "Client from ~A: socket error: ~A" dotted c))
 	  (setf err :quit)
 	  (return)) ;; break from with-already-open-file
 	(error (c)
@@ -311,7 +325,7 @@
       (ecase status
 	(:eof
 	 (maild-log "Client ~A disconnected during SMTP data transmission"
-		    (session-dotted sess))
+		    dotted)
 	 (setf err :quit)
 	 (return)) ;; break from with-already-open-file
 	(:dot  ;;okay
@@ -376,7 +390,7 @@
      ;; Normal case
      (t
       (maild-log "Accepted SMTP message from client ~A: from ~A to ~A"
-		 (session-dotted sess)
+		 dotted
 		 (emailaddr-orig (session-from sess))
 		 (list-to-delimited-string
 		  (mapcar #'emailaddr-orig (session-to sess))

@@ -147,7 +147,7 @@
 
 (defun write-message-to-stream (stream queue rewrite-type &key smtp noclose)
   (if (null (queue-headers queue))
-      (error "write-message-to-stream: queue-headers is null.  This is probably bad"))
+      (error "write-message-to-stream: queue-headers is null.  This can't be right"))
   
   (handler-case 
       (write-message-to-stream-inner stream queue rewrite-type
@@ -161,41 +161,34 @@
 
 (defun write-message-to-stream-inner (stream queue rewrite-type 
 				      &key smtp noclose)
-  (let ((*outline-flush* nil))
-    (dolist (header (rewrite-headers (queue-headers queue) rewrite-type))
-      (if smtp
-	  (mp:with-timeout (*datatimeout* (error "write timeout"))
-	    (outline stream "~A" header))
-	(write-line header stream)))
+  (with-socket-timeout (stream :write *datatimeout*)
+    (macrolet ((endline () `(if smtp 
+			    (progn
+			      (write-char #\return stream)
+			      (write-char #\linefeed stream))
+			  (write-char #\newline stream))))
+      (dolist (header (rewrite-headers (queue-headers queue) rewrite-type))
+	(write-string header stream)
+	(endline))
+      
+      ;; write the header boundary.
+      (endline)
+	
+      (with-open-file (f (queue-datafile queue))
+	(let (char (freshline t))
+	  (while (setf char (read-char f nil nil))
+	    (if* (char= char #\newline)
+	       then
+		    (endline)
+		    (setf freshline t)
+	       else
+		    (if (and freshline smtp (char= char #\.))
+			(write-char char stream)) ;; double-up the dot
+		    (write-char char stream)
+		    (setf freshline nil))))))
     
-    ;; write the header boundary.
-    (if smtp
-	(mp:with-timeout (*datatimeout* (error "write timeout"))
-	  (outline stream ""))
-      (write-char #\newline stream))
+    (finish-output stream)
     
-    (with-open-file (f (queue-datafile queue))
-      (let (char (freshline t))
-	(while (setf char (read-char f nil nil))
-	  (if* (char= char #\newline)
-	     then
-		  (if smtp
-		      (mp:with-timeout (*datatimeout* (error "write timeout"))
-			(outline stream ""))
-		    (write-char #\newline stream))
-		  (setf freshline t)
-	     else
-		  ;; regular stuff
-		  (if (and freshline smtp (char= char #\.))
-		      (mp:with-timeout (*datatimeout* (error "write timeout"))
-			(write-char char stream)))
-		  (if smtp
-		      (mp:with-timeout (*datatimeout* (error "write timeout"))
-			(write-char char stream))
-		    (write-char char stream))
-		  (setf freshline nil))))))
-  
-  (finish-output stream)
-  
-  (if (not (or smtp noclose))
-      (close stream))) ;; EOF
+    (if (not (or smtp noclose))
+	(close stream :abort t)))) ;; EOF
+

@@ -160,9 +160,7 @@
 
 	
 (defun read-message-stream-line (s buffer &key timeout)
-  (if timeout
-      (mp:with-timeout (timeout (error 'data-read-timeout))
-	(read-message-stream-line-inner s buffer))
+  (with-socket-timeout (s :read timeout)
     (read-message-stream-line-inner s buffer)))
 
 

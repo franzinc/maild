@@ -216,3 +216,23 @@
       *short-host-name*
     (setf *short-host-name* (gethostname))))
 
+(defmacro with-socket-timeout ((sock type timeout) &body body)
+  (let* ((types '((:read . excl::stream-read-timeout)
+		  (:write . excl::stream-write-timeout)))
+	 (accessor (cdr (assoc type types))))
+    (if (null accessor)
+	(error "with-socket-XXXX-timeout: type must be :read or :write"))
+    (let ((sockvar (gensym))
+	  (timeoutvar (gensym))
+	  (origvar (gensym)))
+      `(let ((,sockvar ,sock)
+	     (,timeoutvar ,timeout)
+	     ,origvar)
+	 (if (socketp ,sockvar)
+	     (progn
+	       (setf ,origvar (,accessor ,sockvar))
+	       (setf (,accessor ,sockvar) ,timeoutvar)))
+	 (unwind-protect
+	     (progn ,@body)
+	   (if (socketp ,sockvar)
+	       (setf (,accessor ,sockvar) ,origvar)))))))

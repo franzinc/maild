@@ -164,7 +164,8 @@
       (dolist (mx mxs)
 	(let (sock)
 	  (handler-case 
-	      (setf sock (make-socket :remote-host (car mx) 
+	      (setf sock (make-socket :type :hiper
+				      :remote-host (car mx) 
 				      :remote-port *smtp-port*))
 	    (error (c)
 	      (maild-log "Error ~A while connecting to ~A" c (cdr mx))
