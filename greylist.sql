@@ -1,3 +1,7 @@
+create database greylist;
+
+use greylist;
+
 create table triples (ip int unsigned not null, 
        sender text not null, 
        receiver text not null, 
@@ -9,3 +13,4 @@ create table triples (ip int unsigned not null,
 
 create index ind1 on triples (ip, sender(50), receiver(50));
 
+grant all on greylist.* to greylist identified by "greypasswd";

@@ -1,5 +1,7 @@
 2003-06-25  root  <root@gills.dancysoft.com>
 
+	* Update greylist.sql for faster setup.
+
 	* Added greylisting feature.
 
 	* Added rc script for redhat-style hosts.
