@@ -131,16 +131,19 @@
   (block nil
     (when *pop-auth-server*
       (with-socket (sock :remote-host *pop-auth-server* :remote-port 110)
-	(let ((line (read-line sock)))
-	  (if (not (pop-response-ok line))
+	(let (res)
+	  (if (not (pop-response-ok (read-line sock)))
 	      (return))
 	  (pop-send-line (format nil "USER ~A" user) sock)
-	  (setf line (read-line sock))
-	  (if (not (pop-response-ok line))
+	  (if (not (pop-response-ok (read-line sock)))
 	      (return))
 	  (pop-send-line (format nil "PASS ~A" pw) sock)
-	  (setf line (read-line sock))
-	  (pop-response-ok line))))))
+	  (setf res (pop-response-ok (read-line sock)))
+	  ;; try to be polite
+	  (pop-send-line "QUIT" sock)
+	  (read-line sock)
+	  res)))))
+	  
 
 (defun check-password (user pw)
   (let ((ent (getpwnam user)))

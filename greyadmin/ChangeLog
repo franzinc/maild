@@ -1,5 +1,7 @@
 2003-08-04  root  <root@gills.dancysoft.com>
 
+	* Be polite after doing POP auth (use QUIT command)
+
 	* Added code for POP authentication.
 
 	* Add list of auto-whitelisted triples that have never passed any
