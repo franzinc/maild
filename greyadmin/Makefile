@@ -1,9 +1,9 @@
-# $Id: Makefile,v 1.5 2004/12/20 17:45:08 layer Exp $
+# $Id: Makefile,v 1.6 2004/12/20 17:50:05 layer Exp $
 
 lisp=$(shell if test -x /fi/cl/7.0/bin/linux86/mlisp; then \
 		echo /fi/cl/7.0/bin/linux86/mlisp; \
-	     elif test -x /storage1/acl/mlisp; then \
-		echo /storage1/acl/mlisp; \
+	     elif test -x /usr/local/acl70/mlisp; then \
+		echo /usr/local/acl70/mlisp; \
 	     else \
 		echo /backup/acl/acl70/mlisp; \
 	     fi)
