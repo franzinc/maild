@@ -5,6 +5,15 @@
   domain
   orig) ;; without angle brackets
   
+(defstruct addrspec 
+  userprecomments
+  user
+  userpostcomments
+  domainprecomments
+  domain
+  domainpostcomments)
+
+
 
 (defun emailaddr= (addr1 addr2)
   (and (equalp (emailaddr-user addr1) (emailaddr-user addr2))
@@ -339,14 +348,6 @@
 	(setf resuq (concatenate 'string resuq "."))
 	(pop tokens)))))
   
-
-(defstruct addrspec 
-  userprecomments
-  user
-  userpostcomments
-  domainprecomments
-  domain
-  domainpostcomments)
 
 (defun print-addrspec (token &optional (stream t))
   (dolist (comment (addrspec-userprecomments token))
