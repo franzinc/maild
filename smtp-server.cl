@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: smtp-server.cl,v 1.25 2003/09/19 17:30:34 dancy Exp $
+;; $Id: smtp-server.cl,v 1.26 2003/12/18 19:16:58 dancy Exp $
 
 (in-package :user)
 
@@ -352,7 +352,7 @@ in the HELO command (~A) from client ~A"
 	      (return))
       ;; parse the command line
       (multiple-value-bind (matched whole addr)
-	  (match-regexp "^\\b+from:\\b*\\(..*\\)\\b*$" text :case-fold t)
+	  (match-regexp "^\\b+from:\\b*\\(\\B\\B*\\)\\b*$" text :case-fold t)
 	(declare (ignore whole))
 	(when (not matched)
 	  (outline sock "501 5.5.2 Syntax error in command")
@@ -403,7 +403,7 @@ in the HELO command (~A) from client ~A"
 	(outline sock "503 5.0.0 Need MAIL before RCPT")
 	(return))
       (multiple-value-bind (matched whole addrstring)
-	  (match-regexp "^\\b+to:\\b*\\(..*\\)\\b*$" text :case-fold t)
+	  (match-regexp "^\\b+to:\\b*\\(\\B\\B*\\)\\b*$" text :case-fold t)
 	(declare (ignore whole))
 	(when (not matched)
 	  (outline sock "501 5.5.2 Syntax error in command")

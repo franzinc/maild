@@ -1,3 +1,13 @@
+2003-12-18  Ahmon Dancy  <dancy@dancy>
+
+	* version.cl: 1.1.12
+
+	* queue.cl: Set the queue status string to "Ready for delivery" in
+	queue-finalize.
+
+	* smtp-server.cl: Changed the regular expression for mail from:
+	and rcpt to: commands so that trailing spaces are ignored properly.
+
 2003-12-17  root  <root@gills.dancysoft.com>
 
 	* version.cl: 1.1.11

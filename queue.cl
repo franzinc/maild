@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: queue.cl,v 1.19 2003/10/17 22:18:05 dancy Exp $
+;; $Id: queue.cl,v 1.20 2003/12/18 19:16:58 dancy Exp $
 
 (in-package :user)
 
@@ -144,7 +144,8 @@
   
   (if *extra-headers-func*
       (funcall *extra-headers-func* q))
-  
+
+  (setf (queue-status q) "Ready for delivery")
   (setf (queue-valid q) t)
   (update-queue-file q)
   
