@@ -1,3 +1,3 @@
 (in-package :user)
 
-(defparameter *allegro-maild-version* "v1.1.16")
+(defparameter *allegro-maild-version* "v1.1.17")

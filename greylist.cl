@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: greylist.cl,v 1.16 2004/07/14 22:49:34 dancy Exp $
+;; $Id: greylist.cl,v 1.17 2004/07/21 20:51:23 dancy Exp $
 
 (in-package :user)
 
@@ -372,14 +372,18 @@
     nil))
 
 (defun greylist-whitelisted-sender-p (from to)
-  (>= 
-   (caar 
-    (greysql
-     (format nil "select count(*) from whitelist where 
+  ;; This is no mechanism for whitelisting the null sender, so
+  ;; already return false for that. 
+  (if (emailnullp from)
+      nil
+    (>= 
+     (caar 
+      (greysql
+       (format nil "select count(*) from whitelist where 
        (sender = ~S or sender = '*@~A')
        and
        (receiver=~S or receiver='*')"
-	     (dbi.mysql:mysql-escape-sequence (emailaddr-orig from))
-	     (dbi.mysql:mysql-escape-sequence (emailaddr-domain from))
-	     (dbi.mysql:mysql-escape-sequence (emailaddr-orig to)))))
-   1))
+	       (dbi.mysql:mysql-escape-sequence (emailaddr-orig from))
+	       (dbi.mysql:mysql-escape-sequence (emailaddr-domain from))
+	       (dbi.mysql:mysql-escape-sequence (emailaddr-orig to)))))
+     1)))
