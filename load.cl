@@ -7,9 +7,9 @@
       "recips" "aliases" "headers" "rewrite" 
       "lock" "smtp" "queue" "mailer" "deliver" "deliver-smtp" 
       "queue-process" "checkers"
-      "input"
+      "input" 
       "smtp-server" "smtp-server-checkers" "greylist"
-      "bounce" 
+      "bounce" "www"
       "maild"))
 
 

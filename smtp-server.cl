@@ -17,6 +17,46 @@
   verbose
   fork)
 
+(defstruct statistics
+  server-start
+  (num-connections 0)
+  connections-rejected-permanently ;; list of checker/count pairs
+  connections-rejected-temporarily ;; list of checker/count pairs
+  (connections-accepted 0)
+  senders-rejected-permanently ;; list of checker/count pairs
+  senders-rejected-temporarily ;; list of checker/count pairs
+  recips-rejected-permanently ;; list of checker/count pairs
+  recips-rejected-temporarily ;; list of checker/count pairs
+  messages-pre-rejected-permanently ;; list of checker/count pairs
+  messages-pre-rejected-temporarily ;; list of checker/count pairs
+  messages-rejected-permanently ;; list of checker/count pairs
+  messages-rejected-temporarily ;; list of checker/count pairs
+  (mails-accepted 0))
+
+(defparameter *smtp-server-stats* nil)
+
+(defmacro inc-smtp-stat (slot)
+  (let ((accessor (intern (format nil "~A-~A" 'statistics slot))))
+    `(without-interrupts
+       (incf (,accessor *smtp-server-stats*)))))
+  
+(defmacro get-smtp-stat (slot)
+  (let ((accessor (intern (format nil "~A-~A" 'statistics slot))))
+    `(without-interrupts
+       (,accessor *smtp-server-stats*))))
+
+(defmacro inc-checker-stat (slot checkername)
+  (let ((tmp (gensym))
+	(checker (gensym))
+	(accessor (intern (format nil "~A-~A" 'statistics slot))))
+    `(without-interrupts
+       (let* ((,checker ,checkername)
+	      (,tmp (member ,checker (,accessor *smtp-server-stats*) :key #'first :test #'string=)))
+	 (if ,tmp
+	     (incf (cdr (first ,tmp)))
+	   (push (cons ,checker 1) (,accessor *smtp-server-stats*)))))))
+
+  
 
 (defun smtp-server-daemon (&key queue-interval)
   (let ((pid (fork)))
@@ -52,6 +92,12 @@
 	(maild-log "Exiting.")
 	(return-from smtp-server)))
     
+    (setf *smtp-server-stats* 
+      (make-statistics
+       :server-start (get-universal-time)))
+       
+    (start-webserver)
+  
     (unwind-protect
 	(loop
 	  (let ((newsock (ignore-errors (accept-connection sock))))
@@ -86,8 +132,9 @@
 	
 	      (maild-log "SMTP connection from ~A" dotted)
 	      
+	      (inc-smtp-stat num-connections)
 	      
-	     (parse-connections-blacklist)
+	      (parse-connections-blacklist)
 	      
 	      ;; Run through checkers.
 	      (dolist (checker *smtp-connection-checkers*)
@@ -99,16 +146,19 @@
 		     (maild-log 
 		      "Checker ~S rejected connection from ~A. Message: ~A"
 		      (first checker) dotted string)
+		     (inc-checker-stat connections-rejected-permanently (first checker))
 		     (return-from do-smtp))
 		    (:transient
 		     (outline sock "400 ~A" string)
 		     (maild-log 
-		      "Checker ~S temporarily rejected connectino from ~A. Message: ~A"
+		      "Checker ~S temporarily rejected connection from ~A. Message: ~A"
 		      (first checker) dotted string)
+		     (inc-checker-stat connections-rejected-temporarily (first checker))
 		     (return-from do-smtp))
 		    (:ok
 		     ))))
-
+	      
+	      (inc-smtp-stat connections-accepted)
 	      
 	      (outline sock "220 ~A Allegro mail server ready" (fqdn)) ;; Greet
 	      (loop
@@ -222,12 +272,15 @@
 		 (maild-log "Checker ~S rejected MAIL FROM:~A. Message: ~A"
 			    (first checker) (emailaddr-orig addr)
 			    string)
+		 
+		 (inc-checker-stat senders-rejected-permanently (first checker))
 		 (return-from smtp-mail))
 		(:transient
 		 (outline sock "451 ~A" string)
 		 (maild-log 
 		  "Checker ~S temporarily failed MAIL FROM:~A. Message: ~A"
 		  (first checker) (emailaddr-orig addr) string)
+		 (inc-checker-stat senders-rejected-temporarily (first checker))
 		 (return-from smtp-mail))
 		(:ok
 		 ))))
@@ -267,7 +320,7 @@
 	    (:error
 	     (outline sock "550 ~a... ~a" 
 		      (emailaddr-orig addr) errmsg)
-	     (maild-log "client from ~A: rcpt to:~A... blacklisted recip"
+	     (maild-log "client from ~A: rcpt to:~A... error recip"
 			(session-dotted sess)
 			(emailaddr-orig addr))
 	     (return))
@@ -298,12 +351,14 @@
 		 (maild-log "Checker ~S rejected RCPT TO:~A. Message: ~A"
 			    (first checker) (emailaddr-orig addr)
 			    string)
+		 (inc-checker-stat recips-rejected-permanently (first checker))
 		 (return-from smtp-rcpt))
 		(:transient
 		 (outline sock "451 ~A" string)
 		 (maild-log 
 		  "Checker ~S temporarily failed RCPT TO:~A. Message: ~A"
 		  (first checker) (emailaddr-orig addr) string)
+		 (inc-checker-stat recips-rejected-temporarily (first checker))
 		 (return-from smtp-rcpt))
 		(:ok
 		 ))))
@@ -335,12 +390,14 @@
 	   (outline sock "551 ~A" string)
 	   (maild-log "Checker ~S rejected DATA phase initiation. Message: ~A"
 		      (first checker) string)
+	   (inc-checker-stat messages-pre-rejected-permanently (first checker))
 	   (return-from smtp-data))
 	  (:transient
 	   (outline sock "451 ~A" string)
 	   (maild-log 
 	    "Checker ~S temporarily failed DATA phase initiation. Message: ~A"
 	    (first checker) string)
+	   (inc-checker-stat messages-pre-rejected-temporarily (first checker))
 	   (return-from smtp-data))
 	  (:ok
 	   ))))
@@ -381,10 +438,13 @@
 	     (maild-log "Checker ~S said: ~A" checker text)
 	     
 	     (outline sock "552 ~A" text)
+	     (inc-checker-stat messages-rejected-permanently (first checker))
+	     
 	     (setf rejected t))
 	    (:transient
 	     (maild-log "Checker ~s reported a transient error: ~A"
 			checker text)
+	     (inc-checker-stat messages-rejected-temporarily (first checker))
 	     (setf err :transient)))))
       
       (when (and (not err) (not rejected))
@@ -414,6 +474,8 @@
 		  #\,))
       (outline sock "250 2.0.0 ~A Message accepted for delivery"
 	       (queue-id q))
+
+      (inc-smtp-stat mails-accepted)
       
       ;; Deliver in another process
       (if (and (session-fork sess) (not (session-verbose sess)))

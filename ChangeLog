@@ -1,3 +1,12 @@
+2003-07-02  root  <root@gills.dancysoft.com>
+
+	* smtp-server.cl: Collects some statistics during operation now.
+
+	* www.cl: New file.  Optional web interface for viewing stats.
+	Added (enable-webserver) to your maild.cl to use.  Default port is
+	localhost:2525.  Use keyword arts :port and :interface to
+	override.
+
 2003-07-02  Kevin Layer  <layer@relay.known.net>
 
 	* config.cl,
