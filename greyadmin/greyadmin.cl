@@ -241,6 +241,31 @@
 	      (:princ-safe (second thing))))
 	    (:td (:princ-safe (ctime (third thing))))))))))))
 
+(def-clp-function ga_list-unused-autowhitelisted (req ent args body)
+  (declare (ignore args body ent))
+  (let* ((sess (websession-from-req req))
+	 (user (websession-variable sess "user"))
+	 (addr (user-address user))
+	 (entries (get-unused-autowhitelisted addr)))
+    (when entries
+      (html
+       :br
+       (:b "Auto-whitelisted but never-subsequently-received deliveries for "
+	   (:princ-safe addr)) 
+       :br :br
+       ((:table :border 1)
+	(:tr (:td (:b "Sending mail server")) 
+	     (:td (:b "Sender"))
+	     (:td (:b "Blocked attempts")))
+	(dolist (thing entries)
+	  (html
+	   (:tr
+	    (:td (:princ (socket:ipaddr-to-dotted (first thing))))
+	    (:td (:princ-safe (second thing)))
+	    (:td (:princ (third thing)))))))))))
+
+
+
 (defun quick-whitelist-triple (req ent)
   (declare (ignore ent))
   (let* ((sess (websession-from-req req))
@@ -354,7 +379,15 @@
      (format nil "select ip, sender, blockexpire from triples where receiver=~S and blockexpire>~D and expire>~D and passed=0" 
 	     (mysql-escape-sequence addr)
 	     now now))))
-  
+
+;; Return triples that are not in the blocking period but which haven't
+;; passed any messages
+(defun get-unused-autowhitelisted (addr)
+  (let ((now (get-universal-time)))
+    (greysql
+     (format nil "select ip, sender, blocked from triples where receiver=~S and blockexpire<~D and expire>~D and passed=0"
+	     (mysql-escape-sequence addr)
+	     now now))))
 
 ;;;;;;;
 
