@@ -228,7 +228,7 @@
        :br :br
        ((:table :border 1)
 	(:tr (:td (:b "Sending mail server")) 
-	     (:td (:b "Sender (click to unblock)"))
+	     (:td (:b "Sender (click to allow through on next delivery attempt)"))
 	     (:td (:b "Unblocks at")))
 	(dolist (thing entries)
 	  (html
