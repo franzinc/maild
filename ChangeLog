@@ -1,3 +1,9 @@
+2004-12-20  Kevin Layer  <layer@gemini>
+1.1.24
+
+	* Makefile,
+	* greyadmin/Makefile: use 7.0
+
 2004-12-15  Kevin Layer  <layer@relay.known.net>
 
 	* TODO: additions

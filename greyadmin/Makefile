@@ -1,12 +1,12 @@
-# $Id: Makefile,v 1.4 2004/11/10 15:56:52 layer Exp $
+# $Id: Makefile,v 1.5 2004/12/20 17:45:08 layer Exp $
 
-lisp=$(shell    if test -x /fi/cl/6.2/acl/osname.sh; then \
-			echo /fi/cl/6.2/bin/`/fi/cl/6.2/acl/osname.sh`/mlisp; \
-		elif test -x /storage1/acl/mlisp; then \
-			echo /storage1/acl/mlisp; \
-		else \
-			echo /backup/acl/acl70/mlisp; \
-		fi)
+lisp=$(shell if test -x /fi/cl/7.0/bin/linux86/mlisp; then \
+		echo /fi/cl/7.0/bin/linux86/mlisp; \
+	     elif test -x /storage1/acl/mlisp; then \
+		echo /storage1/acl/mlisp; \
+	     else \
+		echo /backup/acl/acl70/mlisp; \
+	     fi)
 libdir=/usr/local/lib
 bindir=/usr/local/sbin
 
