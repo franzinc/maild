@@ -17,37 +17,7 @@ Off
 </form>
 
 <hr>
-<b>Greylisting statistics</b><br>
-
-<ul>
-<li> For all users and mailing lists (of which you might be a member): </li>
-  <ul>
-	<li>Number of delivery attempts that have been delayed: 
-	    <ga_num-blocked-triples/></li>
-	<ul>
-		    <li>Of those, the number that have never been accepted (likely spams): 
-			<ga_num-suspected-spams/></li>
-	</ul>
-	<li>Number of delivery attempts that have been accepted:
-		 <ga_num-passed-triples/></li>
-  </ul>
-<li> For <ga_user-address/>: </li>
-  <ul>
-	<li>Number of delivery attempts that have been delayed: 
-	    <ga_num-blocked-triples user=t/></li>
-	<ul>
-		    <li>Of those, the number that have never been accepted (likely spams): 
-			<ga_num-suspected-spams user=t/></li>
-	</ul>
-	<li>Number of delivery attempts that have been accepted:
-		 <ga_num-passed-triples user=t/></li>
-  </ul>
-</ul>
-
-
 <ga_list-delayed-triples/>
-<ga_list-unused-autowhitelisted/>
-
 
 <form action="menu">
 <input type=submit value="Refresh"><br>

@@ -1,3 +1,19 @@
+2004-01-07  root  <root@gills.dancysoft.com>
+
+	* version.cl: 1.1.13
+
+	* greylist.cl: delete expired records before doing triple lookups.
+	Note:  This will make greyadmin report incorrect information.  
+
+	* greyadmin/{greyadmin.cl,login.clp}:  Added support code for putting keyboard focus
+	into the login edit box.
+
+	* greyadmin/menu.clp:  Removed statistics.  Accurate information
+	cannot be gleaned since expired records are removed now.  Also
+	removed the never-reattempted list.  It was useless most of the
+	time and most people don't know how to interpret the information
+	correctly.  It never should have been added in the first place.
+
 2003-12-18  Ahmon Dancy  <dancy@dancy>
 
 	* version.cl: 1.1.12

@@ -15,6 +15,7 @@
 (defparameter *greylist-db-user* "greylist")
 (defparameter *greylist-db-password* "password-not-set-yet")
 (defparameter *greylist-operation-mode* :opt-out)
+(defparameter *greylist-lifetime* (* 60 86400))
 
 (defparameter *greylist-db* nil)
 
@@ -95,7 +96,7 @@
 	(html
 	 (:html
 	  (:head (:title "Greylist administration"))
-	  (:body
+	  ((:body :if* (assoc "login" args :test #'equal) :onload "document.loginform.login.focus()")
 	   (:h3 "Greylist administration")
 	   (emit-clp-entity req ent body)))))))
 
@@ -313,6 +314,10 @@
 	     (mysql-escape-sequence addr)
 	     (mysql-escape-sequence sender)))
     "menu"))
+
+(def-clp-function ga_lifetime-days (req ent args body)
+  (declare (ignore args body ent))
+  (html (:princ (ceiling (/ *greylist-lifetime* 86400.0)))))
 
 
 ;; db stuff

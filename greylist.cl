@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: greylist.cl,v 1.12 2003/12/17 23:10:23 dancy Exp $
+;; $Id: greylist.cl,v 1.13 2004/01/07 22:10:23 dancy Exp $
 
 (in-package :user)
 
@@ -278,6 +278,9 @@
     ;;(setf from (string-downcase from))
     ;;(setf to (string-downcase to))
     
+    ;; First, remove any cruft.
+    (greysql (format nil "delete from triples where expire<=~D" now))
+    
     (let ((res 
 	   (greysql
 	    (format nil "select createtime, blockexpire, expire, blocked, passed from triples where ip=~A and sender=~S and receiver=~S"
@@ -295,11 +298,6 @@
 	    (expire (third res))
 	    (blocked (fourth res))
 	    (passed (fifth res)))
-	;; If we just read an expired record, don't use it.
-	(when (> now expire)
-	  (maild-log "Read expired record, so making a new triple")
-	  (return (make-fresh-triple now ip from to)))
-
 	(make-triple :ip ip
 		     :from from
 		     :to to
