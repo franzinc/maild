@@ -1,3 +1,22 @@
+2003-07-23  root  <root@gills.dancysoft.com>
+
+	* Bumped version to 1.1.0
+
+	* Greylisting now works in two modes (controlled by
+	*greylist-operation-mode*).  Default is :opt-out.  In :opt-out
+	mode the optout table is queried to see if the recipient doesn't
+	want greylisting, otherwise greylisting will occur.  In :opt-in
+	mode, no greylisting occurs unless there's an entry in the optin
+	table.  See updated greylist.sql for statements to create the new
+	tables and indexes.  The tables need to be there even if you're
+	not taking advantage of them.
+
+	* queue-process.cl:  Print "/var/spool/maild is empty" during
+	(queue-list) if the queue dir is empty.
+
+	* smtp-server.cl:  Wrap call to update-smtp-stats w/ ignore-errors.
+	
+
 2003-07-23  Kevin Layer  <layer@relay.known.net>
 1.0.1
 

@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: queue-process.cl,v 1.13 2003/07/23 14:44:24 dancy Exp $
+;; $Id: queue-process.cl,v 1.14 2003/07/23 20:28:46 dancy Exp $
 
 (in-package :user)
 
@@ -156,27 +156,31 @@
     (sort res #'string<)))
 
 (defun queue-list ()
-  (dolist (id (get-all-queue-ids))
-    (let ((q (ignore-errors (queue-read id))))
-      (when q
-	(format t "~%Id: ~A" id)
-	(if (queue-locked-p q)
-	    (format t " (LOCKED)"))
-	(if (not (queue-valid q))
-	    (format t " (Incomplete)"))
-	(terpri)
-	(if (not (probe-file (queue-datafile q)))
-	    (format t "Queue id ~A doesn't have a data file!~%" id))
-	(format t " Date queued: ~A~%" (ctime (queue-ctime q)))
-	(format t " Sender: ~A~%" (emailaddr-orig (queue-from q)))
-	(format t " Remaining recips:~%")
-	(dolist (recip (queue-recips q))
-	  (format t "  ~A~%   ~A~%"
-		  (recip-printable recip)
-		  (if (recip-status recip)
-		      (recip-status recip)
-		    "")))
-	(format t " Status: ~A~%" (queue-status q))))))
+  (let ((ids (get-all-queue-ids)))
+    (when (null ids)
+      (format t "~A is empty~%" *queuedir*)
+      (return-from queue-list))
+    (dolist (id ids)
+      (let ((q (ignore-errors (queue-read id))))
+	(when q
+	  (format t "~%Id: ~A" id)
+	  (if (queue-locked-p q)
+	      (format t " (LOCKED)"))
+	  (if (not (queue-valid q))
+	      (format t " (Incomplete)"))
+	  (terpri)
+	  (if (not (probe-file (queue-datafile q)))
+	      (format t "Queue id ~A doesn't have a data file!~%" id))
+	  (format t " Date queued: ~A~%" (ctime (queue-ctime q)))
+	  (format t " Sender: ~A~%" (emailaddr-orig (queue-from q)))
+	  (format t " Remaining recips:~%")
+	  (dolist (recip (queue-recips q))
+	    (format t "  ~A~%   ~A~%"
+		    (recip-printable recip)
+		    (if (recip-status recip)
+			(recip-status recip)
+		      "")))
+	  (format t " Status: ~A~%" (queue-status q)))))))
 
 
 (defun queue-process-all (&key verbose)

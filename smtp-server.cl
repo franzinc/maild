@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: smtp-server.cl,v 1.20 2003/07/23 17:16:30 layer Exp $
+;; $Id: smtp-server.cl,v 1.21 2003/07/23 20:28:46 dancy Exp $
 
 (in-package :user)
 
@@ -217,7 +217,7 @@
     ;; cleanup forms
     (maild-log "Closing SMTP session with ~A" (smtp-remote-dotted sock))
     (when (socketp sock)
-      (update-smtp-stats)
+      (ignore-errors (update-smtp-stats)) ;; stats file dir might not exist
       (ignore-errors (close sock :abort t)))))
 
 

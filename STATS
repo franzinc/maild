@@ -1,0 +1,4 @@
+If you want maild to keep statistics, make sure /var/state exists.  
+A 'maild' file will automatically be created there to hold persistent
+statistics.  You can adjust the location of the file by changing 
+*stats-file* in the config file.
