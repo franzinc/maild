@@ -20,8 +20,7 @@
 	(dolist (recip failed-recips)
 	  (write-line (emailaddr-orig recip) f))
 	(write-line "" f)
-	(write-line 
-	 "   ----- Transcript of session follows -----" f)
+	(write-line "   ----- Transcript of session follows -----" f)
 	(write-line err f)
 	(write-line "" f)
       

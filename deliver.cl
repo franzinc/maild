@@ -164,6 +164,7 @@
 			 #'mp:gate-open-p (wmts-async-gate async))
 	(values output errput status (wmts-async-status async))))))
 
+
 (defun write-message-to-stream (stream queue rewrite-type 
 				&key smtp noclose)
   (if (null (queue-headers queue))
@@ -174,9 +175,16 @@
 				  (write-char #\return stream)
 				  (write-char #\linefeed stream))
 			      (write-char #\newline stream))))
-      (dolist (header (rewrite-headers (queue-headers queue) rewrite-type))
-	(write-string header stream)
-	(endline))
+      ;; headers might span lines.  Need to handle the EOL characters
+      ;; correctly.
+      (let (char)
+	(dolist (header (rewrite-headers (queue-headers queue) rewrite-type))
+	  (dotimes (n (length header))
+	    (setf char (schar header n))
+	    (if (eq char #\newline)
+		(endline)
+	      (write-char char stream)))
+	  (endline)))
 
       ;; write the header boundary.
       (endline)

@@ -1,3 +1,30 @@
+2003-04-30  root  <root@dancy>
+
+	* deliver.cl:  write-message-to-stream:  headers that spanned
+	lines weren't being written out w/ the proper EOL convention.
+	Fixed.  
+
+	* queue-process.cl: Rearranged some code in the queue processing
+	function for better status reporting.    Minor changes to the
+	queue lister.  Added a queue processing daemon.
+
+	* queue.cl:  Added new 'valid' slot to the queue struct.  It is
+	used by the new with-new-queue macro.  If the slot is still nil
+	when the macro completes, the queue file will be deleted.  This
+	effects cleanup for interrupted message transmissions, etc.
+
+	* security.cl:  verify-root: new function to check that the real
+	user is root.
+	
+	* input.cl: send-from-stdin:  Try out new with-new-queue macro.
+
+	* maild.cl: main:  Implemented more of the command line args.  Can
+	run in daemon mode now w/ optional periodic queue processing.
+	Signal handlers added for SIGINT and SIGTERM for clean shutdown.
+	Security checks on queue-manipulating commands.  
+
+	* smtp-server.cl:  New smtp-server-daemon function.
+
 2003-04-28  root  <root@dancy>
 
 	* config.cl: Added *smtp-ip* parameter for binding the server

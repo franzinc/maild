@@ -36,6 +36,10 @@ destinations, nor program delivery destinations.   This means that a
 mailing list can still be set up for a random user, but they will not
 gain any privileges beyond adding email addresses to that list.
 
+The queue directory should be created with 0600 mode to prevent
+regular users from snooping around.  I also made the -bp and -q
+command line arguments root-only.  Regular users don't need to know
+what mail is going where. 
 
 
 

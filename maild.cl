@@ -1,9 +1,14 @@
 (in-package :user)
 
+
 (defun main (&rest args)
   (if (probe-file "/etc/maild.cl")
       (load "/etc/maild.cl" :verbose nil))
+  ;; sanity check.
+  (if (not (probe-file *queuedir*))
+      (error "Queue directory ~A doesn't exist!" *queuedir*))
   (let ((prgname (pop args)))
+    ;; contend w/ with-command-line-arguments 
     (if (null args)
 	(error "~a: recipients must be specified on the command line."
 	       prgname))
@@ -12,31 +17,44 @@
 	 ("f" :short from :required)
 	 ("i" :short ignoredot nil)
 	 ("b" :short runmode :required)
-	 ("o" :short options :required))
+	 ("o" :short options :required)
+	 ("q" :short processqueue :optional)
+	 ("v" :short verbose nil))
       (recips :command-line-arguments args)
+      
+      (establish-signal-handlers)
+
+      (when processqueue
+	(if (stringp processqueue)
+	    (setf processqueue (parse-queue-interval processqueue))
+	  (setf processqueue 0)))
       
       (when runmode
 	(cond
 	 ((string= runmode "d")
-	  (error "Daemon mode not done yet"))
+	  (verify-root)
+	  (smtp-server-daemon :queue-interval processqueue)
+	  (exit 0 :quiet t)) ;; parent gets here.
 	 ((string= runmode "s")
-	  ;; Run in stdin/stdout smtp mode
 	  (do-smtp *terminal-io* :fork t)
 	  (exit 0 :quiet t))
 	 ((string= runmode "p")
+	  (verify-root)
 	  (queue-list)
 	  (exit 0 :quiet t))
 	 (t
 	  (error "-b~A option invalid" runmode)))) 
       
+      (when processqueue
+	(verify-root)
+	(queue-process-all :verbose verbose)
+	(exit 0 :quiet t))
+	  
       
       (if (null recips)
 	  (error "~a: recipients must be specified on the command line."
 		 prgname))
       
-      (if (not (probe-file *queuedir*))
-	  (error "Queue directory ~A doesn't exist!" *queuedir*))
-  
       (let (parsed-recips)
 	(dolist (reciplist recips)
 	  (multiple-value-bind (parsedlist badlist cruft)
@@ -110,3 +128,12 @@
 	   (error "Invalid time unit: '~A'" char)))
 	(setf pos (1+ newpos))))
     seconds))
+
+(defun maild-signal-handler (sig tee)
+  (declare (ignore tee))
+  (format t "Maild terminating...~%")
+  (exit (+ 128 sig) :quiet t))
+
+(defun establish-signal-handlers ()
+  (dolist (sig `(,*sigint* ,*sigterm*))
+    (set-signal-handler sig #'maild-signal-handler)))

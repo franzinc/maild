@@ -11,30 +11,52 @@
   sock ;; might be a regular stream if program was started with -bs option
   dotted ;; remote host as a dotted string
   (buf (make-string *maxlinelen*))
-  helo
+  helo ;; did the client already say HELO ?
   from
   to ;; a list
-  fork)
+  fork) 
+
+(defun smtp-server-daemon (&key queue-interval)
+  (let ((pid (fork)))
+    (case pid
+      (0 ;; child
+       (detach-from-terminal)
+       (maild-log "SMTP server starting")
+       (if (and queue-interval (> queue-interval 0))
+	   (queue-process-daemon queue-interval))
+       (smtp-server)
+       (exit 1 :quiet t)) ;; just in case
+      (-1
+       (error "Ack! smtp-server-daemon fork failed"))
+      (t ;; parent
+       )))) ;; just return
 
 (defun smtp-server ()
   (parse-connections-blacklist)
   
-  (let ((port *smtp-port*))
-    (let ((ent (getservbyname "smtp" "tcp")))
-      (if ent
-	  (setf port (servent-port ent))))
-    (let ((sock (make-socket :local-port port 
-			     :local-host *smtp-ip*
-			     :type :hiper
-			     :connect :passive
-			     :reuse-address t)))
-      (unwind-protect
-	  (loop
-	    (let ((newsock (ignore-errors (accept-connection sock))))
-	      (if newsock
-		  (mp:process-run-function "SMTP session" #'do-smtp 
-					   newsock))))
-	(ignore-errors (close sock))))))
+  (let ((port *smtp-port*)
+	(ent (getservbyname "smtp" "tcp"))
+	sock)
+    (if ent
+	(setf port (servent-port ent)))
+    (handler-case 
+	(setf sock (make-socket :local-port port 
+				:local-host *smtp-ip*
+				:type :hiper
+				:connect :passive
+				:reuse-address t))
+      (error (c)
+	(maild-log "~A" c)
+	(maild-log "Exiting.")
+	(return-from smtp-server)))
+    
+    (unwind-protect
+	(loop
+	  (let ((newsock (ignore-errors (accept-connection sock))))
+	    (if newsock
+		(mp:process-run-function "SMTP session" #'do-smtp 
+					 newsock))))
+      (ignore-errors (close sock)))))
 
 (defun do-smtp (sock &key fork)
   (unwind-protect
@@ -84,7 +106,7 @@
     (maild-log "Closing SMTP session with ~A" 
 	       (if (socketp sock)
 		   (ipaddr-to-dotted (remote-host sock))
-		 "127.0.01."))
+		 "localhost"))
     (if (socketp sock)
 	(ignore-errors (close sock :abort t)))))
 
@@ -286,7 +308,8 @@
     ;; to unlock the queue file in case of unexpected error...
     ;; on the other hand, if an unexpected error does occur, we may
     ;; not want to process this queue item until it is fixed.  It
-    ;; depends on what the error is.
+    ;; depends on what the error is... this is related to the bloc
+    ;; of comments below.  They are the same issue.
     
     (handler-case 
 	(setf f (open (queue-datafile q) 
@@ -300,14 +323,19 @@
 	(setf err :transient)
 	(setf f nil))) ;; for good measure
     
-    ;; doesn't happen if f is null
+    ;; doesn't execute if f is null
     (with-already-open-file (f)
       (fchmod f #o0600) ;; prevent folks from lookin' in
-      ;; XXX -- need error checking here in case of socket error.
-      ;;        the queue item should be deleted in this case.
-      ;;        In fact, the queue item should always be deleted in
-      ;;        case of error until we send out the "message accepted
-      ;;        for delivery" code.
+
+      ;; XXX -- In the unlikely (but possible) event of an error
+      ;; during this call to outline, we'd be left with a locked
+      ;; invalid queue file.  Need to think about this and find a clean
+      ;; way to take care of things... perhaps some kind of 'comitted'
+      ;; status slot in the queue struct (which would be set after
+      ;; the call to fsync.  If we had an unwind-protect, we could check
+      ;; that the committed slot was set.. if it wasn't we assume that means
+      ;; the queue item is bogus and should be deleted and unlocked.
+
       (outline sock "354 Enter mail, end with \".\" on a line by itself")
       (handler-case 
 	  (multiple-value-setq (status headers msgsize)

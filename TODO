@@ -1,9 +1,16 @@
 Anything that makes a queue lock needs an unwind protect to unlock it
 due to the process being killed or something.  Also, if the program is
 shut down during reception of an email, the queue file needs to be
-deleted.
+deleted.  Need to various testings to make sure this holds true.  The
+worst that should happen in such cases is redelivery of a message.
+
+Make sure that non-root users can't specify certain command line
+ arguments.
 
 Need to work on the '-t' command line arg.
+
+If there are bounces due to mailing to an :include: alias, check for
+an owner-* alias for bounce redirection.
 
 Possibility:
   Messages w/o a To, Cc: or Bcc: header should have one of them
@@ -27,7 +34,7 @@ status, though..  good==0, bad==nonzero.
 
 Need loop detection.  RFC2821 says that counting Received: headers is
 a somewhat bogus bogus method for detecting loops.. but if it is used,
-the threshold should be at least 100.
+the threshold should be at least 100.  I think sendmail uses 25.
 
 Do I want to make it so that it rarely runs as root?  Situations where
 root is required:
@@ -36,7 +43,7 @@ root is required:
     getting port 25.
     that it?
  newer versions of sendmail seem to run in two or more processes to
- do this.
+ do this.  
 
 sendmail has a connect timeout (defaults to the kernel's timeout) and
 an iconnect timeout.  The latter is used to immediately send mail to

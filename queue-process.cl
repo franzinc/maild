@@ -58,7 +58,15 @@
 			     response)
 		     (maild-log "Error message is: ~A" response))))))
       
-      ;; Done processing recips.
+      ;; Done processing recips. 
+      (when (null (queue-recips q))
+	;; Everything has been delivered.  Clean up
+	(maild-log "Completed final delivery for queue id ~A" (queue-id q))
+	(remove-queue-file q) 
+	(return))
+      
+      (setf (queue-status q) (get-output-stream-string errmsgs))
+      (update-queue-file q)
       
       (when (queue-undeliverable-timeout-p q)
 	(maild-log "Bouncing queue id ~A due to queue timeout" (queue-id q))
@@ -68,14 +76,6 @@
 	(remove-queue-file q)
 	(return))
       
-      (when (null (queue-recips q))
-	;; Everything has been delivered.  Clean up
-	(maild-log "Completed final delivery for queue id ~A" (queue-id q))
-	(remove-queue-file q) 
-	(return))
-      
-      (setf (queue-status q) (get-output-stream-string errmsgs))
-      (update-queue-file q)
       (maild-log "Terminating processing of queue id ~A" (queue-id q)))))
 
 
@@ -98,18 +98,21 @@
   (dolist (id (get-all-queue-ids))
     (let ((q (ignore-errors (queue-read id))))
       (when q
-	(format t 
-		"~%Id: ~A~A~% Date: ~A~% Status: ~A~% Sender: ~A~% Remaining recips: ~A~%"
-		id
-		(if (queue-locked-p q) " (LOCKED)" "")
-		(ctime (queue-ctime q))
-		(queue-status q)
-		(emailaddr-orig (queue-from q))
+	(format t "~%Id: ~A" id)
+	(if (queue-locked-p q)
+	    (format t " (LOCKED)"))
+	(if (not (queue-valid q))
+	    (format t " (Incomplete)"))
+	(terpri)
+	(if (not (probe-file (queue-datafile q)))
+	    (format t "Queue id ~A doesn't have a data file!~%" id))
+	(format t " Date queued: ~A~%" (ctime (queue-ctime q)))
+	(format t " Sender: ~A~%" (emailaddr-orig (queue-from q)))
+	(format t " Remaining recips: ~A~%"
 		(list-to-delimited-string
 		 (mapcar #'emailaddr-orig (queue-recips q))
 		 #\,))
-	(if (not (probe-file (queue-datafile q)))
-	    (format t "Queue id ~A doesn't have a data file!~%" id))))))
+	(format t " Status: ~A~%" (queue-status q))))))
 
 
 (defun queue-process-all (&key verbose)
@@ -119,4 +122,15 @@
       (error (c)
 	(maild-log "Got error ~A while processing queue id ~A"
 		   c id)))))
+
+(defun queue-process-daemon (interval)
+  ;; sanity check
+  (if (or (null interval) (<= interval 0))
+      (error "queue-process-daemon: Invalid interval: ~S" interval))
+  (mp:process-run-function "Queue daemon"
+    #'(lambda ()
+	(maild-log "Queue process internal: ~D seconds" interval)
+	(loop
+	  (queue-process-all)
+	  (sleep interval)))))
 

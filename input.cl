@@ -51,40 +51,40 @@
 (defun send-from-stdin (recips &key (dot t) gecos from)
   (multiple-value-bind (fromaddr gecos authwarn realuser)
       (compute-sender-info from gecos)
-    (let ((q (make-queue-file fromaddr recips))
-	  status headers msgsize)
-      (with-open-file (f (queue-datafile q)
-		       :direction :output
-		       :if-does-not-exist :create)
-	(fchmod f #o0600)
+    (let (q status headers msgsize)
+      (with-new-queue (q f status fromaddr recips)
 	(multiple-value-setq (status headers msgsize)
 	  (read-message-stream t f :dot dot))
-
 	(if (not (member status '(:eof :dot)))
 	    (error "got status ~s from read-message-stream" status))
 	(finish-output f)
 	(fsync f)
-
+	
 	(if authwarn
 	    (setf headers 
 	      (append headers 
 		      (list (make-x-auth-warning-header realuser fromaddr)))))
+	
+	(if (and *maxmsgsize* (> *maxmsgsize* 0) (>= msgsize *maxmsgsize*))
+	    (error "Message exceeded max message size (~D)" *maxmsgsize*))
+	
+	;; This marks the message as complete.
 	(queue-init-headers q headers (dotted-to-ipaddr "127.0.0.1")
 			    :date t
 			    :add-from t 
 			    :from-gecos gecos))
-	
-      (if (and *maxmsgsize* (> *maxmsgsize* 0) (>= msgsize *maxmsgsize*))
-	  (error "Message exceeded max message size (~D)" *maxmsgsize*))
-      (queue-unlock q)
+      
       ;; XXX -- this might need changing.
       ;; I think sendmail goes through and processes local recips
       ;; and returns immediate errors (dead.letter).. then forks
       ;; to handle the rest.. which may potentially be slower.
       ;; For now, we're going to fork for any type of message.
       (let ((pid (if *debug* 0 (fork))))
-	(if (= pid 0)
-	    (queue-process-single (queue-id q) :wait t))))))
+	(if* (= pid 0)
+	   then
+		(if (not *debug*)
+		    (detach-from-terminal))
+		(queue-process-single (queue-id q) :wait t))))))
 		  
 
 (defun read-message-stream (s bodystream &key smtp dot)

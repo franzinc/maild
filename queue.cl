@@ -2,12 +2,13 @@
 
 (defstruct queue 
   id
-  ctime ;; when this message was queued
-  status
+  (ctime (get-universal-time)) ;; when this message was queued
+  (status "Reading message data...
+")
   from
   recips ;; remaining recipients to be processed
   headers
-  )
+  valid) ;; not valid until the data file has been written
 
 (defmacro queue-filename-from-id (id)
   `(concatenate 'string *queuedir* "/qf" ,id))
@@ -75,8 +76,6 @@
     (setf queue
       (make-queue 
        :id id
-       :ctime (get-universal-time)
-       :status "Fresh"
        :from from
        :recips (queue-expand-aliases recips)))
     (update-queue-file queue)
@@ -121,7 +120,8 @@
       (setf (queue-headers queue)
 	(append (queue-headers queue) 
 		(list (make-from-header (queue-from queue) from-gecos)))))
-  
+
+  (setf (queue-valid queue) t)
   (update-queue-file queue))
 
 ;; reads a queue file.  Doesn't lock.
@@ -167,4 +167,28 @@
 	   (let ((,qvar (queue-read ,idvar)))
 	     ,@body))))))
 
-
+;; Don't look at this!
+(defmacro with-new-queue ((q streamvar statusvar from recips) &body body)
+  `(let (,streamvar)
+     (setf ,q (make-queue-file ,from ,recips))
+     (unwind-protect
+	 (block nil
+	   (handler-case 
+	       (setf ,streamvar 
+		 (open (queue-datafile ,q) 
+		       :direction :output
+		       :if-does-not-exist :create))
+	     (error (c)
+	       (maild-log "Failed to open queue datafile ~A: ~A"
+			  (queue-datafile q) c)
+	       (setf ,statusvar :transient)
+	       (return)))
+	   
+	   ;; file is open now.  Make sure it always gets closed.
+	   (with-already-open-file (,streamvar)
+	     (fchmod f #o0600) 
+	     ,@body))
+       ;; cleanup forms
+       (queue-unlock ,q)
+       (if (not (queue-valid ,q))
+	   (remove-queue-file ,q)))))

@@ -13,3 +13,6 @@
       (error "~A is a world writable file.  Aborting for security reasons"
 	     file)))
 
+(defun verify-root ()
+  (if (/= (getuid) 0)
+      (error "Permission denied")))
