@@ -7,7 +7,8 @@
       "recips" "aliases" "headers" "rewrite" 
       "lock" "smtp" "queue" "deliver" "deliver-smtp" 
       "queue-process" "checkers"
-      "input" "smtp-server"
+      "input"
+      "smtp-server" "smtp-server-checkers" "greylist"
       "bounce" 
       "maild"
       "localmods"))

@@ -34,6 +34,9 @@
 ;; a blacklisted client.  
 (defparameter *blacklisted-response* "We do not accept mail from you")
 
+(defparameter *dns-blacklists* nil)
+;; can be :transient or :permanent
+(defparameter *dns-blacklisted-response-type* :transient)
 
 ;; Addresses to reject during the MAIL FROM: transaction
 (defparameter *blacklist-from* '("big@boss.com"))
@@ -86,6 +89,42 @@
 ;; program with "|(user)/program/path"  syntax.
 (defparameter *program-alias-user* "mailnull")
 
+
+;; List of checkers to be called when the SMTP MAIL command has
+;; been issued by the client.  Each entry should be in
+;; ("checker name" checker-function-symbol)  form.
+
+;; The functions are passed two values:  
+;; The IP address of the client and the sender specified 
+;; in the MAIL command (in parsed emailaddr struct format)
+
+;; The functions should return either :ok, :transient, or :err.  For
+;; the latter two, an additional value can be returned.  It will be
+;; used as part of the response string.
+
+(defparameter *smtp-mail-from-checkers* 
+    '(("Blacklisted sender checker" smtp-mail-from-blacklist-checker)
+      ("Sender domain required checker" 
+       smtp-mail-from-domain-required-checker)
+      ("Sender domain checker" smtp-mail-from-domain-checker)))
+
+;; Same idea as the above.  Checkers are called with
+;; client ip address, sender, recip-type, new recipient, existing recipients.
+;; (all email addresses are passed in parsed emailaddr struct form).
+;; recip-type will be :local or :remote.
+;; The checkers are called after built-in blacklist (via aliases) and unknown
+;; user checks are done.
+
+(defparameter *smtp-rcpt-to-checkers* 
+    '(("Relay checker" smtp-rcpt-to-relay-checker)))
+
+;; Same idea as above.  Checkers are called with 
+;; client ip address, sender, recips (all email addresses parse).
+;; This is called just before the DATA command responds with the 
+;; normal go-ahead (354 Enter mail...).  
+(defparameter *smtp-data-pre-checkers* nil)
+
+
 ;; List of checkers to be called after a message body has been
 ;; received.  A checker entry is a list with two elements.  The first
 ;; element is a string which describes the checker.  The second
@@ -99,6 +138,10 @@
 ;; User to run external checkers as.
 (defparameter *external-checker-user* "mailnull")
 
+;; Function that will be called when message a message is first received
+;; which can be used to add additional headers to the message.  The
+;; function will be called w/ one argument, the "queue" structure.
+(defparameter *extra-headers-func* nil)
 
 ;; Can be replaced w/ a symbol naming a function which will create the
 ;; command line used for local delivery.  The function takes two 
@@ -111,7 +154,6 @@
 ;; procmail -Y -f <envelope-from> -d <user>
 (defparameter *deliver-local-command* 'deliver-local-command)
 
-(defparameter *extra-headers-func* nil)
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

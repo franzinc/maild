@@ -8,7 +8,17 @@
   (if (not (probe-file *queuedir*))
       (error "Queue directory ~A doesn't exist!" *queuedir*))
   (verify-root-only-file *queuedir*)
+
   (let ((prgname (pop args)))
+    
+    ;;(format t "prgname is ~S~%" prgname)
+    ;;(format t "basename is ~S~%" (basename prgname))
+    
+    (when (string= (basename prgname) "mailq")
+      (verify-real-user-is-root)
+      (queue-list)
+      (exit 0 :quiet t))
+    
     (if (null args)
 	(error "Recipient names must be specified"))
     (with-command-line-arguments 

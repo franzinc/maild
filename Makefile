@@ -12,6 +12,9 @@ install: maild/maild
 	cp -pr maild $(libdir)
 	ln -sf $(libdir)/maild/maild $(bindir)/maild
 
+install-init:
+	cp maild.init /etc/init.d/maild
+
 clean:
 	rm -f *.fasl
 	rm -fr maild

@@ -15,7 +15,8 @@
   from
   to ;; a list
   verbose
-  fork) 
+  fork)
+
 
 (defun smtp-server-daemon (&key queue-interval)
   (let ((pid (fork)))
@@ -59,55 +60,81 @@
 					 newsock))))
       (ignore-errors (close sock)))))
 
+(defmacro smtp-remote-host (sock)
+  (let ((socksym (gensym)))
+    `(let ((,socksym ,sock))
+       (if (socketp ,socksym)
+	   (remote-host ,socksym)
+	 #.(dotted-to-ipaddr "127.0.0.1")))))
+
+(defmacro smtp-remote-dotted (sock)
+  (let ((socksym (gensym)))
+    `(let ((,socksym ,sock))
+       (if (socketp ,socksym)
+	   (ipaddr-to-dotted (remote-host ,socksym))
+	 "localhost"))))
+
+    
 (defun do-smtp (sock &key fork verbose)
   (unwind-protect
-      (with-socket-timeout (sock :write *datatimeout*)
-	(let* ((dotted (if (socketp sock) 
-			   (ipaddr-to-dotted (remote-host sock))
-			 "localhost"))
-	       (sess (make-session :sock sock :dotted dotted
-				   :fork fork :verbose verbose))
-	       bl cmd)
+      (handler-case
+	  (with-socket-timeout (sock :write *datatimeout*)
+	    (let* ((dotted (smtp-remote-dotted sock))
+		   (sess (make-session :sock sock :dotted dotted
+				       :fork fork :verbose verbose))
+		   bl cmd)
 	
-	  (if (socketp sock)
-	      (setf bl (connection-blacklisted-p (remote-host sock))))
+	      (maild-log "SMTP connection from ~A" dotted)
+	      
+	      (setf bl (connection-blacklisted-p (smtp-remote-host sock)))
 	
-	  (maild-log "SMTP connection from ~A" dotted)
-	
-	  (if* bl
-	     then
-		  (outline sock "221 ~A ~A (~A)"
-			   (fqdn) *blacklisted-response* bl)
-		  (maild-log "Rejecting blacklisted SMTP client (~A)"
-			     dotted)
-		  (return-from do-smtp))
-	
-	  (outline sock "220 ~A Allegro mail server ready" (fqdn)) ;; Greet
-	  (loop
-	    (setf cmd 
-	      (smtp-get-line (session-sock sess) (session-buf sess) 
-			     *cmdtimeout*))
-	    (case cmd
-	      (:timeout 
-	       (maild-log "Closing idle SMTP connection from ~A" dotted)
+	      (when bl
+		(outline sock "500 ~A (~A)" *blacklisted-response* bl)
+		(maild-log "Rejecting blacklisted SMTP client (~A)"
+			   dotted)
+		(return-from do-smtp))
+	      
+	      ;; Check DNS-based blacklists
+	      (setf bl (connection-dns-blacklisted-p (smtp-remote-host sock)))
+	      
+	      (when bl
+		(ecase *dns-blacklisted-response-type*
+		  (:transient
+		   (outline sock "400 Please try again later")
+		   (maild-log "Temporarily rejecting client from ~A due to entry in ~A DNS blacklist"
+			      dotted bl))
+		  (:permanent
+		   (outline sock "500 ~A (~A)" *blacklisted-response* bl)
+		   (maild-log "Rejecting client from ~A due to entry in ~A DNS blacklist"
+			      dotted bl)))
+		(return-from do-smtp))
 
-	       (outline sock "421 Control connection idle for too long")
-	       (return :timeout)) 
-	      (:eof
-	       ;; client closed the connection or something.
-	       (return :eof))
-	      (:longline
-	       (maild-log "SMTP client ~A sent excessively long command"
-			  dotted)
-	       (outline sock "500 Line too long."))
-	      (t
-	       (if (eq (process-smtp-command sess cmd) :quit)
-		   (return :quit)))))))
+	
+	      (outline sock "220 ~A Allegro mail server ready" (fqdn)) ;; Greet
+	      (loop
+		(setf cmd 
+		  (smtp-get-line (session-sock sess) (session-buf sess) 
+				 *cmdtimeout*))
+		(case cmd
+		  (:timeout 
+		   (maild-log "Closing idle SMTP connection from ~A" dotted)
+
+		   (outline sock "421 Control connection idle for too long")
+		   (return :timeout)) 
+		  (:eof
+		   ;; client closed the connection or something.
+		   (return :eof))
+		  (:longline
+		   (maild-log "SMTP client ~A sent excessively long command"
+			      dotted)
+		   (outline sock "500 Line too long."))
+		  (t
+		   (if (eq (process-smtp-command sess cmd) :quit)
+		       (return :quit)))))))
+	(error (c)
+	  (maild-log "SMTP server error: ~A" c)))
     ;; cleanup forms
-    (maild-log "Closing SMTP session with ~A" 
-	       (if (socketp sock)
-		   (ipaddr-to-dotted (remote-host sock))
-		 "localhost"))
+    (maild-log "Closing SMTP session with ~A" (smtp-remote-dotted sock))
     (if (socketp sock)
 	(ignore-errors (close sock :abort t)))))
 
@@ -184,45 +211,34 @@
 	    (maild-log "Client from ~a: MAIL ~A: Invalid address"
 		       (session-dotted sess) text)
 	    (return))
-	  (when (sender-blacklisted-p (emailaddr-orig addr))
-	    (outline sock "550 ~a... Access denied" (emailaddr-orig addr))
-	    (maild-log "Client from ~A: Sender ~A blacklisted"
-		       (session-dotted sess)
-		       (emailaddr-orig addr))
-	    (return))
 	  
-	  (when (and *sender-domain-required* 
-		     (not (emailnullp addr))
-		     (null (emailaddr-domain addr)))
-	    (outline sock "553 5.5.4 ~A... Sender domain required"
-		     (emailaddr-orig addr))
-	    (return))
-	  
-	  ;; Make sure the sender domain (if specified) exists 
-	  (let ((domain (emailaddr-domain addr)))
-	    (if domain
-		(let ((exists (domain-exists-p domain)))
-		  (when (eq exists :unknown)
-		    (outline sock "451 Domain resolution error")
-		    (maild-log 
-		     "Client from ~A: Failure resolving domain of sender: ~A"
-		     (session-dotted sess)
-		     (emailaddr-orig addr))
-		    (return))
-		  (when (null exists)
-		    (outline sock "551 Sender domain must exist")
-		    (maild-log 
-		     "Client from ~A: Domain doesn't exist for sender: ~A"
-		     (session-dotted sess)
-		     (emailaddr-orig addr))
-		    (return)))))
+	  ;; Call checkers
+	  (dolist (checker *smtp-mail-from-checkers*)
+	    (multiple-value-bind (status string)
+		(funcall (second checker) (smtp-remote-host sock) addr)
+	      (ecase status
+		(:err
+		 (outline sock "551 ~A" string)
+		 (maild-log "Checker ~S rejected MAIL FROM:~A. Message: ~A"
+			    (first checker) (emailaddr-orig addr)
+			    string)
+		 (return-from smtp-mail))
+		(:transient
+		 (outline sock "451 ~A" string)
+		 (maild-log 
+		  "Checker ~S temporarily failed MAIL FROM:~A. Message: ~A"
+		  (first checker) (emailaddr-orig addr) string)
+		 (return-from smtp-mail))
+		(:ok
+		 ))))
 	  
 	  (setf (session-from sess) addr)
 	  (outline sock "250 2.1.0 ~A... Sender ok" (emailaddr-orig addr)))))))
 
 (defun smtp-rcpt (sess text)
   (block nil
-    (let ((sock (session-sock sess)))
+    (let ((sock (session-sock sess))
+	  disp errmsg)
       (when (>= (length (session-to sess)) *maxrecips*)
 	(outline sock "452 4.5.3 Too many recipients")
 	(maild-log "Client from ~A: Too many recipients"
@@ -245,54 +261,57 @@
 		       addrstring)
 	    (return))
 	  
-	  (multiple-value-bind (disp errmsg)
-	      (get-recipient-disposition addr)
-	    (ecase disp
-	      (:error
-	       (outline sock "550 ~a... ~a" 
-			(emailaddr-orig addr) errmsg)
-	       (maild-log "client from ~A: rcpt to:~A... blacklisted recip"
-			  (session-dotted sess)
-			  (emailaddr-orig addr))
-	       (return))
-	      (:local-ok
-	       (push addr (session-to sess))
-	       (outline sock "250 2.1.5 ~a... Recipient ok" 
+	  (multiple-value-setq (disp errmsg)
+	    (get-recipient-disposition addr))
+	  (ecase disp
+	    (:error
+	     (outline sock "550 ~a... ~a" 
+		      (emailaddr-orig addr) errmsg)
+	     (maild-log "client from ~A: rcpt to:~A... blacklisted recip"
+			(session-dotted sess)
 			(emailaddr-orig addr))
-	       (return))
-	      (:local-unknown
-	       (outline sock "550 5.1.1 ~a... User unknown"
+	     (return))
+	    (:local-unknown
+	     (outline sock "550 5.1.1 ~a... User unknown"
+		      (emailaddr-orig addr))
+	     (maild-log "Client from ~A: rcpt to:~A... User unknown"
+			(session-dotted sess)
 			(emailaddr-orig addr))
-	       (maild-log "Client from ~A: rcpt to:~A... User unknown"
-			  (session-dotted sess)
-			  (emailaddr-orig addr))
-	       (return))
-	      (:non-local
-	       ))) ;; don't do anything for just.. just a sanity check
-	    
+	     (return))
+	    (:local-ok
+	     (setf disp :local))
+	    (:non-local
+	     (setf disp :remote)))
 	  
-	  ;; not a local recipient... see if we allow relaying.
-	  (if* (or (not (socketp (session-sock sess)))
-		   (relaying-allowed-p (remote-host (session-sock sess))))
-	     then
-		  (push addr (session-to sess))
-		  (outline sock "250 2.1.5 ~a... Recipient ok" 
-			   (emailaddr-orig addr))
-		  (return))
+	  ;; Run checkers
+	  (dolist (checker *smtp-rcpt-to-checkers*)
+	    (multiple-value-bind (status string)
+		(funcall (second checker) 
+			 (smtp-remote-host sock)
+			 (session-from sess)
+			 disp
+			 addr
+			 (session-to sess))
+	      (ecase status
+		(:err
+		 (outline sock "550 ~A" string)
+		 (maild-log "Checker ~S rejected RCPT TO:~A. Message: ~A"
+			    (first checker) (emailaddr-orig addr)
+			    string)
+		 (return-from smtp-rcpt))
+		(:transient
+		 (outline sock "451 ~A" string)
+		 (maild-log 
+		  "Checker ~S temporarily failed RCPT TO:~A. Message: ~A"
+		  (first checker) (emailaddr-orig addr) string)
+		 (return-from smtp-rcpt))
+		(:ok
+		 ))))
 	  
-	  (outline sock "550 5.7.1 ~a... Relaying denied"
-		   (emailaddr-orig addr))
-	  (maild-log "Client from ~A: rcpt to:~A... Relaying denied"
-		     (session-dotted sess)
-		     (emailaddr-orig addr)))))))
-
-
-(defun relaying-allowed-p (cliaddr)
-  (dolist (check *relay-access*)
-    (if (addr-in-network-p cliaddr (parse-addr check))
-	(return t))))
-
-
+	  (push addr (session-to sess))
+	  (outline sock "250 2.1.5 ~a... Recipient ok" 
+		   (emailaddr-orig addr)))))))
+ 
 (defun smtp-data (sess text)
   (declare (ignore text))
   (let* ((sock (session-sock sess))
@@ -306,6 +325,26 @@
 	(return-from smtp-data 
 	  (outline sock "503 5.0.0 Need RCPT (recipient)")))
 
+    ;; Run pre-checkers
+    (dolist (checker *smtp-data-pre-checkers*)
+      (multiple-value-bind (status string)
+	  (funcall (second checker) (smtp-remote-host sock) 
+		   (session-from sess) (session-to sess))
+	(ecase status
+	  (:err
+	   (outline sock "551 ~A" string)
+	   (maild-log "Checker ~S rejected DATA phase initiation. Message: ~A"
+		      (first checker) string)
+	   (return-from smtp-data))
+	  (:transient
+	   (outline sock "451 ~A" string)
+	   (maild-log 
+	    "Checker ~S temporarily failed DATA phase initiation. Message: ~A"
+	    (first checker) string)
+	   (return-from smtp-data))
+	  (:ok
+	   ))))
+    
     (with-new-queue (q f err (session-from sess))
       (outline sock "354 Enter mail, end with \".\" on a line by itself")
       (handler-case 
@@ -350,10 +389,7 @@
       
       (when (and (not err) (not rejected))
 	;; This finalizes and unlocks the queue item.
-	(queue-finalize q (session-to sess) headers 
-			(if (socketp sock)
-			    (socket:remote-host sock)
-			  (dotted-to-ipaddr "127.0.0.1")))))
+	(queue-finalize q (session-to sess) headers (smtp-remote-host sock))))
     
     ;; At this point, the queue file is saved on disk.. or it has been
     ;; deleted due to an error/rejection in processing.

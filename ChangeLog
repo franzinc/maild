@@ -1,3 +1,19 @@
+2003-06-25  root  <root@gills.dancysoft.com>
+
+	* Added greylisting feature.
+
+	* Added rc script for redhat-style hosts.
+
+	* Added DNS-based blacklisting.
+
+	* Added in hooks so that administrators can easily add checks
+	during the MAIL FROM and RCPT TO and DATA phases of an SMTP
+	session.  The greylisting code uses these.
+
+	* Moved some of the built-in checks that the smtp server did
+	during the mail from, rcpt to and data phases into
+	smtp-server-checkers.cl.  They use the newly created hooks.
+
 2003-06-23  Ahmon Dancy  <dancy@dancy>
 
 	* utils.cl:  Make short-host-name really return a short host name.

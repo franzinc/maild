@@ -54,3 +54,20 @@
   (dolist (addr *blacklist-from*)
     (if (equalp addr sender)
 	(return t))))
+
+;;;;  DNS-based blacklisting
+
+;; Treats non-responses as not-blacklisted.
+(defun connection-dns-blacklisted-p (ip)
+  (let ((flipped (flip-ip ip)))
+    (dolist (domain *dns-blacklists* nil)
+      (if (socket:dns-query (concatenate 'string flipped "." domain))
+	  (return domain)))))
+
+(defun flip-ip (ip)
+  (ipaddr-to-dotted
+   (logior (ash (logand ip #xff000000) -24)
+	   (ash (logand ip #x00ff0000) -8)
+	   (ash (logand ip #x0000ff00) 8)
+	   (ash (logand ip #x000000ff) 24))))
+
