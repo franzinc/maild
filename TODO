@@ -9,11 +9,6 @@ Allow SIGHUP to make the config reload on a running server.
 Parameterize the blacklist SMTP response.  If it is multiline, make
 sure the SMTP multiline response happens properly.
 
-OMeToo.  This requires thinking about equality of addresses.  Should
-all addresses be expanded and rewritten before comparison?   Does this
-work via SMTP?
-
-
 Optionally honor Errors-To header.
 
 Possibility:

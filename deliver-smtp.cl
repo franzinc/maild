@@ -1,5 +1,8 @@
 (in-package :user)
 
+;; XXX --  Need a check to make sure that we never try to connect to
+;; ourself.
+
 (defun deliver-smtp (recip q &key verbose)
   (block nil
     (let ((buf (make-string *maxlinelen*))

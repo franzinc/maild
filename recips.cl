@@ -98,32 +98,79 @@
 	  nil
 	(alias-exps-to-recips exp)))))
 
-;; returns a list of recip structs w/ no duplicates.
-(defun expand-addresses (addrs)
-  (let (recips)
-    (dolist (addr addrs)
-      (if (not (local-domain-p addr))
-	  (push (make-recip :addr addr) recips)
-	(let ((expansion (lookup-recip-in-aliases addr)))
-	  (if expansion
-	      (setf recips (nconc recips expansion))
-	    (push (make-recip :addr addr) recips)))))
-    (delete-duplicates recips :test #'same-recip-p)))
-    
+(defmacro mailing-list-p (exp)
+  `(> (length ,exp) 1))
 
+;; returns a list of recip structs w/ no duplicates.
+(defun expand-addresses (addrs sender)
+  (let ((exclude-sender t)
+	(sender-exp (lookup-recip-in-aliases sender)))
+    (cond 
+     ((mailing-list-p sender-exp)
+      (setf exclude-sender nil))
+     ((null sender-exp)
+      (setf sender-exp sender))
+     ((recip-type (first sender-exp)) ;; prog/file/whatnot expansion
+      (setf exclude-sender nil))
+     (t
+      (setf sender-exp (first sender-exp))))
+    
+    (let (recips)
+      (dolist (addr addrs)
+	(if (not (local-domain-p addr))
+	    ;; don't bother trying to expand non-local recips.
+	    (push (make-recip :addr addr) recips)
+	  ;; else
+	  (let ((expansion (lookup-recip-in-aliases addr)))
+	    (if* expansion
+	       then
+		    (when (and (mailing-list-p expansion)
+			       exclude-sender
+			       (member sender-exp expansion
+				       :test #'same-recip-p))
+		      (if *debug*
+			  (maild-log "Removing ~A from expansion of ~A"
+				     (recip-printable sender-exp)
+				     (emailaddr-orig addr)))
+		      (setf expansion (delete sender-exp expansion
+					   :test #'same-recip-p)))
+		    (setf recips (nconc recips expansion))
+	       else
+		    (push (make-recip :addr addr) recips)))))
+      (delete-duplicates recips :test #'same-recip-p))))
+
+;; Should be called on post-expansion recip structs.
 (defun same-recip-p (recip1 recip2)
   (block nil
-    (if (not (eq (recip-type recip1) (recip-type recip2)))
-	(return nil))
-    (if (null (recip-type recip1))
-	(return (emailaddr= (recip-addr recip1) (recip-addr recip2))))
-    (ecase (recip-type recip1)
-      (:prog
-	  (and
-	   (string= (recip-file recip1) (recip-file recip2))
-	   (equalp (recip-prog-user recip1) (recip-prog-user recip2))))
-      (:file
-       (string= (recip-file recip1) (recip-file recip2))))))
-
+    (let ((type1 (recip-type recip1))
+	  (type2 (recip-type recip2)))
+      (if (not (eq type1 type2))
+	  (return nil))
+      (when (null type1) ;; regular recips
+	(let* ((addr1 (recip-addr recip1))
+	       (addr2 (recip-addr recip2))
+	       (local1 (local-domain-p addr1))
+	       (local2 (local-domain-p addr2)))
+	  ;; If the user parts don't match, definite non-match
+	  (if (not (equalp (emailaddr-user addr1) (emailaddr-user addr2)))
+	      (return nil))
+	  ;; If they're both local, then we have a match.
+	  (if (and local1 local2)
+	      (return t))
+	  ;; If both are non-local, compare the domain parts
+	  (if (and (not local1) (not local2))
+	      (return (equalp (emailaddr-domain addr1) 
+			      (emailaddr-domain addr2))))
+	  ;; One local, one non-local.  Definite non-match
+	  (return nil)))
+      ;; other recip types
+      (ecase type1
+	(:prog
+	    (and
+	     (string= (recip-file recip1) (recip-file recip2))
+	     (equalp (recip-prog-user recip1) (recip-prog-user recip2))))
+	(:file
+	 (string= (recip-file recip1) (recip-file recip2)))))))
+  
 
 

@@ -1,3 +1,13 @@
+2003-05-14  Ahmon Dancy  <dancy@dancy>
+
+	* queue.cl:  In queue-finalize, call expand-addresses w/ the queue
+	sender so that the address can be removed from mailing lists.
+
+	* recips.cl:  expand-addresses changed so that the message sender
+	will be removed from mailing list expansions.  Also fixed up
+	same-recip-p.  It behaves in a more sendmail-like way now.
+
+
 2003-05-12  root  <root@dancy>
 
 	* deliver.cl:  Use new recip struct. 

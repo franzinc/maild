@@ -32,6 +32,8 @@
 	   (concatenate 'string (emailaddr-user addr) "@" (fqdn)))))
     addr))
     
+;;;; stuff user may want to modify
+;;;;
 
 (defun rewrite-smtp-envelope-sender (addr)
   (rewrite-smtp-canonicalize addr))
@@ -69,8 +71,17 @@
 
 (defun rewrite-local-header-recip (addr)
   (rewrite-local-sender-or-recip addr))
- 
 
+;; end user modifiable area
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; returns values: senderfunc recipfunc
+(defun get-rewrite-funcs (type)
+  (ecase type
+    (:local
+     (values #'rewrite-local-header-sender #'rewrite-local-header-recip))
+    (:smtp
+     (values #'rewrite-smtp-header-sender #'rewrite-smtp-header-recip))))
 
 ;;; To, From, Cc.
 ;;; removes Bcc.
@@ -81,15 +92,8 @@
   
   (if (eq type :norewrite)
       (return-from rewrite-headers headers))
-  (let (senderfunc recipfunc)
-    (ecase type
-      (:local
-       (setf senderfunc #'rewrite-local-header-sender)
-       (setf recipfunc #'rewrite-local-header-recip))
-      (:smtp
-       (setf senderfunc #'rewrite-smtp-header-sender)
-       (setf recipfunc #'rewrite-smtp-header-recip)))
-    
+  (multiple-value-bind (senderfunc recipfunc)
+      (get-rewrite-funcs type)
     (mapcar #'(lambda (h)
 		(cond
 		 ((recip-header-p h)
@@ -133,5 +137,3 @@
    ((listp thing)
     (dolist (item thing)
       (rewrite-addrspec item rewritefunc)))))
-    
-    

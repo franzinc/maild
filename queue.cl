@@ -83,7 +83,7 @@
 
 (defun queue-finalize (q recips headers cliaddr &key date add-from from-gecos)
   (setf (queue-orig-recips q) recips)
-  (setf (queue-recips q) (expand-addresses recips))
+  (setf (queue-recips q) (expand-addresses recips (queue-from q)))
   
   ;; Add in any necessary headers.
   (setf (queue-headers q)
