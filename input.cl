@@ -167,6 +167,13 @@
 	(if* doingheaders
 	   then
 		(cond
+		 ;; Special case.  Messages that begin w/ a Unix
+		 ;; mailbox "From " separator have the separator 
+		 ;; stripped.
+		 ((and firstline (>= endpos 5) 
+		       (string= (subseq buffer 0 5) "From "))
+		  ;; Just ignore it
+		  )
 		 ((and firstline 
 		       (not (valid-header-line-p buffer endpos :strict t)))
 		  (setf doingheaders nil)

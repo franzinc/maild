@@ -1,3 +1,8 @@
+2003-06-30  Ahmon Dancy  <dancy@dancy>
+
+	* input.cl:  When reading a message in, strip the Unix mailbox
+	"From " separator if there is one. 
+
 2003-06-29  root  <root@gills.dancysoft.com>
 
 	* Many changes to allow for mailer definitions.  
