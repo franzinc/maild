@@ -111,9 +111,9 @@
 	       ;; We now have an unfolded header.  Process it.
 	       (cond
 		((recip-header-p h)
-		 (rewrite-header h recipfunc))
+		 (setf h (rewrite-header h recipfunc)))
 		((sender-header-p h)
-		 (rewrite-header h senderfunc))
+		 (setf h (rewrite-header h senderfunc)))
 		(t
 		 (error "This should never happen")))
 	       

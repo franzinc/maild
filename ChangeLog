@@ -1,3 +1,7 @@
+2003-06-27  Ahmon Dancy  <dancy@dancy>
+
+	* Fix header rewrite (wasn't really happening).
+
 2003-06-25  Kevin Layer  <layer@relay.known.net>
 
 	* Makefile: fix install's chown; parameterize `lisp'; cp -p on
