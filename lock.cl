@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: lock.cl,v 1.4 2003/07/08 18:15:52 layer Exp $
+;; $Id: lock.cl,v 1.5 2003/09/30 17:56:42 dancy Exp $
 
 (in-package :user)
 
@@ -29,6 +29,9 @@
       (sleep 1 whostate))))
   
 (defun lock-file-help (filename)
+  (when (stale-lockfile-p filename)
+    (maild-log "Removing stale lockfile ~A" filename)
+    (ignore-errors (delete-file filename)))
   (handler-case
       (let ((f (os-open filename (logior *o-excl* *o-creat* *o-wronly*) 
 			#o0600)))
@@ -40,6 +43,15 @@
 	  nil
 	(error e)))))
 
+(defun refresh-lock-file (filename)
+  (utime filename nil (get-universal-time)))
+
+
+(defun stale-lockfile-p (filename)
+  (let ((mtime (ignore-errors (file-write-date filename)))
+	(now (get-universal-time)))
+    (and mtime  (> now (+ mtime *queue-lock-timeout*)))))
+    
 (defmacro with-lock-file ((filename nolockform &key wait) &body body)
   (let ((filenamevar (gensym))
 	(lockresvar (gensym))

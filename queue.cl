@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: queue.cl,v 1.16 2003/07/23 14:44:24 dancy Exp $
+;; $Id: queue.cl,v 1.17 2003/09/30 17:56:42 dancy Exp $
 
 (in-package :user)
 
@@ -165,6 +165,11 @@
 (defun queue-lock (id)
   (lock-file (queue-lockfile-from-id id)))
 
+(defun refresh-queue-lock (q)
+  ;; XXXX
+  (maild-log "Refreshing lockfile for qf~A" (queue-id q))
+  (refresh-lock-file (queue-lockfile-from-id (queue-id q))))
+
 (defun queue-unlock (q)
   (let ((lockfile (queue-lockfile-from-id (queue-id q))))
     (if (probe-file lockfile)
@@ -189,6 +194,25 @@
   (update-queue-file q)
   (queue-unlock q))
 
+;;
+
+(defun queue-lock-refresher (q)
+  (loop
+    (sleep *queue-lock-refresh-interval*)
+    (refresh-queue-lock q)))
+
+;; Macrology.
+
+(defmacro with-queue-lock-refresher ((q) &body body)
+  (let ((process (gensym)))
+    `(let ((,process (mp:process-run-function "Queue lock refresher"
+		       #'queue-lock-refresher ,q)))
+       (unwind-protect
+	   (progn
+	     ,@body)
+	 ;; cleanup
+	 (kill-and-reap-process ,process)))))
+
 (defmacro with-locked-queue ((qvar id noexistform) &body body)
   (let ((lockfilevar (gensym))
 	(idvar (gensym)))
@@ -198,7 +222,8 @@
 	 (if (not (queue-exists-p ,idvar))
 	     ,noexistform
 	   (let ((,qvar (queue-read ,idvar)))
-	     ,@body))))))
+	     (with-queue-lock-refresher (,qvar)
+	       ,@body)))))))
 
 ;; 'q' and 'errvar' should be variables that are already in scope.  
 ;; shame on me.
@@ -206,22 +231,23 @@
   `(let (,streamvar)
      (setf ,q (make-queue-file ,from))
      (unwind-protect
-	 (block nil
-	   (handler-case 
-	       (setf ,streamvar 
-		 (open (queue-datafile ,q) 
-		       :direction :output
-		       :if-does-not-exist :create))
-	     (error (c)
-	       (maild-log "Failed to open queue datafile ~A: ~A"
-			  (queue-datafile q) c)
-	       (setf ,errvar (list :transient c))
-	       (return)))
+	 (with-queue-lock-refresher (,q)
+	   (block nil
+	     (handler-case 
+		 (setf ,streamvar 
+		   (open (queue-datafile ,q) 
+			 :direction :output
+			 :if-does-not-exist :create))
+	       (error (c)
+		 (maild-log "Failed to open queue datafile ~A: ~A"
+			    (queue-datafile q) c)
+		 (setf ,errvar (list :transient c))
+		 (return)))
 	   
 	     ;; file is open now.  Make sure it always gets closed.
 	     (with-already-open-file (,streamvar)
 	       (fchmod ,streamvar #o0600) 
-	       ,@body))
+	       ,@body)))
        ;; cleanup forms
        (queue-unlock ,q)
        (if (not (queue-valid ,q))

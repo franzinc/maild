@@ -1,4 +1,4 @@
-;; $Id: config.cl,v 1.25 2003/09/19 17:30:34 dancy Exp $
+;; $Id: config.cl,v 1.26 2003/09/30 17:56:42 dancy Exp $
 
 (in-package :user)
 
@@ -246,3 +246,7 @@
 ;; be bigger than the largest anticipated header name.
 (defparameter *maxdatalinelen* 2048)
 
+;;;;;;;;;;;;;;;
+
+(defparameter *queue-lock-timeout* (* 15 60)) ;; 15 minutes
+(defparameter *queue-lock-refresh-interval* (* 10 60)) ;; every 10 minutes

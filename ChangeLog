@@ -1,3 +1,30 @@
+2003-09-30  root  <root@gills.dancysoft.com>
+
+	* version.cl: 1.1.10
+
+	* config.cl:  New config options:
+
+	*queue-lock-timeout* 
+	*queue-lock-refresh-interval*
+
+	which default to 15 and 10 minutes respectively.  Queue locks that
+	haven't been refreshed for more than *queue-lock-timeout* seconds
+	are considered to be stale.  Under normal circumstances, queue
+	locks are refreshed every *queue-lock-refresh-interval* seconds.
+
+	* lock.cl:  Added stale lock handling functions.
+
+	* queue-process.cl:  Incomplete queue files are now removed
+	automatically during queue processing.
+
+	* queue.cl:  When a queue file is locked, a thread starts which
+	refreshes the lockfile periodically.  
+
+	* utils.cl:  Added utility functions for thread death and waiting
+	for a thread to die.  These should be implemented in acl70 and can
+	be removed from this file at that time.
+
+
 2003-09-19  Ahmon Dancy  <dancy@dancy>
 
 	* version.cl: 1.1.9

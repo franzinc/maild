@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: queue-process.cl,v 1.14 2003/07/23 20:28:46 dancy Exp $
+;; $Id: queue-process.cl,v 1.15 2003/09/30 17:56:42 dancy Exp $
 
 (in-package :user)
 
@@ -39,9 +39,16 @@
 (defun queue-process-single-help (q &key wait verbose)
   (block nil
     (maild-log "Processing queue id ~A" (queue-id q))
-    ;; Sanity check
-    (if (not (probe-file (queue-datafile q)))
-	(error "Queue id ~A doesn't have a data file!" (queue-id q)))
+    ;; Sanity checks
+    (when (not (queue-valid q))
+      (maild-log "Queue id ~A is incomplete.  Removing." (queue-id q))
+      (remove-queue-file q)
+      (return))
+    (when (not (probe-file (queue-datafile q)))
+      (maild-log "Queue id ~A doesn't have a data file.  Removing." 
+		 (queue-id q))
+      (remove-queue-file q)
+      (return))
     
     (let (failed-recips recip-addr recip-printable recip-type status response
 	  smtp-recips)
