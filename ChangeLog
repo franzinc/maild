@@ -1,3 +1,10 @@
+2003-07-03  root  <root@dancy>
+
+	* smtp-server.cl/config.cl: Added option *helo-must-match-ip*
+	which requires that clients use the HELO command... and that the
+	domain specified in the HELO command must resolve to the IP
+	address of the connecting client.
+
 2003-07-02  root  <root@gills.dancysoft.com>
 
 	* smtp-server.cl: Collects some statistics during operation now.

@@ -215,16 +215,48 @@
   (setf (session-from sess) nil)
   (setf (session-to sess) nil))
   
-;; What good is this?
+
 (defun smtp-helo (sess text)
-  (let ((sock (session-sock sess)))
-    (if* (session-helo sess)
-       then
-	    (outline sock "503 5.0.0 ~a Duplicate HELO"
-		     (fqdn))
-       else
-	    (setf (session-helo sess) text)
-	    (outline sock "250 ~a Hi there." (fqdn)))))
+  (block nil
+    (let ((sock (session-sock sess)))
+      (when (session-helo sess)
+	(outline sock "503 5.0.0 ~a Duplicate HELO"
+		 (fqdn))
+	(return))
+
+      (when *helo-must-match-ip*
+	(setf text (string-left-trim '(#\space) text))
+	
+	(multiple-value-bind (first ttl rest flags)
+	    (useful-dns-query text)
+	  (declare (ignore ttl))
+	  (when (member :no-such-domain flags)
+	    (outline sock "501 Invalid domain name")
+	    (maild-log "Rejected HELO ~A from client ~A (invalid domain)"
+		       text (session-dotted sess))
+	    (inc-checker-stat connections-rejected-permanently
+			      "HELO domain checker")
+	    (return :quit))
+	  
+	  (when (null first)
+	    (outline sock "401 Unable to resolve domain")
+	    (maild-log "Temporarily rejected client from ~A because we couldn't resolve the name supplied in the HELO command (~A)" 
+		       text)
+	    (inc-checker-stat connections-rejected-temporarily
+			      "HELO domain checker")
+	    (return :quit))
+	  
+	  (let ((addrs (append (list first) rest)))
+	    (when (not (member (smtp-remote-host sock) addrs))
+	      (outline sock "501 HELO domain must match your IP address")
+	      (maild-log "Rejected HELO ~A from client ~A (No IP match)"
+			 text (session-dotted sess))
+	      (inc-checker-stat connections-rejected-permanently
+				"HELO domain checker")
+	      (return :quit)))))
+      
+      (setf (session-helo sess) text)
+      (outline sock "250 ~a Hi there." (fqdn)))))
     
 (defun smtp-quit (sess text)
   (declare (ignore text))
@@ -244,6 +276,10 @@
 (defun smtp-mail (sess text)
   (block nil
     (let ((sock (session-sock sess)))
+      (when (and *helo-must-match-ip* (not (session-helo sess)))
+	(outline sock "503 5.0.0 Polite people say HELO first")
+	(return))
+
       (if* (session-from sess)
 	 then
 	      (outline sock "503 5.5.0 Sender already specified")

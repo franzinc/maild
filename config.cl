@@ -76,6 +76,10 @@
 ;; address must succeed before mail is accepted.
 (defparameter *reverse-dns-required* nil)
 
+;; If non-nil, then the result of a DNS lookup on the name specified
+;; in the HELO command must match the IP address of the connected
+;; client
+(defparameter *helo-must-match-ip* nil)
 
 
 (defparameter *queuedir* "/var/spool/maild")
