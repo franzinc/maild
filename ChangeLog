@@ -1,6 +1,9 @@
 2005-04-06  root  <root@gills.dancysoft.com>
 1.1.26
-	
+
+	* ALIASES: New document describing Allegro Maild's aliasing
+	features.
+
 	* recips.cl: Added utility function: augment-recip-with-domain.
 
 	* aliases.cl: Added support for include files which are locked to

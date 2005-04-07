@@ -1,0 +1,81 @@
+Allegro Maild supports several extensions to the aliases file format
+which are not supported by sendmail.
+
+Left hand side features:
+
+ Fully-qualified left hand sides:
+  In sendmail, the left hand side of an alias can only contain the
+  user part of an email address.  Allegro Maild accepts fully-
+  qualified left hand sides.  This is useful for hosting multiple
+  email domains.  When looking up aliases, fully-qualified matches
+  are tried first, then matching on just the user part of the address
+  is done.  
+ 
+ Wildcard aliases:
+  Left hand sides of the form *@domain.com can be used to provide a
+  default expansion for any address in a given domain.  When looking
+  up aliases, specific matches are tried first, then the wildcard
+  alias is used (if there is one).  Wildcard aliases are particularly
+  useful when combined with :error: recipients (see below) to prevent
+  unmatched fully-qualified aliases from being delivered to recipients
+  whose local part matches.  This is more clearly illustrated in the
+  examples below.
+
+ Include aliases:
+  If the left hand side of an alias is the word 'include', then the
+  right hand side can be a list of additional aliases files to
+  process.  
+
+  Left hand sides of the form 'include(domain)' are similar, but all
+  unqualified addresses found in the included files are assumed to be in
+  the 'domain' domain.  Qualified addresses are checked to make sure
+  they are in 'domain'.
+
+  Left hand sides of the form 'includeuser(domain)' are the similar,
+  except that there are restrictions on the type of aliases that may be
+  in the included files.  Specifically, program, mailing list, and file
+  recipients are disallowed.  It is safe to allow unprivileged users
+  to edit such included files.
+
+Right hand side features:
+
+  Error recipients:
+   If the right hand side of an alias is of the form :error:, then
+   delivery attempts to the corresponding left hand side address will
+   be rejected.  You can specify an optional string after :error: to
+   specify a specific rejection string.  See the example below.
+
+
+Examples:
+###
+root: joeadmin
+
+spam: :error:Go away, spammer!
+
+jimmy@customerdomain.com: jimmy@aol.com
+*@customerdomain.com: :error:
+###
+
+Given this aliases file:
+
+* Mail destined for 'root' at any domain for which you accept mail
+(except customerdomain.com) will be delivered to the local user
+'joeadmin'.  
+
+* Mail destined for 'spam' at any domain for you which accept mail
+(except customerdomain.com) will be rejected with the error string "Go
+away, spammer!".  
+
+* Mail destined for 'jimmy@customerdomain.com' will be forwarded to
+jimmy@aol.com.  
+
+* Any other @customerdomain.com address will reject in rejection.
+
+* Without the *@customerdomain.com wildcard alias, mail destined for
+root@customerdomain.com would be delivered to 'joeadmin'.
+
+
+
+
+
+
