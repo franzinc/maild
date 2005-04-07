@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: recips.cl,v 1.16 2003/07/23 14:44:24 dancy Exp $
+;; $Id: recips.cl,v 1.17 2005/04/07 01:58:03 dancy Exp $
 
 (in-package :user)
 
@@ -82,8 +82,6 @@
 		:test #'equalp))))
 
 
-
-
 (defun string-or-recip-or-emailaddr-to-emailaddr (thing)
   (block nil
     (when (recip-p thing)
@@ -92,6 +90,18 @@
 	(return (recip-addr thing))))
     (make-parsed-and-unparsed-address thing)))
     
+
+;; Doesn't do anything if domain part is already set.
+;; Doesn't do anything for special recips.
+(defun augment-recip-with-domain (recip domain)
+  (check-type domain string "a string")
+  (let ((addr (recip-addr recip))
+	(type (recip-type recip)))
+    (when (and (null type) (null (emailaddr-domain addr)))
+      (setf (emailaddr-orig addr) 
+	(concatenate 'string (emailaddr-orig addr) "@" domain))
+      (setf (emailaddr-domain addr) domain))))
+  
 
   
 ;; accepts non-special recip structs as arg as well

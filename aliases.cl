@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: aliases.cl,v 1.13 2005/04/06 03:22:32 dancy Exp $
+;; $Id: aliases.cl,v 1.14 2005/04/07 01:58:03 dancy Exp $
 
 (in-package :user)
 
@@ -36,13 +36,11 @@
   (mp:with-process-lock ((aliases-info-lock *aliases*) 
 			 :whostate "Waiting for aliases lock")
     (when (aliases-need-reparsing-p)
-      (if *debug* (maild-log "Reparsing aliases"))
+      (maild-log "Reparsing aliases")
       (parse-global-aliases))))
 
 
 ;; Call with the lock held.
-;; XXX What should we do if an alias file doesn't exist anymore?
-;; Right now we treat that as a need-to-reparse scenario.
 (defun aliases-need-reparsing-p ()
   (dolist (pair (aliases-info-files *aliases*))
     (let ((filename (first pair))
@@ -58,8 +56,12 @@
     (setf (aliases-info-aliases *aliases*) ht)))
     
 
-(defun parse-aliases-file (filename ht files-seen)
-  (verify-root-only-file filename)
+(defun parse-aliases-file (filename ht files-seen &key (system t) domain)
+  (when (not (probe-file filename))
+    (maild-log "Skipping nonexistent aliases file ~A" filename)
+    (return-from parse-aliases-file))
+  (if system
+      (verify-root-only-file filename))
   (push filename files-seen)
   (let ((files-entry (list filename 0)))
     (push files-entry (aliases-info-files *aliases*))
@@ -68,23 +70,84 @@
 	(while (setf ali (aliases-get-alias f))
 	  (multiple-value-bind (alias expansion)
 	      (parse-alias-line ali)
-	    
-	    (if* (equalp alias "include")
-	       then
-		    (dolist (entry expansion)
-		      (if (not (eq (recip-type entry) :file))
-			  (error "~A~%Right hand side of an include alias must be a list of absolute pathnames" ali))
-		      (let ((ifile (recip-file entry)))
-			(if (member ifile files-seen :test #'equal)
-			    (error "~A~%Include loop" ifile))
-			(parse-aliases-file ifile ht files-seen)))
-	       else
-		    (if (gethash alias ht)
-			(error "Redefined alias: ~A" alias))
-		    (setf (gethash alias ht) expansion))))))
+	    (multiple-value-bind (is-include include-sys include-domain)
+		(aliases-include-directive-p alias)
+	      (cond
+	       ((and is-include (not system))
+		(maild-log "~A: User include files are not allowed to contain includes" filename))
+	       (is-include
+		(dolist (entry expansion)
+		  (if* (eq (recip-type entry) :file)
+		     then
+			  (let ((ifile (recip-file entry)))
+			    (if (member ifile files-seen :test #'equal)
+				(maild-log "~A: ~A~%Include loop" 
+					   filename ali)
+			      (parse-aliases-file ifile ht files-seen
+						  :system include-sys
+						  :domain include-domain)))
+		     else
+			  (maild-log "~A: ~A~%Right hand side of an include alias must be a list of absolute pathnames" filename ali))))
+	       (t
+		(setf alias (sanity-check-alias filename alias expansion
+						:system system
+						:domain domain))
+		(when alias
+		  (if (gethash alias ht)
+		      (maild-log "~A: Redefined alias: ~A" filename alias))
+		  (setf (gethash alias ht) expansion)))))))))
     ;; Indicate success
     (setf (second files-entry) (get-universal-time))))
 
+
+;; returns values:  t, system, domain
+(defun aliases-include-directive-p (string)
+  (block nil
+    (if (equalp string "include")
+	(return (values t t nil)))
+    (multiple-value-bind (found whole domain)
+	(match-regexp "include(\\([^)]+\\))" string)
+      (declare (ignore whole))
+      (if found
+	  (return (values t t domain))))
+    (multiple-value-bind (found whole domain)
+	(match-regexp "includeuser(\\([^)]+\\))" string)
+      (declare (ignore whole))
+      (if found
+	  (return (values t nil domain))))
+    nil))
+
+(defun allowed-user-alias-type-p (entry)
+  (or (null (recip-type entry)) 
+      (error-recip-p entry)))
+
+(defun sanity-check-alias (filename lhs rhs &key domain system)
+  (macrolet ((bailout (format &rest rest)
+	       `(progn 
+		  (maild-log ,format ,@rest)
+		  (return-from sanity-check-alias nil))))
+    
+    (let* ((parsed (parse-email-addr lhs))
+	   (lhs-domain (if parsed (emailaddr-domain parsed))))
+      (if (null parsed)
+	  (bailout "~A: ~A is not a valid alias left-hand-side: ~A" 
+		   filename lhs))
+      (if (and domain lhs-domain (not (equalp domain lhs-domain)))
+	  (bailout "~A: ~A: Domain portion must be blank or ~A" 
+		   filename lhs domain))
+      
+      (dolist (entry rhs)
+	(if (and (not system) (not (allowed-user-alias-type-p entry)))
+	    (bailout "~A: ~A: ~A type right-hand-sides are not allowed in user includes" 
+		     filename lhs (recip-type entry)))
+	(if domain
+	    (augment-recip-with-domain entry domain)))
+      
+      (if (and domain (not lhs-domain))
+	  (setf lhs (concatenate 'string lhs "@" domain)))
+      lhs)))
+      
+      
   
 (defun parse-alias-line (line)
   (let ((len (length line)))

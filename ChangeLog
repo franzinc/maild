@@ -1,3 +1,13 @@
+2005-04-06  root  <root@gills.dancysoft.com>
+1.1.26
+	
+	* recips.cl: Added utility function: augment-recip-with-domain.
+
+	* aliases.cl: Added support for include files which are locked to
+	a particular domain.  Added support for user include files which
+	are also locked to a particular domain.. and which have many
+	restrictions on use.
+
 2005-04-05  root  <root@gills.dancysoft.com>
 1.1.25
 	
