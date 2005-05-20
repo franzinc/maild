@@ -1,3 +1,7 @@
+2005-05-20  Ahmon Dancy  <dancy@dancy>
+
+	* Makefile: Make sure maild is installed setuid root.
+
 2005-04-06  root  <root@gills.dancysoft.com>
 1.1.26
 

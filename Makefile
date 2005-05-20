@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.18 2005/04/06 03:22:32 dancy Exp $
+# $Id: Makefile,v 1.19 2005/05/20 20:45:35 dancy Exp $
 
 lisp=$(shell if test -x /fi/cl/7.0/bin/linux86/mlisp; then \
 		echo /fi/cl/7.0/bin/linux86/mlisp; \
@@ -34,6 +34,7 @@ install-maild: maild/maild install-common
 	cp -pr maild $(DESTDIR)$(libdir)
 ifndef BUILD_FOR_RPM
 	chown root $(DESTDIR)$(libdir)/maild/*
+	chmod +s $(DESTDIR)$(libdir)/maild/maild
 endif
 	ln -sf ../lib/maild/maild $(DESTDIR)$(bindir)/maild
 	ln -sf ../lib/maild/maild $(DESTDIR)$(bindir)/mailq
