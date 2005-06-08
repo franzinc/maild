@@ -1,6 +1,6 @@
-# $Id: Makefile,v 1.19 2005/05/20 20:45:35 dancy Exp $
+# $Id: Makefile,v 1.20 2005/06/08 14:30:50 dancy Exp $
 
-lisp=$(shell if test -x /fi/cl/7.0/bin/linux86/mlisp; then \
+lisp:=$(shell if test -x /fi/cl/7.0/bin/linux86/mlisp; then \
 		echo /fi/cl/7.0/bin/linux86/mlisp; \
 	     elif test -x /usr/local/acl70/mlisp; then \
 		echo /usr/local/acl70/mlisp; \
@@ -11,6 +11,8 @@ lisp=$(shell if test -x /fi/cl/7.0/bin/linux86/mlisp; then \
 	     fi)
 libdir=/usr/local/lib
 bindir=/usr/local/sbin
+
+version := $(shell grep 'allegro-maild-version' version.cl | sed -e 's,.*"v\([0-9.]*\)".*,\1,')
 
 all: maild/maild check-mail-virus/check-mail-virus
 	(cd greyadmin; make)
@@ -52,7 +54,7 @@ install-init: FORCE
 	cp -p maild.init $(DESTDIR)/etc/init.d/maild
 
 clean: FORCE
-	rm -f *.fasl
+	rm -f *.fasl maild.tar.gz maild-*.tar.gz 
 	rm -fr maild check-mail-virus rpmbuild maild.spec
 	(cd greyadmin; make clean)
 
@@ -71,5 +73,14 @@ rpm: FORCE
 	rm -f maild.spec
 	sed -e 's,__SOURCE__,$(HERE),g' < maild.spec.in > maild.spec 
 	rpmbuild -vv --buildroot=$(BUILDROOT)/BUILD -bb maild.spec
+
+tarball: all
+	tar zcf maild.tar.gz maild
+
+dist: tarball
+	tar zcf maild-$(version)-installer.tar.gz \
+		maild.tar.gz \
+		maild.init \
+		maild-installer 
 
 FORCE:

@@ -10,7 +10,7 @@
 # config: /etc/maild.cl
 
 # This script stolen from redhat's sendmail script
-# $Id: maild.init,v 1.2 2003/07/08 18:05:25 layer Exp $
+# $Id: maild.init,v 1.3 2005/06/08 14:30:50 dancy Exp $
 
 # Source function library.
 . /etc/rc.d/init.d/functions
@@ -18,12 +18,16 @@
 # Source networking configuration.
 . /etc/sysconfig/network
 
-QUEUE=1h
+QUEUE=15m
+
+if [ -r /etc/sysconfig/maild ]; then
+    . /etc/sysconfig/maild
+fi
 
 # Check that networking is up.
 [ ${NETWORKING} = "no" ] && exit 0
 
-[ -f /usr/local/sbin/maild ] || exit 0
+#[ -f /usr/local/sbin/maild ] || exit 0
 
 RETVAL=0
 prog="maild"

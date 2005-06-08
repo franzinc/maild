@@ -1,3 +1,20 @@
+2005-06-08  Ahmon Dancy  <dancy@dancy>
+
+	* Makefile: 
+
+	Added a 'dist' rule to make a distribution tarball.  Augmented the
+	'clean' rule to clean up the tarballs.
+
+	* maild-installer (new).  Installation script suitable for RedHat
+	linux and possibly others.
+
+	* maild-init: Changed default queue processing interval to 15
+	minutes.  Default can be overridden in /etc/sysconfig/maild.
+	Also, don't silently exit if /usr/local/sbin/maild doesn't exist.
+	This is a situation that warrants a noticeable complaint.  I'm not
+	sure why the sendmail init script works that way.
+	
+	
 2005-05-20  Ahmon Dancy  <dancy@dancy>
 
 	* Makefile: Make sure maild is installed setuid root.

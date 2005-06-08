@@ -1,0 +1,81 @@
+#!/bin/sh -e
+
+# $Header: /repo/cvs.copy/maild/maild-installer,v 1.1 2005/06/08 14:30:50 dancy Exp $
+
+if [ `id -u` -ne 0 ]; then
+    echo Maild installation requires root privileges
+    exit 1
+fi
+
+lib=/usr/local/lib
+
+# This needs improvement.  It needs to know if it really stopped
+# maild.. and if it did, it should be restarted at the end of this
+# script.
+
+# if [ -x /etc/init.d/maild ]; then
+#     echo Stopping maild server (if running)...
+#     /etc/init.d/maild stop
+# fi
+
+echo Preparing...
+
+mkdir -p $lib /usr/local/sbin /var/spool/maild
+
+if [ -e $lib/maild.old ]; then
+    echo Removing prior backup installation...
+    rm -r $lib/maild.old
+fi
+    
+if [ -e $lib/maild ]; then
+    echo Making backup of current installation...
+    mv $lib/maild $lib/maild.old
+fi
+
+echo Extracting...
+
+(cd $lib && tar zxf -) < maild.tar.gz
+
+echo Installing...
+
+chown -R root:root $lib/maild
+chmod +s $lib/maild/maild
+
+ln -snf $lib/maild/maild /usr/local/sbin/maild
+ln -snf $lib/maild/maild /usr/local/sbin/maild-mailq
+
+if [ -e /etc/init.d/maild ]; then
+    mv /etc/init.d/maild /etc/init.d/maild.old
+fi
+
+mv maild.init /etc/init.d/maild
+
+if [ -e /etc/init.d/maild.old ]; then
+    if diff /etc/init.d/maild.old /etc/init.d/maild >/dev/null; then
+	rm /etc/init.d/maild.old
+    fi
+fi
+
+if [ ! -e /etc/sysconfig/maild ]; then
+    echo QUEUE=15m > /etc/sysconfig/maild
+fi
+
+/usr/sbin/alternatives --install \
+    /usr/sbin/sendmail mta /usr/local/sbin/maild 95 \
+    --slave /usr/bin/mailq mta-mailq /usr/local/sbin/maild-mailq \
+    --initscript maild
+
+# Take over
+/usr/sbin/alternatives --auto mta
+
+if [ ! -e /usr/lib/sendmail ]; then
+    ln -s ../sbin/sendmail /usr/lib/sendmail
+fi
+
+echo Cleaning up
+
+rm maild.tar.gz $0
+
+echo Done.
+
+
