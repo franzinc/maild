@@ -1,6 +1,6 @@
 #!/bin/sh -e
 
-# $Header: /repo/cvs.copy/maild/maild-installer,v 1.1 2005/06/08 14:30:50 dancy Exp $
+# $Header: /repo/cvs.copy/maild/maild-installer,v 1.2 2005/06/08 15:25:39 dancy Exp $
 
 if [ `id -u` -ne 0 ]; then
     echo Maild installation requires root privileges
@@ -9,15 +9,11 @@ fi
 
 lib=/usr/local/lib
 
-# This needs improvement.  It needs to know if it really stopped
-# maild.. and if it did, it should be restarted at the end of this
-# script.
-
-# if [ -x /etc/init.d/maild ]; then
-#     echo Stopping maild server (if running)...
-#     /etc/init.d/maild stop
-# fi
-
+if [ -x /etc/init.d/maild ] && /etc/init.d/maild status; then
+	/etc/init.d/maild stop
+	restart_maild=t
+fi
+	
 echo Preparing...
 
 mkdir -p $lib /usr/local/sbin /var/spool/maild
@@ -75,6 +71,10 @@ fi
 echo Cleaning up
 
 rm maild.tar.gz $0
+
+if [ -n "$restart_maild" ]; then
+	/etc/init.d/maild start
+fi
 
 echo Done.
 

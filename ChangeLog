@@ -1,5 +1,7 @@
 2005-06-08  Ahmon Dancy  <dancy@dancy>
 
+	* maild-installer:  Restart maild if it was stopped by the installer.
+
 	* Makefile: 
 
 	Added a 'dist' rule to make a distribution tarball.  Augmented the
