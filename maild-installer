@@ -1,6 +1,6 @@
 #!/bin/sh -e
 
-# $Header: /repo/cvs.copy/maild/maild-installer,v 1.2 2005/06/08 15:25:39 dancy Exp $
+# $Header: /repo/cvs.copy/maild/maild-installer,v 1.3 2005/06/10 17:19:19 dancy Exp $
 
 if [ `id -u` -ne 0 ]; then
     echo Maild installation requires root privileges
@@ -56,13 +56,20 @@ if [ ! -e /etc/sysconfig/maild ]; then
     echo QUEUE=15m > /etc/sysconfig/maild
 fi
 
-/usr/sbin/alternatives --install \
-    /usr/sbin/sendmail mta /usr/local/sbin/maild 95 \
-    --slave /usr/bin/mailq mta-mailq /usr/local/sbin/maild-mailq \
-    --initscript maild
+if [ -x /usr/sbin/alternatives ]; then
 
-# Take over
-/usr/sbin/alternatives --auto mta
+    /usr/sbin/alternatives --install \
+	/usr/sbin/sendmail mta /usr/local/sbin/maild 95 \
+	--slave /usr/bin/mailq mta-mailq /usr/local/sbin/maild-mailq \
+	--initscript maild
+    
+    /usr/sbin/alternatives --auto mta
+else
+    if [ ! -e /usr/sbin/sendmail.sendmail ]; then
+	mv /usr/sbin/sendmail /usr/sbin/sendmail.sendmail
+    fi
+    ln -snf /usr/local/sbin/maild sendmail
+fi
 
 if [ ! -e /usr/lib/sendmail ]; then
     ln -s ../sbin/sendmail /usr/lib/sendmail
