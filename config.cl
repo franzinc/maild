@@ -1,4 +1,4 @@
-;; $Id: config.cl,v 1.28 2004/12/15 19:32:51 layer Exp $
+;; $Id: config.cl,v 1.29 2005/06/13 16:17:02 dancy Exp $
 
 (in-package :user)
 
@@ -51,7 +51,7 @@
 ;; a blacklisted client.  
 (defparameter *blacklisted-response* "We do not accept mail from you")
 
-;;;;; DNSNL stuff
+;;;;; DNS-based blacklisting stuff
 
 (defparameter *dns-blacklists* nil)
 ;; can be :transient or :permanent
@@ -120,6 +120,17 @@
 ;; as (by default.. can be overridden in the aliases file by specifying the
 ;; program with "|(user)/program/path"  syntax.
 (defparameter *program-alias-user* "mailnull")
+
+;; This can be a string that is used to separate an email address from
+;; its extension.  When an address is being looked up in the aliases
+;; or via mailer checks, the full address is checked first.  If there
+;; are no hits, then the address that up to (but not including)
+;; *address-extension-delimiter* is checked.  For example, if
+;; *address-extension-delimiter* is "+" and an email is addressed to
+;; root+smith, then the aliases file will be scanned for root+smith
+;; first.  If there is no root+smith alias, then the search
+;; recommences for just "root". 
+(defparameter *address-extension-delimiter* nil)
 
 
 ;; List of checkers to be called when the SMTP MAIL command has

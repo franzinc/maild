@@ -1,3 +1,16 @@
+2005-06-13  Ahmon Dancy  <dancy@dancy>
+
+1.1.27
+      
+        * aliases.cl, config.cl, mailer.cl:
+
+	 Added support for address extensions via
+	*address-extension-delimiter*.  See the notes for
+	*address-extension-delimiter* in config.cl.
+
+	* recips.cl, utils.cl:  Just comments.
+
+	
 2005-06-08  Ahmon Dancy  <dancy@dancy>
 
 	* maild-installer:  Restart maild if it was stopped by the installer.

@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: mailer.cl,v 1.3 2003/07/08 18:15:52 layer Exp $
+;; $Id: mailer.cl,v 1.4 2005/06/13 16:17:02 dancy Exp $
 
 (in-package :user)
 
@@ -24,6 +24,19 @@
 	(error "get-mailer-by-id: No mailer matches ~S!" id))
     entry))
 
+(defmacro mailer-recip-lookup-func (mailer)
+  `(third ,mailer))
+
+(defun lookup-recip-in-mailer (mailer recip)
+  (let ((addr (recip-addr recip))
+	res)
+    (while addr
+      (setf res (funcall (mailer-recip-lookup-func mailer) addr))
+      (if res
+	  (return res))
+      (setf addr (unextended-address addr)))))
+  
+
 (defun mark-recip-with-suitable-mailer (recip)
   (block nil
     (if (recip-type recip) ;; special recip
@@ -32,7 +45,7 @@
       (setf (recip-mailer recip) :smtp)
       (return))
     (dolist (mailer *mailers*)
-      (when (funcall (third mailer) (recip-addr recip))
+      (when (funcall (mailer-recip-lookup-func mailer) (recip-addr recip))
 	(setf (recip-mailer recip) (first mailer))
 	(return)))
     (when (null (recip-mailer recip))
@@ -43,7 +56,7 @@
 
 (defun any-mailer-matches-p (addr)
   (dolist (mailer *mailers*)
-    (if (funcall (third mailer) addr)
+    (if (funcall (mailer-recip-lookup-func  mailer) addr)
 	(return t))))
 
 ;; returns the run-as user as a second value

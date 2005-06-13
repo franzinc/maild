@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: aliases.cl,v 1.14 2005/04/07 01:58:03 dancy Exp $
+;; $Id: aliases.cl,v 1.15 2005/06/13 16:17:02 dancy Exp $
 
 (in-package :user)
 
@@ -276,6 +276,14 @@
 
 ;;; begin expansion stuff...
 
+;;; There are two entrypoints.  alias-transform and expand-alias.
+;;; alias-transform is like expand-alias except that if no alias
+;;; expansion exists, it just returns the argument (converted to a recip).
+
+;;; expand-alias attempts to expand an alias.  If there is no expansion,
+;;; nil is returned.
+
+;; Called by lookup-recip
 (defun alias-transform (thing)
   (let* ((addr (make-parsed-and-unparsed-address thing))
 	 (res (expand-alias addr)))
@@ -286,15 +294,46 @@
 ;; 'thing' can be a string or an emailaddr struct
 ;; returns a list of recip structs
 ;; may include duplicates.
+;; Called by quick-verify-recip alias-transform alias-expand-member-list
 (defun expand-alias (thing &key (wild t) (require-qualified nil))
   ;;; XXX - may want to move this out for performance reasons
   (update-aliases-info)
-  (expand-alias-inner (make-parsed-and-unparsed-address thing)
-		      (aliases-info-aliases *aliases*) 
-		      nil ;; seen
-		      nil ;; owner
-		      :wild wild
-		      :require-qualified require-qualified))
+  (let ((paddr (make-parsed-and-unparsed-address thing))
+	exp)
+    (while paddr 
+      (setf exp 
+	(expand-alias-inner paddr
+			    (aliases-info-aliases *aliases*) 
+			    nil ;; seen
+			    nil ;; owner
+			    :wild wild
+			    :require-qualified require-qualified))
+      (if exp
+	  (return exp))
+      
+      ;; Try again if this address is using address extension syntax.
+      (setf paddr (unextended-address paddr)))))
+      
+
+;; paddr should be a parsed address
+(defun unextended-address (paddr)
+  (block nil
+    (if (null *address-extension-delimiter*)
+	(return))
+    (let* ((user (emailaddr-user paddr))
+	   (pos (search *address-extension-delimiter* user)))
+      (if (null pos)
+	  (return))
+      ;; Make sure not to change the original
+      (setf paddr (copy-emailaddr paddr))
+      (setf (emailaddr-user paddr) (subseq user 0 pos))
+      (setf (emailaddr-orig paddr)
+	(if (emailaddr-domain paddr)
+	    (concatenate 'string (emailaddr-user paddr) "@"
+			 (emailaddr-domain paddr))
+	  (emailaddr-user paddr)))
+      paddr)))
+    
 
 ;; tries long match (w/ full domain) first.. 
 ;; then wildcard match (*@domain) [if desired]

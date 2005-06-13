@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: recips.cl,v 1.17 2005/04/07 01:58:03 dancy Exp $
+;; $Id: recips.cl,v 1.18 2005/06/13 16:17:02 dancy Exp $
 
 (in-package :user)
 
@@ -105,6 +105,7 @@
 
   
 ;; accepts non-special recip structs as arg as well
+;; Called by: smtp-rcpt
 (defun get-recipient-disposition (thing)
   (block nil
     (let ((addr (string-or-recip-or-emailaddr-to-emailaddr thing)))
@@ -125,6 +126,7 @@
     
 
 ;; Only call on potential local recips.
+;; Called by: get-recipient-disposition
 (defun quick-verify-recip (thing)
   (block nil
     (let* ((addr (string-or-recip-or-emailaddr-to-emailaddr thing))
@@ -138,7 +140,8 @@
 
 
 ;; Returns a list of recips.  There may be duplicates.  There
-;; may be error recips.  
+;; may be error recips.   
+;; Called by:   expand-addresses
 (defun lookup-recip (thing)
   (block nil
     (let ((addr (string-or-recip-or-emailaddr-to-emailaddr thing))

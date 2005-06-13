@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: utils.cl,v 1.14 2004/09/13 22:55:56 dancy Exp $
+;; $Id: utils.cl,v 1.15 2005/06/13 16:17:02 dancy Exp $
 
 (in-package :user)
 
@@ -93,6 +93,7 @@
 	  (return pos))
       (incf pos))))
 
+;; Parse floating point string.
 (defun parse-fp (string)
   (block nil
     (let ((max (length string))
