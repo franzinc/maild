@@ -14,12 +14,15 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: greylist.cl,v 1.18 2004/09/26 14:44:55 dancy Exp $
+;; $Id: greylist.cl,v 1.19 2005/06/13 18:19:40 dancy Exp $
 
 (in-package :user)
 
 (eval-when (compile load eval)
   (require :mysql))
+
+
+;;;;;;;;;;;;;; Begin configurables ;;;;;;;;;;;;;;;;
 
 (defparameter *greylist-db-host* "localhost")
 (defparameter *greylist-db-name* "greylist")
@@ -47,6 +50,21 @@
 ;; individually.  With this option turned on, if any one recipient should
 ;; be deferred, the message is deferred for all recipients.
 (defparameter *greylist-after-data-received* nil)
+
+;; If non-nil, when a sender 'X' (who has relay access) sends an email
+;; to recipient 'Y', then an auto-whitelist entry will be made that
+;; will allow Y to send mail back to X without being greylisted.  The
+;; entry will last for *greylist-whitelist-recips* seconds.
+(defparameter *greylist-whitelist-recips* (* 60 86400)) ;; 60 days
+
+
+;;;;;;;;;;;;;; End configurables ;;;;;;;;;;;;;;;;
+
+
+
+
+
+
 
 (defparameter *greylist-db* nil)
 
@@ -270,6 +288,26 @@
     (greylist-data-checker-common ip from tos)))
 
 
+;;;;;;;; Functions for use in other places in maild
+
+;; Duration should be in seconds.  from/to/source are strings
+(defun whitelist (from to duration source)
+  (ensure-greylist-db)
+  ;; Remove any existing stuff
+  (greysql (format nil "~
+delete from whitelist where sender=~S and receiver=~S and source=~S"
+		   (dbi.mysql:mysql-escape-sequence from)
+		   (dbi.mysql:mysql-escape-sequence to)
+		   (dbi.mysql:mysql-escape-sequence source)))
+  ;; Add record
+  (greysql (format nil "~
+insert into whitelist (sender,receiver,source,expire) values (~S,~S,~S,~S)"
+		   (dbi.mysql:mysql-escape-sequence from)
+		   (dbi.mysql:mysql-escape-sequence to)
+		   (dbi.mysql:mysql-escape-sequence source)
+		   (+ (get-universal-time) duration))))
+
+
 ;;;;;;;; DB stuff
 
 (defmacro greysql (&rest rest)
@@ -375,10 +413,17 @@
   (greylist-optin-optout-check-common "optin" to))
 
 (defun greylist-whitelisted-sender-p (from to)
-  ;; This is no mechanism for whitelisting the null sender, so
-  ;; already return false for that. 
-  (if (emailnullp from)
-      nil
+  (block nil
+    ;; This is no mechanism for whitelisting the null sender, so
+    ;; just return false for that. 
+    (if (emailnullp from)
+	(return))
+    
+    ;; First delete expired stuff.  Entries with a null expire column are
+    ;; unaffected.
+    (greysql (format nil "delete from whitelist where expire<=~D" 
+		     (get-universal-time)))
+    
     (>= 
      (caar 
       (greysql

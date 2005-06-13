@@ -1,4 +1,4 @@
-;; $Id: config.cl,v 1.29 2005/06/13 16:17:02 dancy Exp $
+;; $Id: config.cl,v 1.30 2005/06/13 18:19:40 dancy Exp $
 
 (in-package :user)
 
@@ -35,7 +35,7 @@
 (defparameter *relay-checkers* '(check-relay-access))
 
 ;; List of IP addresses or networks.  This is used by the default
-;; relay checker "relaying-allowed-p"
+;; relay checker "check-relay-access"
 (defparameter *relay-access* '("127.0.0.1"))
 
 

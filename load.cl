@@ -1,4 +1,4 @@
-;; $Id: load.cl,v 1.15 2004/11/15 04:09:13 layer Exp $
+;; $Id: load.cl,v 1.16 2005/06/13 18:19:40 dancy Exp $
 
 (in-package :user)
 
@@ -7,10 +7,12 @@
       "version" "utils" "dns" "security" "lex"
       "emailaddr" "log" "ipaddr" "blacklist" 
       "recips" "aliases" "headers" "rewrite" 
-      "lock" "smtp" "queue" "mailer" "deliver" "deliver-smtp" 
+      "lock" "smtp" "queue" "mailer" 
+      "greylist"
+      "deliver" "deliver-smtp" 
       "queue-process" "checkers"
       "input" 
-      "smtp-server" "smtp-server-checkers" "greylist"
+      "smtp-server" "smtp-server-checkers" 
       "bounce" "www"
       "maild" "rep-server"))
 

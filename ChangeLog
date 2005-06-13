@@ -1,5 +1,30 @@
 2005-06-13  Ahmon Dancy  <dancy@dancy>
+1.1.28
 
+        * deliver-smtp.cl, greylist.cl, greylist.sql, load.cl:
+	
+	Added support for adding auto-whitelist entries for addresses
+	that local users send mail to.  An entry will be made in the 
+	whitelist table that allows return from the original recipient
+	to come in without being delayed by greylisting.
+
+	**** GREYLIST DATABASE CHANGES REQUIRED ****
+
+	Issue the following statements:
+
+	(e.g., "mysql greylist, then:")
+
+	alter table whitelist add expire bigint;
+	create index ind6 on whitelist (expire);
+
+	********************************************
+
+	
+	* config.cl and input.cl: Comment changes only
+
+	* recips.cl: Made local-domain-p more convenient (argument may be 
+	a string now).
+	
 1.1.27
       
         * aliases.cl, config.cl, mailer.cl:

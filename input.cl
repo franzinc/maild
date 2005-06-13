@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: input.cl,v 1.14 2003/07/08 18:15:52 layer Exp $
+;; $Id: input.cl,v 1.15 2005/06/13 18:19:40 dancy Exp $
 
 (in-package :user)
 
@@ -91,7 +91,7 @@
 	      (setf headers 
 		(append headers 
 			(list (make-x-auth-warning-header realuser fromaddr)))))
-	  ;; Run messgae checkers.
+	  ;; Run message checkers.
 	  (multiple-value-bind (res text checker)
 	      (check-message-checkers q headers msgsize)
 	    (declare (ignore checker))

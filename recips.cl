@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: recips.cl,v 1.18 2005/06/13 16:17:02 dancy Exp $
+;; $Id: recips.cl,v 1.19 2005/06/13 18:19:40 dancy Exp $
 
 (in-package :user)
 
@@ -73,7 +73,7 @@
   
 
 (defun local-domain-p (address)
-  (let ((domain (emailaddr-domain address)))
+  (let ((domain (emailaddr-domain (make-parsed-and-unparsed-address address))))
     (or (null domain) 
 	(member domain 
 		(append (list (short-host-name) (fqdn)) 
