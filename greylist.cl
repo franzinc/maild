@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: greylist.cl,v 1.19 2005/06/13 18:19:40 dancy Exp $
+;; $Id: greylist.cl,v 1.20 2005/06/13 20:22:25 dancy Exp $
 
 (in-package :user)
 
@@ -55,16 +55,13 @@
 ;; to recipient 'Y', then an auto-whitelist entry will be made that
 ;; will allow Y to send mail back to X without being greylisted.  The
 ;; entry will last for *greylist-whitelist-recips* seconds.
-(defparameter *greylist-whitelist-recips* (* 60 86400)) ;; 60 days
+(defparameter *greylist-whitelist-recips* (* 365 86400)) ;; One year
 
 
 ;;;;;;;;;;;;;; End configurables ;;;;;;;;;;;;;;;;
 
 
-
-
-
-
+(defparameter *greylisting-enabled* nil)
 
 (defparameter *greylist-db* nil)
 
@@ -86,6 +83,7 @@
 
 (defun enable-greylist (configfile)
   (load configfile :verbose nil)
+  (setf *greylisting-enabled* t)
   (if* (not *greylist-after-data-received*)
      then
 	  (add-smtp-rcpt-to-checker 
@@ -183,7 +181,7 @@
   ;; Check ip whitelist.
   (dolist (net *greylist-ip-whitelist-parsed*)
     (when (addr-in-network-p ip net)
-      (maild-log "Client from ~A:  Manually whitelisted client." 
+      (maild-log "Client from ~A:  Whitelisted (ip-whitelist)."
 		 (ipaddr-to-dotted ip))
       (return-from greylist-init :skip)))
   
@@ -193,7 +191,7 @@
   ;; multiple recipients (i.e., it is unlikely that this function
   ;; will return different values depending on the 'to' parameter).
   (when (relaying-allowed-p ip from to)
-    (maild-log "Client from ~A:  Auto-whitelisted relay client."
+    (maild-log "Client from ~A:  Whitelisted (relay client)."
 	       (ipaddr-to-dotted ip))
     (return-from greylist-init :skip))
   
@@ -201,12 +199,14 @@
       (greylist-db-init) ;; check below needs the db
     (when (not (eq res :ok))
       (return-from greylist-init (values res string))))
-      
-  (when (greylist-whitelisted-sender-p from to)
-    (maild-log "Client from ~A:  Manually whitelisted sender: ~A" 
-	       (ipaddr-to-dotted ip)
-	       (emailaddr-orig from))
-    (return-from greylist-init :skip))
+
+  (let ((source (greylist-whitelisted-sender-p from to)))
+    (when source
+      (maild-log "Client from ~A:  Whitelisted sender: ~A (~A)" 
+		 (ipaddr-to-dotted ip)
+		 (emailaddr-orig from)
+		 source)
+      (return-from greylist-init :skip)))
   
   :ok)
 
@@ -287,6 +287,16 @@
       :ok
     (greylist-data-checker-common ip from tos)))
 
+;;;;;;; Macros ;;;;;
+
+(defmacro greysql (&rest rest)
+  ;; gah!
+  `(mp:with-process-lock (*greylist-lock*)
+     (dbi.mysql:sql ,@rest :db *greylist-db*)))
+
+;;;;;;;;;;;;;;;;;;;;
+
+
 
 ;;;;;;;; Functions for use in other places in maild
 
@@ -309,12 +319,6 @@ insert into whitelist (sender,receiver,source,expire) values (~S,~S,~S,~S)"
 
 
 ;;;;;;;; DB stuff
-
-(defmacro greysql (&rest rest)
-  ;; gah!
-  `(mp:with-process-lock (*greylist-lock*)
-     (dbi.mysql:sql ,@rest :db *greylist-db*)))
-
 
 (defun greylist-lookup-triple (now ip from to)
   (block nil
@@ -424,14 +428,12 @@ insert into whitelist (sender,receiver,source,expire) values (~S,~S,~S,~S)"
     (greysql (format nil "delete from whitelist where expire<=~D" 
 		     (get-universal-time)))
     
-    (>= 
-     (caar 
-      (greysql
-       (format nil "select count(*) from whitelist where 
+    (caar
+     (greysql
+      (format nil "select source from whitelist where 
        (sender = ~S or sender = '*@~A')
        and
        (receiver=~S or receiver='*')"
-	       (dbi.mysql:mysql-escape-sequence (emailaddr-orig from))
-	       (dbi.mysql:mysql-escape-sequence (emailaddr-domain from))
-	       (dbi.mysql:mysql-escape-sequence (emailaddr-orig to)))))
-     1)))
+	      (dbi.mysql:mysql-escape-sequence (emailaddr-orig from))
+	      (dbi.mysql:mysql-escape-sequence (emailaddr-domain from))
+	      (dbi.mysql:mysql-escape-sequence (emailaddr-orig to)))))))

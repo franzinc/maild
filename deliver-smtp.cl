@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: deliver-smtp.cl,v 1.17 2005/06/13 18:19:40 dancy Exp $
+;; $Id: deliver-smtp.cl,v 1.18 2005/06/13 20:22:25 dancy Exp $
 
 (in-package :user)
 
@@ -142,7 +142,8 @@
 		       ;; get return mail from the recipient.  Only
 		       ;; do this for local senders (i.e., when local-domain-p
 		       ;; returns true).
-		       (if (and *greylist-whitelist-recips* 
+		       (if (and *greylisting-enabled*
+				*greylist-whitelist-recips* 
 				(local-domain-p sender))
 			   (whitelist (recip-printable recip) 
 				      sender
