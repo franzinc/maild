@@ -1,6 +1,6 @@
 #!/bin/sh -e
 
-# $Header: /repo/cvs.copy/maild/maild-installer,v 1.4 2005/06/14 22:11:13 dancy Exp $
+# $Header: /repo/cvs.copy/maild/maild-installer,v 1.5 2005/06/14 22:22:16 dancy Exp $
 
 if [ `id -u` -ne 0 ]; then
     echo Maild installation requires root privileges
@@ -65,10 +65,16 @@ if [ -x /usr/sbin/alternatives ]; then
     
     /usr/sbin/alternatives --auto mta
 else
-    if [ ! -e /usr/sbin/sendmail.sendmail ]; then
+    # Move real sendmail out of the way
+    if [ ! -e /usr/sbin/sendmail.sendmail -a -f /usr/sbin/sendmail]; then
 	mv /usr/sbin/sendmail /usr/sbin/sendmail.sendmail
     fi
-    ln -snf /usr/local/sbin/maild sendmail
+    if [ ! -e /usr/bin/mailq.sendmail -a -f /usr/bin/mailq ]; then
+	mv /usr/bin/mailq /usr/bin/mailq.sendmail
+    fi
+
+    ln -snf /usr/local/sbin/maild /usr/sbin/sendmail
+    ln -snf /usr/local/sbin/maild /usr/bin/mailq
 fi
 
 if [ ! -L /usr/lib/sendmail ]; then
