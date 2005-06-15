@@ -1,3 +1,11 @@
+2005-06-15  root  <root@gills.dancysoft.com>
+1.1.30
+      
+	* deliver-smtp.cl: Fixed bug when greylist is enabled and
+	auto-whitelisting outgoing recips is enabled and the sender is <>.
+
+	* queue-process.cl: Fixed typo in a log message.
+
 2005-06-15  Ahmon Dancy  <dancy@dancy>
 1.1.29
 

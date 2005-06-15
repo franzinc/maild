@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: deliver-smtp.cl,v 1.18 2005/06/13 20:22:25 dancy Exp $
+;; $Id: deliver-smtp.cl,v 1.19 2005/06/15 19:53:24 dancy Exp $
 
 (in-package :user)
 
@@ -144,6 +144,7 @@
 		       ;; returns true).
 		       (if (and *greylisting-enabled*
 				*greylist-whitelist-recips* 
+				(not (string= sender "<>"))
 				(local-domain-p sender))
 			   (whitelist (recip-printable recip) 
 				      sender

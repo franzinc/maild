@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: queue-process.cl,v 1.16 2004/01/12 22:42:19 dancy Exp $
+;; $Id: queue-process.cl,v 1.17 2005/06/15 19:53:24 dancy Exp $
 
 (in-package :user)
 
@@ -211,7 +211,7 @@
       (error "queue-process-daemon: Invalid interval: ~S" interval))
   (mp:process-run-function "Queue daemon"
     #'(lambda ()
-	(maild-log "Queue process internal: ~D seconds" interval)
+	(maild-log "Queue process interval: ~D seconds" interval)
 	(loop
 	  (queue-process-all)
 	  (sleep interval)))))
