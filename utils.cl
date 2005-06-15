@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: utils.cl,v 1.15 2005/06/13 16:17:02 dancy Exp $
+;; $Id: utils.cl,v 1.16 2005/06/15 17:58:00 dancy Exp $
 
 (in-package :user)
 
@@ -182,6 +182,14 @@
   (dolist (checker *relay-checkers*)
     (if (funcall checker addr from to)
 	(return t))))
+
+;; Return true if string is a fully qualified domain name.
+;; which basically means, return true if there is at least one
+;; dot in string.
+(defun fqdn-p (string)
+  (find #\. string))
+
+;;; 
 
 (defun process-dead-p (process)
   #+(version= 6 2)(null (mp:process-implementation process))

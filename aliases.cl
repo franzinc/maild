@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: aliases.cl,v 1.15 2005/06/13 16:17:02 dancy Exp $
+;; $Id: aliases.cl,v 1.16 2005/06/15 17:58:00 dancy Exp $
 
 (in-package :user)
 
@@ -274,14 +274,19 @@
 
 ;;; end parsing stuff... 
 
-;;; begin expansion stuff...
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; begin expansion stuff
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;;; There are two entrypoints.  alias-transform and expand-alias.
-;;; alias-transform is like expand-alias except that if no alias
-;;; expansion exists, it just returns the argument (converted to a recip).
 
 ;;; expand-alias attempts to expand an alias.  If there is no expansion,
 ;;; nil is returned.
+
+;;; alias-transform is like expand-alias except that if no alias
+;;; expansion exists, it just returns the argument (converted to a recip).
+;;; This is for the convenience of lookup-recip.
+
 
 ;; Called by lookup-recip
 (defun alias-transform (thing)
@@ -315,7 +320,8 @@
       (setf paddr (unextended-address paddr)))))
       
 
-;; paddr should be a parsed address
+;; paddr should be a parsed address.
+;; Returns the unextended parsed address and the extension string
 (defun unextended-address (paddr)
   (block nil
     (if (null *address-extension-delimiter*)
@@ -332,7 +338,7 @@
 	    (concatenate 'string (emailaddr-user paddr) "@"
 			 (emailaddr-domain paddr))
 	  (emailaddr-user paddr)))
-      paddr)))
+      (values paddr (subseq user (1+ pos))))))
     
 
 ;; tries long match (w/ full domain) first.. 

@@ -1,4 +1,4 @@
-;; $Id: config.cl,v 1.30 2005/06/13 18:19:40 dancy Exp $
+;; $Id: config.cl,v 1.31 2005/06/15 17:58:00 dancy Exp $
 
 (in-package :user)
 
@@ -12,7 +12,9 @@
 (defparameter *short-host-name* nil)
 
 ;; If this is nil, the fully qualified domain name of this
-;; host will be determined automatically, if possible.
+;; host will be determined automatically, if possible.  *fqdn*
+;; is what is used during the HELO transaction when delivering mail
+;; via SMTP.
 (defparameter *fqdn* nil)
 
 ;; Other names by which this host is known (Besides *fqdn* and

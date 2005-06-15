@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: mailer.cl,v 1.4 2005/06/13 16:17:02 dancy Exp $
+;; $Id: mailer.cl,v 1.5 2005/06/15 17:58:00 dancy Exp $
 
 (in-package :user)
 
@@ -27,16 +27,25 @@
 (defmacro mailer-recip-lookup-func (mailer)
   `(third ,mailer))
 
+;; recip should be a recip struct
+;; called by mark-recip-with-suitable-mailer and any-mailer-matches-p
 (defun lookup-recip-in-mailer (mailer recip)
-  (let ((addr (recip-addr recip))
-	res)
-    (while addr
-      (setf res (funcall (mailer-recip-lookup-func mailer) addr))
-      (if res
-	  (return res))
-      (setf addr (unextended-address addr)))))
+  (block nil
+    (let ((addr (recip-addr recip)))
+      (if (funcall (mailer-recip-lookup-func mailer) addr)
+	  (return recip))
+      ;; Maybe it's an extended address
+      (multiple-value-bind (addr extension)
+	  (unextended-address addr)
+	(if (null addr)
+	    (return nil))
+	;; It is.  Alter the recip struct.
+	(setf (recip-extension recip) extension)
+	(setf (recip-addr recip) addr)
+	recip))))
   
 
+;; Called by lookup-recip
 (defun mark-recip-with-suitable-mailer (recip)
   (block nil
     (if (recip-type recip) ;; special recip
@@ -45,7 +54,7 @@
       (setf (recip-mailer recip) :smtp)
       (return))
     (dolist (mailer *mailers*)
-      (when (funcall (mailer-recip-lookup-func mailer) (recip-addr recip))
+      (when (lookup-recip-in-mailer mailer recip)
 	(setf (recip-mailer recip) (first mailer))
 	(return)))
     (when (null (recip-mailer recip))
@@ -54,15 +63,17 @@
       (setf (recip-type recip) :error)
       (setf (recip-errmsg recip) "No such mailbox"))))
 
+;; addr is a parsed address.
+;; called by: quick-verify-recip
 (defun any-mailer-matches-p (addr)
   (dolist (mailer *mailers*)
-    (if (funcall (mailer-recip-lookup-func  mailer) addr)
+    (if (lookup-recip-in-mailer mailer (make-recip :addr addr))
 	(return t))))
 
 ;; returns the run-as user as a second value
 (defun make-delivery-command-for-recip (recip q)
   (let ((mailer (get-mailer-by-id (recip-mailer recip))))
-    (values (funcall (fourth mailer) (recip-addr recip) q)
+    (values (funcall (fourth mailer) recip q)
 	    (fifth mailer))))
 
 ;;;; built-in mailers.
@@ -72,12 +83,12 @@
     (and (local-domain-p addr)
 	 (getpwnam (string-downcase (emailaddr-user addr))))))
 
-(defun deliver-local-command (addr q)
+(defun deliver-local-command (recip q)
   (list "/usr/bin/procmail" 
 	"-Y"
+	"-a"
+	(if (recip-extension recip) (recip-extension recip) "")
 	"-f"
 	(emailaddr-orig (rewrite-local-envelope-sender (queue-from q)))
 	"-d"
-	(string-downcase (emailaddr-user addr))))
-
-
+	(string-downcase (emailaddr-user (recip-addr recip)))))

@@ -30,14 +30,14 @@ return nil if it doesn't deal w/ this recip, non-nil if it does.
 *** The delivery program command line function
 
 The function is called with two arguments:
-1) The recipient (parsed emailaddr struct)
+1) The recipient struct
 2) The 'queue' object.
 
 The function should return a list which represents the components of
 the command line to be executed.
 
 Default: use the built-in local delivery command which creates:
-procmail -Y -f <envelope-from> -d <user>
+procmail -Y -a <extension> -f <envelope-from> -d <user>
 
  
 *** Relation to the aliases file

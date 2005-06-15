@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: recips.cl,v 1.19 2005/06/13 18:19:40 dancy Exp $
+;; $Id: recips.cl,v 1.20 2005/06/15 17:58:00 dancy Exp $
 
 (in-package :user)
 
@@ -22,13 +22,14 @@
 
 (defstruct recip
   type ;; :prog, :file, :error, :bad, :include   nil means normal
-  orig ;; unparsed
-  addr ;; parsed
+  orig ;; unparsed (i.e, printable string)
+  addr ;; parsed.  Only relevant for normal recips
+  extension ;; the address extension, if there was one
   file ;; for :file and :prog recips
   prog-user ;; for :prog recips
   errmsg ;; for :error and :bad recips
   escaped ;; don't expand any further
-  expanded-from ;; string  (information only)
+  expanded-from ;; list of parsed email addresses.  Last entry is original lhs
   owner ;; nil means just use the original envelope sender
   mailer ;; which delivery program should be used
   status) 
@@ -139,8 +140,8 @@
       (any-mailer-matches-p addr))))
 
 
-;; Returns a list of recips.  There may be duplicates.  There
-;; may be error recips.   
+;; Creates and returns a list of recips.  There may be duplicates.
+;; There may be error recips.
 ;; Called by:   expand-addresses
 (defun lookup-recip (thing)
   (block nil

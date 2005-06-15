@@ -1,3 +1,24 @@
+2005-06-15  Ahmon Dancy  <dancy@dancy>
+1.1.29
+
+       * aliases.cl, mailer.cl, recips.cl
+
+       Fixes to the address extension stuff.  As a side effect, some
+       incompatible changes to the way mailers work have been made:
+	
+	********** Incompatible changes made **************
+
+	mailer command line construction function is now called with
+	two arguments: The recip struct and the queue struct.  Before,
+	the first argument was the parsed email addr of the recip.  If you
+	have custom mailer definitions, you'll need to update.
+
+	*****************************************************	
+
+	* config.cl: Comments only
+
+	* utils.cl: Added fqdn-p (for future use w/ SPF)
+
 2005-06-13  Ahmon Dancy  <dancy@dancy>
 1.1.28
 
