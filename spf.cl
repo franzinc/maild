@@ -14,9 +14,16 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: spf.cl,v 1.1 2005/06/15 20:36:09 dancy Exp $
+;; $Id: spf.cl,v 1.2 2005/06/16 18:25:26 dancy Exp $
 
 (in-package :user)
+
+(eval-when (compile load eval)
+  (require :aserve))
+
+;; Implementation based on 
+;; http://www.ozonehouse.com/mark/spf/draft-lentczner-spf-00.txt
+
 
 ;; prefixes:
 ;; - fail 
@@ -65,25 +72,12 @@
 	
 	(dolist (term terms)
 	  ;; check for a prefix.
-
-(defun spf-prefix (string)
-  (let ((char (char string 0)))
-    (case char
-      (#\+
-       (values :pass 1))
-      (#\-
-       (values :fail 1))
-      (#\?
-       (values :neutral 1))
-      (#\~
-       (values :soft-fail 1))
-      (t
-       (values :pass 0)))))
-
-
+	  )))))
+	  
+	  
 (defun spf-record-p (string)
   (let ((elts (split-regexp "\\b+" string)))
-    (and elts (string= "v=spf1" (first elts)))))
+    (and elts (equalp "v=spf1" (first elts)))))
   
 
 ;; Returns the spf string or a status keyword.. or nil
@@ -124,3 +118,221 @@
 	       (write-string string s)))
 	   res))
 	res))))
+
+;;; parsing stuff
+
+(defun spf-prefix (string)
+  (let ((char (char string 0)))
+    (case char
+      (#\+
+       (values :pass 1))
+      (#\-
+       (values :fail 1))
+      (#\?
+       (values :neutral 1))
+      (#\~
+       (values :soft-fail 1))
+      (t
+       (values :pass 0)))))
+
+(defun spf-parse-mechanism (string)
+  (multiple-value-bind (action pos)
+      (spf-prefix string)
+    ))
+
+(defun spf-parse-all (string pos max)
+  (declare (ignore max))
+  (match-regexp "^all$" string :start pos :case-fold t))
+
+(defun spf-parse-include (string pos max)
+  (when (match-regexp "^include" string :start pos :case-fold t)
+    (incf pos #.(length "include"))
+    (if (>= pos max)
+	(error "Syntax error. include mechanism requires colon"))
+    (let ((char (char string pos)))
+      (if (char/= char #\:)
+	  (error "Syntax error. include mechanism requires colon")))
+    (incf pos)
+    (spf-parse-domain-spec string pos max sender domain ip host ourdomain)
+    ))
+
+      
+    
+
+
+(defun spf-parse-ip4 (string pos max)
+  (when (match-regexp "^ip4" string :start pos :case-fold t)
+    (incf pos 3)
+    (if (or (>= pos max)
+	    (char/= (char string pos) #\:))
+	(error "Syntax error in ip4 term.  colon is required"))
+    (incf pos)
+    (multiple-value-bind (network newpos)
+	(spf-parse-dotted-ip4 string pos max)
+      (if (null network)
+	  (error "Syntax error in ip4 term. ip4-network is required"))
+      (setf pos newpos)
+      (let ((length (spf-parse-cidr-length string pos max)))
+	(if (null length)
+	    (setf length 32))
+	(if (> length 32)
+	    (error "Syntax error in ip4 term. Invalid CIDR length: ~A"
+		   length))
+	(values network length)))))
+  
+
+;; Signals an error on bogus IP address
+(defun spf-parse-dotted-ip4 (string pos max)
+  (if (>= pos max)
+      nil
+    (multiple-value-bind (found whole a b c d)
+	(match-regexp "^\\([0-9]+\\)\\.\\([0-9]+\\)\\.\\([0-9]+\\)\\.\\([0-9]+\\)" string :start pos)
+      (when found
+	(flet ((convert (string)
+		 (let ((val (parse-integer string)))
+		   (if (or (< val 0) (> val 255))
+		       (error "Invalid IP address"))
+		   val)))
+	  (values (+ (ash (convert a) 24)
+		     (ash (convert b) 16)
+		     (ash (convert c) 8)
+		     (convert d))
+		  (+ pos (length whole))))))))
+
+(defun spf-parse-dual-cidr-length (string pos max)
+  (block nil
+    (if (>= pos max)
+	(return))
+    (multiple-value-bind (ip4len newpos)
+	(spf-parse-cidr-length string pos max)
+      (if (null ip4len)
+	  (return))
+      (setf pos newpos)
+      (multiple-value-bind (ip6len newpos)
+	  (spf-parse-cidr-length string pos max)
+	(if ip6len
+	    (values ip4len ip6len newpos)
+	  (values ip4len nil pos))))))
+
+(defun spf-parse-cidr-length (string pos max)
+  (if (>= pos max)
+      nil
+    (multiple-value-bind (matched whole digits)
+	(match-regexp "^/\\([0-9]+\\)" string :start pos)
+      (if matched
+	  (let ((len (parse-integer digits)))
+	    ;; Check lower bound.. but not upper bound since
+	    ;; caller may be interested in either ip4 or ip6
+	    ;; addresses
+	    (if (< len 0)
+		(error "Invalid CIDR length"))
+	    (values len (+ pos (length whole))))))))
+
+;; Macro stuff
+
+(defmacro spf-parse-domain-spec (&rest args)
+  `(spf-parse-macro-string ,@args :exclude-slash t))
+
+(defun spf-parse-macro-string (string pos max sender domain ip host ourdomain
+		     &key exclude-slash)
+  (let ((string
+	 (with-output-to-string (s)
+	   (while (< pos max)
+	     (let ((char (char string pos)))
+	       (cond
+		((and exclude-slash (char= char #\/))
+		 (return))
+		((char= char #\%)
+		 (multiple-value-bind (res newpos)
+		     (spf-parse-macro-expand string pos max sender domain
+					     ip host ourdomain)
+		   (setf pos newpos)
+		   (write-string res s)))
+		(t
+		 (write-char char s)
+		 (incf pos))))))))
+    (values string pos)))
+  
+
+(defun spf-parse-macro-expand (string pos max sender domain ip host ourdomain)
+  (macrolet ((check-len ()
+	       `(if (>= pos max)
+		    (error "Syntax error. Incomplete macro"))))
+    
+    (block nil
+      (if (match-regexp "^%%" string :start pos)
+	  (return (values "%" (+ pos 2))))
+      (if (match-regexp "^%_" string :start pos)
+	  (return (values " " (+ pos 2))))
+      (if (match-regexp "^%-" string :start pos)
+	  (return (values "%20" (+ pos 2))))
+      (if (not (match-regexp "^%{" string :start pos))
+	  (return (values "%" (1+ pos))))
+      ;; start of a macro.
+      (incf pos 2)
+      (check-len)
+      
+      (let ((macro (char string pos)))
+	(incf pos)
+	(multiple-value-bind (use reverse pos)
+	    (spf-parse-transformer string pos max)
+	  (check-len)
+	  ;; check for optional delimiters.
+	  (multiple-value-bind (found delim)
+	      (match-regexp "^[.+,/_=-]*" string :start pos)
+	    (declare (ignore found))
+	    (if (string= delim "")
+		(setf delim ".")
+	      (incf pos (length delim)))
+	    (check-len)
+	    (if (char/= (char string pos) #\})
+		(error "Syntax error. Missing }"))
+	    (incf pos)
+	    
+	    (let ((res 
+		   (case (char-downcase macro)
+		     (#\h "deprecated")
+		     (#\s (emailaddr-orig sender))
+		     (#\l (emailaddr-user sender))
+		     (#\o (emailaddr-domain sender))
+		     (#\d domain)
+		     ((#\c #\i) (ipaddr-to-dotted ip))
+		     (#\p host)
+		     (#\v "in-addr") ;; ipv6 not supported yet
+		     (#\r ourdomain)
+		     (#\t 
+		      (format nil "~d" 
+			      (universal-to-unix-time (get-universal-time))))
+		     (t "unknown"))))
+	      
+	      (setf res (spf-transform res delim use reverse))
+	      
+	      (if (upper-case-p macro)
+		  (setf res (net.aserve:uriencode-string res)))
+	      
+	      (values res pos))))))))
+
+(defun spf-transform (string delim use reverse)
+  ;; split
+  (let ((res (delimited-string-to-list string delim)))
+    ;; reverse
+    (if reverse
+	(setf res (nreverse res)))
+    ;; reduce
+    (while (> (length res) use)
+      (setf res (cdr res)))
+    ;; rebuild
+    (list-to-delimited-string res #\.)))
+
+  
+(defun spf-parse-transformer (string pos max)
+  (if (>= pos max)
+      nil
+    (multiple-value-bind (found whole digits reverse)
+	(match-regexp "^\\([0-9]*\\)\\(r\\|\\)" string :start pos 
+		      :case-fold t)
+      (if found
+	  (values (if (string= digits "") 128 (parse-integer digits))
+		  (if (string= reverse "") nil :reverse)
+		  (+ pos (length whole)))
+	(values 128 nil pos)))))
