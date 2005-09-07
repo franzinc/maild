@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: emailaddr.cl,v 1.11 2003/08/19 18:41:45 dancy Exp $
+;; $Id: emailaddr.cl,v 1.12 2005/09/07 10:48:01 dancy Exp $
 
 (in-package :user)
 
@@ -170,12 +170,15 @@
 				 (#\. (:one-or-more 
 				       (:char-predicate atext-char-p))))))
 
+;; Less strict than the specification since some popular email systems
+;; (Yahoo mail, for example) pass emails with 8-bit characters in the
+;; headers. 
 (defun qtextp (char)
   (let ((code (char-code char)))
     (or (no-ws-ctl-p char)
 	(= code 23)
 	(<= 35 code 91)
-	(<= 93 code 126))))
+	(<= 93 code 255)))) ;; strictly, should be (<= 93 code 126)
 
 (defparameter *qcontent* '(:or (:char-predicate qtextp) *quoted-pair*))
 

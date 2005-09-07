@@ -1,3 +1,10 @@
+2005-09-07  root  <root@gills.dancysoft.com>
+1.1.31
+	
+	* emailaddr.cl: In quoted text, loosen the restrictions on the
+	allowed characters.  Yahoo allows 8-bit characters to pass
+	through.
+
 2005-06-15  root  <root@gills.dancysoft.com>
 1.1.30
       
