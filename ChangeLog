@@ -16,8 +16,10 @@
 2005-06-15  Ahmon Dancy  <dancy@dancy>
 1.1.29
 
-       * aliases.cl, mailer.cl, recips.cl
+       * aliases.cl, mailer.cl, recips.cl, MAILERS.txt
 
+       The recip struct has changed.  Do a clean build.
+	
        Fixes to the address extension stuff.  As a side effect, some
        incompatible changes to the way mailers work have been made:
 	
