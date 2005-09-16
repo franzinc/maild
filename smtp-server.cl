@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: smtp-server.cl,v 1.29 2004/12/15 19:32:51 layer Exp $
+;; $Id: smtp-server.cl,v 1.30 2005/09/16 14:29:11 dancy Exp $
 
 (in-package :user)
 
@@ -22,6 +22,7 @@
 
 (eval-when (compile load eval)
   (require :osi)
+  (require :ssl)
   (use-package :excl.osi)
   (use-package :socket))
 
@@ -33,7 +34,8 @@
   from
   to ;; a list
   verbose
-  fork)
+  fork
+  ssl)
 
 (defstruct statistics
   (stats-start (get-universal-time))
@@ -113,19 +115,30 @@
 
   (let ((port *smtp-port*)
 	(ent (getservbyname "smtp" "tcp"))
-	sock)
+	sockets sock sslsock)
     (if ent
 	(setf port (servent-port ent)))
     (handler-case 
-	(setf sock (make-socket :local-port port 
-				:local-host *smtp-ip*
-				:type :hiper
-				:connect :passive
-				:reuse-address t))
+	(progn
+	  (setf sock (make-socket :local-port port 
+				  :local-host *smtp-ip*
+				  :type :hiper
+				  :connect :passive
+				  :reuse-address t))
+	  (if *ssl-support*
+	      (setf sslsock (make-socket :local-port 465
+					 :local-host *smtp-ip*
+					 :type :hiper
+					 :connect :passive
+					 :reuse-address t))))
       (error (c)
 	(maild-log "~A" c)
 	(maild-log "Exiting.")
 	(return-from smtp-server)))
+
+    (push sock sockets)
+    (if sslsock (push sslsock sockets))
+    
     
     (if (probe-file *stats-file*)
 	(if* (world-or-group-writable-p *stats-file*)
@@ -144,11 +157,14 @@
   
     (unwind-protect
 	(loop
-	  (let ((newsock (ignore-errors (accept-connection sock))))
-	    (if newsock
-		(mp:process-run-function "SMTP session" #'do-smtp 
-					 newsock))))
-      (ignore-errors (close sock)))))
+	  (let* ((ready (first (mp:wait-for-input-available sockets)))
+		 (newsock (ignore-errors (accept-connection ready))))
+	    (when newsock
+	      (mp:process-run-function "SMTP session" 
+		#'do-smtp 
+		newsock :ssl (eq ready sslsock)))))
+      (ignore-errors (close sock)
+		     (if sslsock (close sslsock))))))
 
 (defmacro smtp-remote-host (sock)
   (let ((socksym (gensym)))
@@ -164,17 +180,31 @@
 	   (ipaddr-to-dotted (remote-host ,socksym))
 	 "localhost"))))
 
+(defun start-tls-common (sess)
+  (setf (session-ssl sess) t)
+  (setf (session-sock sess)
+    (socket:make-ssl-server-stream 
+     (session-sock sess)
+     :certificate *ssl-certificate-file*
+     :key *ssl-key-file*)))
+  
     
-(defun do-smtp (sock &key fork verbose)
+(defun do-smtp (sock &key fork verbose ssl)
   (unwind-protect
       (handler-case
 	  (with-socket-timeout (sock :write *datatimeout*)
 	    (let* ((dotted (smtp-remote-dotted sock))
 		   (sess (make-session :sock sock :dotted dotted
+				       :ssl ssl
 				       :fork fork :verbose verbose))
 		   cmd)
-	
-	      (maild-log "SMTP connection from ~A" dotted)
+
+	      (if ssl
+		  (setf sock (start-tls-common sess)))
+	      
+	      (maild-log "~ASMTP connection from ~A" 
+			 (if ssl "SSL " "")
+			 dotted)
 	      
 	      (inc-smtp-stat num-connections)
 	      
@@ -253,6 +283,7 @@
 (defparameter *smtpcmdlist*
     '(("helo" smtp-helo)
       ("ehlo" smtp-ehlo)
+      ("starttls" smtp-starttls)
       ("quit" smtp-quit)
       ("noop" smtp-noop)
       ("rset" smtp-reset)
@@ -260,18 +291,19 @@
       ("rcpt" smtp-rcpt)
       ("data" smtp-data)))
 
-(defun process-smtp-command (sess cmd)
-  (block nil
-    (let ((sock (session-sock sess))
-	  cmdinfo)
-      (if* (or (< (length cmd) 4)
-	       (null (setf cmdinfo (find (subseq cmd 0 4) *smtpcmdlist*
-					 :key #'first :test #'equalp))))
-	 then
-	      (outline sock "500 5.5.1 Command unrecognized: ~S"
-		       cmd)
-	      (return nil))
-      (funcall (second cmdinfo) sess (subseq cmd 4)))))
+(defun process-smtp-command (sess cmdline)
+  (let* ((sock (session-sock sess))
+	 (spacepos (or (position #\space cmdline) (length cmdline)))
+	 (cmd (subseq cmdline 0 spacepos))
+	 (cmdinfo (find cmd *smtpcmdlist* :key #'first :test #'equalp)))
+    
+    (if* (null cmdinfo)
+       then
+	    (outline sock "500 5.5.1 Command unrecognized: ~S"
+		     cmdline)
+	    nil
+       else
+	    (funcall (second cmdinfo) sess (subseq cmdline spacepos)))))
 
 (defun reset-smtp-session (sess)
   (setf (session-from sess) nil)
@@ -345,8 +377,28 @@ in the HELO command (~A) from client ~A"
 		       text (session-dotted sess)))))))
       
       (setf (session-helo sess) text)
-      (outline sock "250 ~a Hi there." (fqdn)))))
-    
+      
+      (let (res)
+	(push (format nil "~a Hi there." (fqdn)) res)
+	(if (and *ssl-support* (not (session-ssl sess)))
+	    (push "STARTTLS" res))
+	(setf res (nreverse res))
+	(while (> (length res) 1)
+	  (outline sock "250-~a" (pop res)))
+	(outline sock "250 ~a" (pop res))))))
+
+(defun smtp-starttls (sess text)
+  (declare (ignore text))
+  (let ((sock (session-sock sess)))
+    (if* (or (not *ssl-support*) (session-ssl sess))
+       then
+	    (outline sock "500 STARTTLS not available")
+       else
+	    (outline sock "220 Ready for TLS")
+	    (start-tls-common sess))))
+      
+
+
 (defun smtp-quit (sess text)
   (declare (ignore text))
   (outline (session-sock sess) "221 2.0.0 ~a closing connection" (fqdn))

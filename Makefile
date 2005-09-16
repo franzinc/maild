@@ -1,7 +1,9 @@
-# $Id: Makefile,v 1.20 2005/06/08 14:30:50 dancy Exp $
+# $Id: Makefile,v 1.21 2005/09/16 14:29:11 dancy Exp $
 
-lisp:=$(shell if test -x /fi/cl/7.0/bin/linux86/mlisp; then \
-		echo /fi/cl/7.0/bin/linux86/mlisp; \
+arch:=$(shell if [ `arch` = x86_64 ]; then echo amd64.64; else echo x86; fi)
+
+lisp:=$(shell if test -x /fi/cl/7.0/bin/linux$(arch)/mlisp; then \
+		echo /fi/cl/7.0/bin/linux$(arch)/mlisp; \
 	     elif test -x /usr/local/acl70/mlisp; then \
 		echo /usr/local/acl70/mlisp; \
 	     elif test -x /storage1/acl70/mlisp; then \
@@ -57,6 +59,9 @@ clean: FORCE
 	rm -f *.fasl maild.tar.gz maild-*.tar.gz 
 	rm -fr maild check-mail-virus rpmbuild maild.spec
 	(cd greyadmin; make clean)
+
+update: FORCE
+	cvs -q update -dP
 
 HERE := $(shell pwd)
 

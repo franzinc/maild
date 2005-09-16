@@ -1,8 +1,13 @@
-;; $Id: config.cl,v 1.31 2005/06/15 17:58:00 dancy Exp $
+;; $Id: config.cl,v 1.32 2005/09/16 14:29:11 dancy Exp $
 
 (in-package :user)
 
 (defparameter *debug* nil)
+
+(defparameter *ssl-support* nil)
+;; Must be set if *ssl-support* is true
+(defparameter *ssl-certificate-file* "/etc/maild.crt")
+(defparameter *ssl-key-file* "/etc/maild.crt")
 
 (defparameter *aliases-file* "/etc/aliases")
 
