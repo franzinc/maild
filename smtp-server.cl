@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: smtp-server.cl,v 1.30 2005/09/16 14:29:11 dancy Exp $
+;; $Id: smtp-server.cl,v 1.31 2005/09/16 15:12:33 dancy Exp $
 
 (in-package :user)
 
@@ -394,6 +394,7 @@ in the HELO command (~A) from client ~A"
        then
 	    (outline sock "500 STARTTLS not available")
        else
+	    (setf (session-helo sess) nil)
 	    (outline sock "220 Ready for TLS")
 	    (start-tls-common sess))))
       

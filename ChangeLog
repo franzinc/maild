@@ -1,3 +1,8 @@
+2005-09-16  Ahmon Dancy  <dancy@dancy>
+1.1.33
+	
+	* Bugfix from 1.1.32.  Allow EHLO/HELO again after STARTTLS.
+
 2005-09-15  Ahmon Dancy  <dancy@dancy>
 1.1.32
 	
