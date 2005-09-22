@@ -1,3 +1,8 @@
+2005-09-22  Ahmon Dancy  <dancy@dancy>
+1.1.35
+	
+	* Fix client authentication sanity check in maild.cl
+
 2005-09-21  Ahmon Dancy  <dancy@dancy>
 1.1.34
 

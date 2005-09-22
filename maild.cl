@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: maild.cl,v 1.20 2005/09/22 04:02:57 dancy Exp $
+;; $Id: maild.cl,v 1.21 2005/09/22 19:25:01 dancy Exp $
 
 (in-package :user)
 
@@ -66,7 +66,9 @@
 
       (if (and *ssl-support* (null *ssl-certificate-file*))
 	  (error "*ssl-certificate-file* must be set when *ssl-support* is enabled"))
-      (if (and *client-auth-requires-ssl* (null *ssl-support*))
+      (if (and *client-authentication* 
+	       *client-auth-requires-ssl* 
+	       (null *ssl-support*))
 	  (error "*ssl-support must be enabled when *client-auth-requires-ssl* is enabled"))
       
       (establish-signal-handlers)
