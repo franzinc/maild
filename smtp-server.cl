@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: smtp-server.cl,v 1.31 2005/09/16 15:12:33 dancy Exp $
+;; $Id: smtp-server.cl,v 1.32 2005/09/22 04:02:57 dancy Exp $
 
 (in-package :user)
 
@@ -35,7 +35,8 @@
   to ;; a list
   verbose
   fork
-  ssl)
+  ssl
+  auth-user)
 
 (defstruct statistics
   (stats-start (get-universal-time))
@@ -107,6 +108,13 @@
   (when (and *rep-start-server*
 	     (not *rep-server-started*))
     (maild-log "Starting REP server")
+    
+    (setq excl::*trace-timestamp* t)
+    (setq *trace-output*
+      (open "/tmp/maild.trace" :direction :output
+	    :if-does-not-exist :create
+	    :if-exists :append))    
+
     (mp:process-run-function "rep server"
       'start-rep-server *rep-server-port* 'maild-log)
     (setq *rep-server-started* t))
@@ -286,6 +294,7 @@
       ("starttls" smtp-starttls)
       ("quit" smtp-quit)
       ("noop" smtp-noop)
+      ("auth" smtp-auth)
       ("rset" smtp-reset)
       ("mail" smtp-mail)
       ("rcpt" smtp-rcpt)
@@ -316,7 +325,6 @@
   (smtp-helo-common sess text :ehlo))
 
 (defun smtp-helo-common (sess text type)
-  (declare (ignore type)) ;;later
   (block nil
     (let ((sock (session-sock sess)))
       (when (session-helo sess)
@@ -377,15 +385,31 @@ in the HELO command (~A) from client ~A"
 		       text (session-dotted sess)))))))
       
       (setf (session-helo sess) text)
-      
-      (let (res)
-	(push (format nil "~a Hi there." (fqdn)) res)
-	(if (and *ssl-support* (not (session-ssl sess)))
-	    (push "STARTTLS" res))
-	(setf res (nreverse res))
-	(while (> (length res) 1)
-	  (outline sock "250-~a" (pop res)))
-	(outline sock "250 ~a" (pop res))))))
+
+      (ecase type
+	(:helo
+	 (outline sock "250 ~a Hi there." (fqdn)))
+	(:ehlo
+	 (let (res)
+	   (push (format nil "~a Hi there." (fqdn)) res)
+
+	   (if (and *ssl-support* (not (session-ssl sess)))
+	       (push "STARTTLS" res))
+
+	   (when *client-authentication*
+	     (if (or (not *client-auth-requires-ssl*)
+		     (and *client-auth-requires-ssl* (session-ssl sess)))
+		 (push 
+		  (format nil "AUTH ~a"
+			  (list-to-delimited-string 
+			   (mapcar #'car *sasl-mechs*) 
+			   #\space))
+		  res)))
+	     
+	   (setf res (nreverse res))
+	   (while (> (length res) 1)
+	     (outline sock "250-~a" (pop res)))
+	   (outline sock "250 ~a" (pop res))))))))
 
 (defun smtp-starttls (sess text)
   (declare (ignore text))
@@ -396,10 +420,9 @@ in the HELO command (~A) from client ~A"
        else
 	    (setf (session-helo sess) nil)
 	    (outline sock "220 Ready for TLS")
+	    (maild-log "Starting TLS for ~a" (session-dotted sess))
 	    (start-tls-common sess))))
       
-
-
 (defun smtp-quit (sess text)
   (declare (ignore text))
   (outline (session-sock sess) "221 2.0.0 ~a closing connection" (fqdn))
@@ -409,6 +432,51 @@ in the HELO command (~A) from client ~A"
   (declare (ignore text))
   (outline (session-sock sess) "250 2.0.0 OK"))
 
+(defun smtp-auth (sess text)
+  (block nil
+    (let ((sock (session-sock sess))
+	  mechname initial mechfunc)
+      (when (not *client-authentication*)
+	(outline sock "500 Command unavailable")
+	(return))
+      
+      (when (and *client-auth-requires-ssl* (not (session-ssl sess)))
+	(outline sock "538 Encryption required for requested authentication mechanism")
+	(return))
+      
+      (when (session-auth-user sess)
+	(outline sock "503 5.5.0 Already Authenticated")
+	(return))
+
+      (let ((tmp 
+	     (delimited-string-to-list (string-trim '(#\space) text) #\space)))
+	(setf mechname (first tmp))
+	(setf initial (second tmp)))
+	
+      (when (null mechname)
+	(outline sock "501 5.5.2 AUTH mechanism must be specified")
+	(return))
+      
+      (setf mechfunc (cdr (assoc mechname *sasl-mechs* :test #'equalp)))
+      (when (null mechfunc)
+	(outline sock "504 5.3.3 AUTH mechanism ~a not available"
+		 mechname)
+	(return))
+
+      (multiple-value-bind (user pass)
+	  (funcall mechfunc sess initial)
+	(when (or (null user) (not (authenticate-user user pass)))
+	  (maild-log "~a: Auth failure (user=~a)"
+		     (session-dotted sess) user)
+	  (sleep 5)
+	  (outline sock "535 5.7.0 authentication failed")
+	  (return))
+	
+	(setf (session-auth-user sess) user)
+
+	(maild-log "~a: User ~a authenticated" (session-dotted sess) user)
+	(outline sock "235 2.0.0 OK Authenticated")))))
+    
 
 (defun smtp-reset (sess text)
   (declare (ignore text))
@@ -422,14 +490,20 @@ in the HELO command (~A) from client ~A"
 	(outline sock "503 5.0.0 Polite people say HELO first")
 	(return))
 
-      (if* (session-from sess)
-	 then
-	      (outline sock "503 5.5.0 Sender already specified")
-	      (return))
+      (when (session-from sess)
+	(outline sock "503 5.5.0 Sender already specified")
+	(return))
+
+      (when (and (eq *client-authentication* :required)
+		 (null (session-auth-user sess)))
+	(outline sock "530 Authentication required")
+	(return))
+      
       ;; parse the command line
-      (multiple-value-bind (matched whole addr)
-	  (match-regexp "^\\b+from:\\b*\\(\\B\\B*\\)\\b*$" text :case-fold t)
-	(declare (ignore whole))
+      (multiple-value-bind (matched whole addr auth)
+	  (match-regexp "^\\b+from:\\b*\\(\\B\\B*\\)\\b*\\(auth=\\B+\\|\\)$"
+			text :case-fold t)
+	(declare (ignore whole auth))
 	(when (not matched)
 	  (outline sock "501 5.5.2 Syntax error in command")
 	  (return))
@@ -518,6 +592,7 @@ in the HELO command (~A) from client ~A"
 	  (dolist (checker *smtp-rcpt-to-checkers*)
 	    (multiple-value-bind (status string)
 		(funcall (second checker) 
+			 sess
 			 (smtp-remote-host sock)
 			 (session-from sess)
 			 disp

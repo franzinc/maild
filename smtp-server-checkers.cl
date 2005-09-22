@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: smtp-server-checkers.cl,v 1.14 2003/09/19 17:30:34 dancy Exp $
+;; $Id: smtp-server-checkers.cl,v 1.15 2005/09/22 04:02:57 dancy Exp $
 
 (in-package :user)
 
@@ -114,14 +114,18 @@
 
 ;; RCPT TO:
 
-(defun smtp-rcpt-to-relay-checker (ip from type recip recips)
+(defun smtp-rcpt-to-relay-checker (sess ip from type recip recips)
   (declare (ignore recips))
   (block nil
     (if (eq type :local)
 	(return :ok))
 
-    (if (relaying-allowed-p ip from recip)
+    (if (or (session-auth-user sess)
+	    (relaying-allowed-p ip from recip))
 	(return :ok))
+    
+    (if *client-authentication*
+	(return (values :err "Authentication required")))
     
     (values :err (format nil "~A... Relaying denied" (emailaddr-orig recip)))))
 
@@ -133,8 +137,8 @@
 
   
 
-(defun smtp-rcpt-to-dns-blacklist-checker (ip from type recip recips)
-  (declare (ignore type recips))
+(defun smtp-rcpt-to-dns-blacklist-checker (sess ip from type recip recips)
+  (declare (ignore type recips sess))
   (block nil
     ;; check exceptions first
     (let ((orig (emailaddr-orig recip)))

@@ -1,4 +1,4 @@
-;; $Id: config.cl,v 1.32 2005/09/16 14:29:11 dancy Exp $
+;; $Id: config.cl,v 1.33 2005/09/22 04:02:57 dancy Exp $
 
 (in-package :user)
 
@@ -7,8 +7,26 @@
 (defparameter *ssl-support* nil)
 ;; Must be set if *ssl-support* is true
 (defparameter *ssl-certificate-file* "/etc/maild.crt")
+;; Can be nil if *ssl-certificate-file* contains the key
 (defparameter *ssl-key-file* "/etc/maild.crt")
 
+;; *client-authentiation*
+;;  If nil, authentication is disabled.
+;;  If :relay, then authentication is required before mail can be relayed
+;;     through this server
+;;  If :required, then authentication is required before any mail transaction.
+;;     This is okay for mail hosts that are only used by clients for injecting
+;;     mail.  But it's probably a bad idea for mailhosts that receive mail
+;;     from other hosts (unless those other hosts have been configured with
+;;     the proper authentication parameters).
+(defparameter *client-authentication* nil)
+
+;; Since, for best password database interoperability, maild only
+;; supports cleartext auth mechanisms, it is a good idea to require the
+;; use of SSL before allowing authentication to occur.  Needless to say,
+;; If this is enabled, then *ssl-support* needs to be enabled as well.
+(defparameter *client-auth-requires-ssl* t)
+ 
 (defparameter *aliases-file* "/etc/aliases")
 
 (defparameter *stats-file* "/var/state/maild")

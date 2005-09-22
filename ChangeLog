@@ -1,3 +1,24 @@
+2005-09-21  Ahmon Dancy  <dancy@dancy>
+1.1.34
+
+	* Added support for client authentication using plain-text
+	mechanisms (which allow for the standard password database
+	mechanisms to be used).  By default, ssl is required before
+	authentication can be performed (so that the plaintext passwords
+	are not transferred in the clear).  
+
+	* maild.cl:  Moved the /tmp/maild.trace stuff to smtp-server.cl.
+
+	* sasl.cl: New.
+
+	* smtp-server-checkers.cl:  rcpt-to checkers now take the SMTP
+	session structure as the first argument.  The relay checker now
+	checks to see if the client is authenticate.  If so, then relaying
+	is allowed.  
+
+	* smtp-server.cl:  Only open /tmp/maild.trace if the REP server is
+	running. 
+
 2005-09-16  Ahmon Dancy  <dancy@dancy>
 1.1.33
 	
