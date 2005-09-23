@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: maild.cl,v 1.21 2005/09/22 19:25:01 dancy Exp $
+;; $Id: maild.cl,v 1.22 2005/09/23 16:26:37 dancy Exp $
 
 (in-package :user)
 
@@ -175,7 +175,7 @@
 
 (defun maild-signal-handler (sig tee)
   (declare (ignore tee))
-  ;;(format t "Maild terminating...~%")
+  (maild-log "Maild terminating on signal ~d" sig)
   (excl::mp-safe-exit (+ 128 sig) :quiet t)
   t) ;; for good measure
 

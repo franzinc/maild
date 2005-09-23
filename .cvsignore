@@ -1,4 +1,9 @@
 autoloads.out
 maild
 check-mail-virus
+diffs
+diffs.txt
+*.tar.gz
+sync-ext
+maild-greylist.cl
 

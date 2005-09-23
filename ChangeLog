@@ -1,3 +1,10 @@
+2005-09-23  Ahmon Dancy  <dancy@dancy>
+1.1.36
+	
+	* maild.cl: Log when maild is terminated via signal.
+
+	* auth.cl: Adding to repository (late).
+
 2005-09-22  Ahmon Dancy  <dancy@dancy>
 1.1.35
 	
