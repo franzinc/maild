@@ -79,6 +79,9 @@
   (let ((pwent (getpwnam *run-as*)))
     (if (null pwent)
 	(error "User ~A doesn't exist" *run-as*))
+    
+    (greyadmin-log "starting webserver on port ~s" *port*)
+    
     (start :port *port* 
 	   :setuid (pwent-uid pwent)
 	   :setgid (pwent-gid pwent))
@@ -179,6 +182,7 @@
     (let* ((login (request-query-value "login" req))
 	   (pw (request-query-value "pw" req))
 	   (sess (websession-from-req req)))
+
       ;; Check for super user access
       (when (and *admin-user* *admin-password* 
 		 (string= login *admin-user*)
@@ -547,6 +551,22 @@
      (format nil "select ip, sender, blocked from triples where receiver=~S and blockexpire<~D and expire>~D and passed=0"
 	     (mysql-escape-sequence addr)
 	     now now))))
+
+;;;;;;;
+;; debugging
+
+(defparameter *log-opened* nil)
+
+(defun greyadmin-log (format-string &rest format-args)
+  (when (null *log-opened*)
+    (openlog "greyadmin" *log-pid* *log-mail*)
+    (setf *log-opened* t))
+  
+  (syslog (logior *log-mail* *log-info*)
+	  (handler-case
+	      (apply #'format nil format-string format-args)
+	    (error (c)
+	      (format nil "error in format string ~s: ~a" format-string c)))))
 
 ;;;;;;;
 

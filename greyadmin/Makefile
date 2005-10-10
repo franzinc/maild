@@ -1,15 +1,13 @@
-# $Id: Makefile,v 1.8 2005/04/06 03:22:32 dancy Exp $
+# $Id: Makefile,v 1.9 2005/10/10 16:53:41 layer Exp $
 
 lisp=$(shell if test -n "$(ACL)"; then \
 		echo $(ACL); \
 	     elif test -x /fi/cl/7.0/bin/linux86/mlisp; then \
 		echo /fi/cl/7.0/bin/linux86/mlisp; \
-	     elif test -x /usr/local/acl70/mlisp; then \
-		echo /usr/local/acl70/mlisp; \
 	     elif test -x /storage1/acl70/mlisp; then \
 		echo /storage1/acl70/mlisp; \
 	     else \
-		echo /backup/acl/acl70/mlisp; \
+		echo mlisp; \
 	     fi)
 libdir=/usr/local/lib
 bindir=/usr/local/sbin

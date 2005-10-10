@@ -1,3 +1,9 @@
+2005-10-10  Kevin Layer  <layer@relay.known.net>
+
+	* Makefile: default to `mlisp'
+	* greyadmin.cl: define greyadmin-log, and announce the webserver
+	  port on startup
+
 2005-03-15  root  <root@gills.dancysoft.com>
 
 	* Makefile:

@@ -1,3 +1,9 @@
+2005-10-10  Kevin Layer  <layer@relay.known.net>
+
+	* Makefile: default to `mlisp'; all does clean first
+	* lock.cl: use mp:process-sleep instead of sleep, since 8.0's
+	  definition changed to not allow the `whostate' optional.
+
 2005-09-23  Ahmon Dancy  <dancy@dancy>
 1.1.36
 	
@@ -93,7 +99,7 @@
 
 	Issue the following statements:
 
-	(e.g., "mysql greylist, then:")
+	(e.g., "mysql greylist", then:)
 
 	alter table whitelist add expire bigint;
 	create index ind6 on whitelist (expire);

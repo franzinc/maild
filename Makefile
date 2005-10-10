@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.21 2005/09/16 14:29:11 dancy Exp $
+# $Id: Makefile,v 1.22 2005/10/10 16:53:41 layer Exp $
 
 arch:=$(shell if [ `arch` = x86_64 ]; then echo amd64.64; else echo x86; fi)
 
@@ -9,14 +9,14 @@ lisp:=$(shell if test -x /fi/cl/7.0/bin/linux$(arch)/mlisp; then \
 	     elif test -x /storage1/acl70/mlisp; then \
 		echo /storage1/acl70/mlisp; \
 	     else \
-		echo /backup/acl/acl70/mlisp; \
+		echo mlisp; \
 	     fi)
 libdir=/usr/local/lib
 bindir=/usr/local/sbin
 
 version := $(shell grep 'allegro-maild-version' version.cl | sed -e 's,.*"v\([0-9.]*\)".*,\1,')
 
-all: maild/maild check-mail-virus/check-mail-virus
+all: clean maild/maild check-mail-virus/check-mail-virus
 	(cd greyadmin; make)
 
 maild/maild: *.cl

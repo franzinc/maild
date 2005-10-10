@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: lock.cl,v 1.5 2003/09/30 17:56:42 dancy Exp $
+;; $Id: lock.cl,v 1.6 2005/10/10 16:53:41 layer Exp $
 
 (in-package :user)
 
@@ -26,7 +26,7 @@
 	  (return t))
       (if (not wait)
 	  (return nil))
-      (sleep 1 whostate))))
+      (mp:process-sleep 1 whostate))))
   
 (defun lock-file-help (filename)
   (when (stale-lockfile-p filename)
