@@ -1,3 +1,13 @@
+2005-10-11  Ahmon Dancy  <dancy@dancy>
+1.1.37 
+
+	* Makefile: Fixed 'arch' variable (x86 should have been 86).
+	Parameterized the preferred build lisp.  Use the same lisp to
+	build greyadmin.
+
+	* version.cl.  Bumped to 1.1.37 to indicate 8.0.beta build.  Added
+	an Id tag.
+
 2005-10-10  Kevin Layer  <layer@relay.known.net>
 
 	* Makefile: default to `mlisp'; all does clean first

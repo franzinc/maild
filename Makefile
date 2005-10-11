@@ -1,13 +1,18 @@
-# $Id: Makefile,v 1.22 2005/10/10 16:53:41 layer Exp $
+# $Id: Makefile,v 1.23 2005/10/11 16:59:54 dancy Exp $
 
-arch:=$(shell if [ `arch` = x86_64 ]; then echo amd64.64; else echo x86; fi)
+arch:=$(shell if [ `arch` = x86_64 ]; then echo amd64.64; else echo 86; fi)
 
-lisp:=$(shell if test -x /fi/cl/7.0/bin/linux$(arch)/mlisp; then \
-		echo /fi/cl/7.0/bin/linux$(arch)/mlisp; \
-	     elif test -x /usr/local/acl70/mlisp; then \
-		echo /usr/local/acl70/mlisp; \
-	     elif test -x /storage1/acl70/mlisp; then \
-		echo /storage1/acl70/mlisp; \
+preferred_lisp_version=8.0.beta
+preferred_lisp=/fi/cl/$(preferred_lisp_version)/bin/linux$(arch)/mlisp
+alt_lisp0=/usr/local/acl70/mlisp
+alt_lisp1=/storage1/acl70/mlisp
+
+lisp:=$(shell if test -x $(preferred_lisp); then \
+		echo $(preferred_lisp); \
+	     elif test -x $(alt_lisp0); then \
+		echo $(alt_lisp0); \
+	     elif test -x $(alt_lisp1); then \
+		echo $(alt_lisp1); \
 	     else \
 		echo mlisp; \
 	     fi)
@@ -17,7 +22,7 @@ bindir=/usr/local/sbin
 version := $(shell grep 'allegro-maild-version' version.cl | sed -e 's,.*"v\([0-9.]*\)".*,\1,')
 
 all: clean maild/maild check-mail-virus/check-mail-virus
-	(cd greyadmin; make)
+	(cd greyadmin; ACL=$(lisp) make)
 
 maild/maild: *.cl
 	rm -fr maild
