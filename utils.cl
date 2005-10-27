@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: utils.cl,v 1.16 2005/06/15 17:58:00 dancy Exp $
+;; $Id: utils.cl,v 1.17 2005/10/27 01:50:48 dancy Exp $
 
 (in-package :user)
 
@@ -203,3 +203,29 @@
 (defun kill-and-reap-process (p)
   (mp:process-kill p)
   (wait-for-process-to-die p))
+
+;;  
+
+;; Returns two values:
+;;  (1) # of characters in line (excluding newline).  will be nil on EOF.
+;;  (2) true if a newline was read.
+
+(defun get-line (stream buf)
+  (declare (optimize (speed 3))
+	   (type (simple-array character (*)) buf))
+  (let ((count 0)
+	(max (length buf))
+	newline char)
+    (declare (fixnum count max))
+    (while (and (< count max) (setf char (read-char stream nil nil)))
+      (when (char= char #\newline)
+	(setf newline t)
+	(return))
+      
+      (setf (aref buf count) char)
+      (incf count))
+    
+    (if (and (= count 0) (null newline))
+	(setf count nil)) ;; EOF
+    
+    (values count newline)))

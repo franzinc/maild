@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: deliver.cl,v 1.16 2003/07/23 14:44:23 dancy Exp $
+;; $Id: deliver.cl,v 1.17 2005/10/27 01:50:48 dancy Exp $
 
 (in-package :user)
 
@@ -105,7 +105,8 @@
     (with-os-open-file (stream file (logior *o-wronly* *o-creat* *o-append*)
 			       #o0600)
       (with-stream-lock (stream)
-	(write-message-to-stream stream q :local :noclose t :add-mbox-from t)
+	(write-message-to-stream stream q :local :noclose t :add-mbox-from t
+				 :escape-mbox-from t)
 	(terpri stream)
 	(maild-log "Delivered to file ~A" file)
 	:delivered))))
@@ -175,15 +176,15 @@
 
 
 (defun write-message-to-stream (stream q rewrite-type 
-				&key smtp noclose add-mbox-from)
+				&key smtp noclose add-mbox-from
+				     escape-mbox-from)
   (if (null (queue-headers q))
       (error "write-message-to-stream: queue-headers is null.  This can't be right"))
   (with-socket-timeout (stream :write *datatimeout*)
-    (macrolet ((endline () `(if smtp 
-				(progn
-				  (write-char #\return stream)
-				  (write-char #\linefeed stream))
-			      (write-char #\newline stream))))
+    (macrolet ((endline () `(if* smtp
+			       then (write-char #\return stream)
+				    (write-char #\linefeed stream)
+			       else (write-char #\newline stream))))
 
       (when add-mbox-from
 	(format stream "From ~A  ~A" (emailaddr-orig (queue-from q)) (ctime))
@@ -204,17 +205,28 @@
       (endline)
 
       (with-open-file (f (queue-datafile q))
-	(let (char (freshline t))
-	  (while (setf char (read-char f nil nil))
-	    (if* (char= char #\newline)
-	       then
-		    (endline)
-		    (setf freshline t)
-	       else
-		    (if (and freshline smtp (char= char #\.))
-			(write-char char stream)) ;; double-up the dot
-		    (write-char char stream)
-		    (setf freshline nil))))))
+	(let ((buf (make-array 1024 :element-type 'character))
+	      (freshline t)
+	      count got-eol)
+	  (declare (dynamic-extent buf))
+	  (loop 
+	    (multiple-value-setq (count got-eol)
+	      (get-line f buf))
+	    (if (null count)
+		(return))
+
+	    (when freshline
+	      (if (and escape-mbox-from (>= count 5) (prefixp "From " buf))
+		  (write-char #\> stream))
+	      (if (and smtp (>= count 1) (prefixp "." buf))
+		  (write-char #\. stream)))
+	    
+	    (write-string buf stream :end count)
+
+	    (setf freshline got-eol)
+	    
+	    (if freshline
+		(endline))))))
 
     (finish-output stream)
 

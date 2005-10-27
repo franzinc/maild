@@ -1,3 +1,13 @@
+2005-10-26  root  <root@gills.dancysoft.com>
+1.1.38
+
+
+	* Makefile: Changed alt_lisp1 to /storage1/acl80b/mlisp
+
+	* utils.cl: New get-line function.
+	
+	* deliver.cl: When delivering to a file, escape "From " lines.
+
 2005-10-11  Ahmon Dancy  <dancy@dancy>
 1.1.37 
 
