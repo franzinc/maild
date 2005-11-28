@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: aliases.cl,v 1.16 2005/06/15 17:58:00 dancy Exp $
+;; $Id: aliases.cl,v 1.17 2005/11/28 16:15:09 dancy Exp $
 
 (in-package :user)
 
@@ -284,8 +284,8 @@
 ;;; nil is returned.
 
 ;;; alias-transform is like expand-alias except that if no alias
-;;; expansion exists, it just returns the argument (converted to a recip).
-;;; This is for the convenience of lookup-recip.
+;;; expansion exists, it returns a list of the the argument (converted
+;;; to a recip).  This is for the convenience of lookup-recip.
 
 
 ;; Called by lookup-recip
@@ -451,7 +451,7 @@
 	(let ((exp (expand-alias-inner (recip-addr member) ht seen owner
 				       :wild t)))
 	  (if (null exp)
-	      (push (aliases-set-recip-info member owner lhs) res)
+	      (push (aliases-set-recip-info member owner seen) res)
 	    (setf res (append exp res)))))))
     res))
 

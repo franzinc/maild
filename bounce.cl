@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: bounce.cl,v 1.12 2004/08/16 14:06:38 dancy Exp $
+;; $Id: bounce.cl,v 1.13 2005/11/28 16:15:09 dancy Exp $
 
 (in-package :user)
 
@@ -72,6 +72,6 @@
 		   (emailaddr-orig bounce-to)))))))
 
 (defun write-recip-expansion (recip stream)
-  (write-line (recip-printable recip)  stream)
+  (write-line (recip-printable recip) stream)
   (dolist (exp (recip-expanded-from recip))
     (format stream "  ... expanded from ~A~%" (emailaddr-orig exp))))

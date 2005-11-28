@@ -1,3 +1,11 @@
+2005-11-28  Ahmon Dancy  <dancy@dancy>
+1.1.39
+	
+	* aliases.cl:  recip-expanded-from wasn't being set properly and
+	was causing unhandled errors in the bounce code.  Fixed.
+
+	* config.cl:  Added a comment on the use of *short-host-name*. 
+
 2005-10-26  root  <root@gills.dancysoft.com>
 1.1.38
 

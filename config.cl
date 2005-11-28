@@ -1,4 +1,4 @@
-;; $Id: config.cl,v 1.33 2005/09/22 04:02:57 dancy Exp $
+;; $Id: config.cl,v 1.34 2005/11/28 16:15:09 dancy Exp $
 
 (in-package :user)
 
@@ -41,7 +41,8 @@
 (defparameter *fqdn* nil)
 
 ;; Other names by which this host is known (Besides *fqdn* and
-;; *short-host-name*).
+;; *short-host-name*).  This is used in the default rewriting rules
+;; (for masquerading).
 (defparameter *host-aliases* '("localhost"))
 
 ;; Domains for which we receive mail. Add your domain name here.
