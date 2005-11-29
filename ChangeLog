@@ -1,3 +1,8 @@
+2005-11-29  Ahmon Dancy  <dancy@dancy>
+1.1.40
+	* greylist.cl: Fixed argument list for greylist-rcpt-to-checker.
+	It was out of date.
+
 2005-11-28  Ahmon Dancy  <dancy@dancy>
 1.1.39
 	

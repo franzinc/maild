@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: greylist.cl,v 1.20 2005/06/13 20:22:25 dancy Exp $
+;; $Id: greylist.cl,v 1.21 2005/11/29 15:38:19 dancy Exp $
 
 (in-package :user)
 
@@ -228,8 +228,8 @@
       (equalp "postmaster" (emailaddr-user addr))))
   
 
-(defun greylist-rcpt-to-checker (ip from type to recips)
-  (declare (ignore type recips))
+(defun greylist-rcpt-to-checker (sess ip from type to recips)
+  (declare (ignore sess type recips))
   (block nil
     ;;(maild-log "greylist: checking...")
     (with-greylist (ip from to)
