@@ -1,3 +1,15 @@
+2005-12-18  Ahmon Dancy  <dancy@dancy>
+1.1.41
+	
+	* Makefile: Build using latest 8.0.
+
+	* config.cl: New parameter *queue-max-threads* (default 20).
+	Determines the maximum number of parallel threads to use during
+	automatic queue processing.  This improves the flow of queued mail
+	on hosts that run mailing lists (such as pandorabots).
+
+	* queue-process.cl: Make use of new *queue-max-threads*.
+
 2005-11-29  Ahmon Dancy  <dancy@dancy>
 1.1.40
 	* greylist.cl: Fixed argument list for greylist-rcpt-to-checker.

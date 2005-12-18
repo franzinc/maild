@@ -1,11 +1,11 @@
-# $Id: Makefile,v 1.24 2005/10/27 01:50:48 dancy Exp $
+# $Id: Makefile,v 1.25 2005/12/18 19:34:51 dancy Exp $
 
 arch:=$(shell if [ `arch` = x86_64 ]; then echo amd64.64; else echo 86; fi)
 
-preferred_lisp_version=8.0.beta
+preferred_lisp_version=8.0
 preferred_lisp=/fi/cl/$(preferred_lisp_version)/bin/linux$(arch)/mlisp
 alt_lisp0=/usr/local/acl70/mlisp
-alt_lisp1=/storage1/acl80b/mlisp
+alt_lisp1=/storage1/acl80/mlisp
 
 lisp:=$(shell if test -x $(preferred_lisp); then \
 		echo $(preferred_lisp); \

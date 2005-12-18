@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: maild.cl,v 1.22 2005/09/23 16:26:37 dancy Exp $
+;; $Id: maild.cl,v 1.23 2005/12/18 19:34:51 dancy Exp $
 
 (in-package :user)
 
@@ -110,7 +110,7 @@
       
       (when processqueue
 	(verify-real-user-is-root)
-	(queue-process-all :verbose verbose)
+	(queue-process-all :verbose verbose :max 1)
 	(exit 0 :quiet t))
 
       (if (and (not grab-recips) (null cmdline-recips))

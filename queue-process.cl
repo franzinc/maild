@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: queue-process.cl,v 1.17 2005/06/15 19:53:24 dancy Exp $
+;; $Id: queue-process.cl,v 1.18 2005/12/18 19:34:51 dancy Exp $
 
 (in-package :user)
 
@@ -196,14 +196,33 @@
 		      "")))
 	  (format t " Status: ~A~%" (queue-status q)))))))
 
+(defparameter *queue-threads-running* 0)
 
-(defun queue-process-all (&key verbose)
-  (dolist (id (get-all-queue-ids))
+(defmacro with-queue-process-thread (() &body body)
+  `(without-interrupts
+     (incf *queue-threads-running*)
+     (unwind-protect (progn ,@body)
+       (without-interrupts (decf *queue-threads-running*)))))
+
+(defun queue-process-single-thread (id &key verbose)
+  (with-queue-process-thread ()
     (handler-case (queue-process-single id :if-does-not-exist :ignore
 					:verbose verbose)
       (error (c)
 	(maild-log "Got error ~A while processing queue id ~A"
 		   c id)))))
+
+(defun queue-process-all (&key verbose (max *queue-max-threads*))
+  (dolist (id (get-all-queue-ids))
+    ;; Wait for the thread count to drop below max.
+    (while (without-interrupts (>= *queue-threads-running* max))
+      (mp:process-sleep 10 "Queue thread limit reached.  Sleeping"))
+    (mp:process-run-function 
+	(format nil "Processing qf~a" id)
+      #'queue-process-single-thread id :verbose verbose))
+  (while (without-interrupts (> *queue-threads-running* 0))
+    (mp:process-sleep 10 "Waiting for remaining queue processing threads to complete")))
+  
 
 (defun queue-process-daemon (interval)
   ;; sanity check

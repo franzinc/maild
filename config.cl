@@ -1,4 +1,4 @@
-;; $Id: config.cl,v 1.34 2005/11/28 16:15:09 dancy Exp $
+;; $Id: config.cl,v 1.35 2005/12/18 19:34:51 dancy Exp $
 
 (in-package :user)
 
@@ -287,7 +287,8 @@
 
 (defparameter *queue-lock-timeout* (* 15 60)) ;; 15 minutes
 (defparameter *queue-lock-refresh-interval* (* 10 60)) ;; every 10 minutes
-
+(defparameter *queue-max-threads* 20) ;; max number of delivery threads
+    
 ;;;;;;;;;;;;;;;
 
 (defparameter *rep-start-server* nil)
