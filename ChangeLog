@@ -1,3 +1,7 @@
+2005-12-19  Kevin Layer  <layer@relay.known.net>
+
+	* Makefile: install-stop/start around install; install-greyadmin
+
 2005-12-18  Ahmon Dancy  <dancy@dancy>
 1.1.41
 	
