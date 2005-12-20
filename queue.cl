@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: queue.cl,v 1.20 2003/12/18 19:16:58 dancy Exp $
+;; $Id: queue.cl,v 1.21 2005/12/20 00:39:40 dancy Exp $
 
 (in-package :user)
 
@@ -155,8 +155,6 @@
 	     (emailaddr-orig (queue-from q))
 	     (list-to-delimited-string 
 	      (mapcar #'recip-printable (queue-recips q)) #\,)))
-
-
 
 ;; reads a queue file.  Doesn't lock.
 (defun queue-read (id)

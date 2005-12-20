@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: queue-process.cl,v 1.18 2005/12/18 19:34:51 dancy Exp $
+;; $Id: queue-process.cl,v 1.19 2005/12/20 00:39:40 dancy Exp $
 
 (in-package :user)
 
@@ -50,34 +50,29 @@
        verbose "Queue id ~A doesn't have a data file.  Removing." (queue-id q))
       (remove-queue-file q)
       (return))
-    
-    (let (failed-recips recip-addr recip-printable recip-type status response
-	  smtp-recips)
+
+    (let (failed-recips recip-addr recip-printable status response smtp-recips)
       (dolist (recip (queue-recips q))
-	(setf recip-type (recip-type recip))
 	(setf recip-addr (recip-addr recip))
 	(if (null (recip-owner recip))
 	    (setf (recip-owner recip) (queue-from q)))
 	
-	(if* (or (member recip-type '(:file :prog))
-		 (local-domain-p recip-addr))
-	   then
-		(setf recip-printable (recip-printable recip))
-		(setf (queue-status q)
-		  (format nil "Working on delivery to ~A" recip-printable))
-		(setf (recip-status recip) "Attempting delivery")
-		
-		;; XXX -- May want to move this outside the loop.. but having
-		;; it inside keeps the file most up-to-date.
+	(if* (or (special-recip-p recip) (local-domain-p recip-addr))
+	   then	(mark-recip-with-suitable-mailer recip)
+		(setf (queue-status q) 
+		  (format nil "Attempting delivery to ~a"
+			  (recip-printable recip)))
 		(update-queue-file q)
 		
 		(if* (error-recip-p recip)
-		   then
-			(setf status :fail)
+		   then	(setf status :fail)
 			(setf response (recip-errmsg recip))
-		   else
-			(multiple-value-setq (status response)
-			  (deliver-local recip q :verbose verbose)))
+		   else (handler-case 
+			    (multiple-value-setq (status response)
+			      (deliver-local recip q :verbose verbose))
+			  (error (c)
+			    (setf status :transient)
+			    (setf response (format nil "~a" c)))))
 
 		(case status
 		  (:delivered
@@ -96,20 +91,20 @@
 		   (maild-log-and-print
 		    verbose "delivery status for ~a is ~s." 
 		    recip-printable status)
-		   (when response
-		     (setf (recip-status recip)
-		       (format nil "~A: ~A" recip-printable response))
-		     (maild-log-and-print 
-		      verbose "Error message is: ~A" response))))
+		   (if* response
+		      then (setf (recip-status recip) response)
+			   (maild-log-and-print 
+			    verbose "Error message is: ~A" response)
+		      else (setf (recip-status recip) 
+			     (format nil 
+				     "Unknown transient error.  Check logs.")))))
 	   else
 		(push recip smtp-recips)))
       
-      ;; handle smtp recips now.  Unforunate duplication of code
+      ;; handle smtp recips now.  Unfortunate duplication of code
       ;; here.. but not too terrible.
       (let ((deliv (make-smtp-delivery :unprocessed-recips smtp-recips)))
 	(deliver-smtp deliv q :verbose verbose)
-	;; now scan 'deliv' to see what slots were changed.  Update
-	;; the queue file w/ whatever we find.
 	(dolist (recip (smtp-delivery-good-recips deliv))
 	  (setf (queue-recips q)
 	    (delete recip (queue-recips q))))
@@ -148,7 +143,7 @@
 	(remove-queue-file q)
 	(return))
       
-      (setf (queue-status q) "Will try during next queue run")
+      (setf (queue-status q) "Queued")
       (update-queue-file q)
       
       (maild-log-and-print

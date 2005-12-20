@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.26 2005/12/19 19:09:45 layer Exp $
+# $Id: Makefile,v 1.27 2005/12/20 00:39:40 dancy Exp $
 
 arch:=$(shell if [ `arch` = x86_64 ]; then echo amd64.64; else echo 86; fi)
 
@@ -32,14 +32,14 @@ check-mail-virus/check-mail-virus: check-mail-virus.cl
 	rm -fr check-mail-virus
 	$(lisp) -batch -L check-mail-virus.cl -e '(build)' -kill
 
-install: install-stop install-maild install-greyadmin \
+install: install-init install-stop install-maild install-greyadmin \
 	 install-check-mail-virus install-start
 
 install-stop: FORCE
-	/etc/rc.d/maild stop
+	-/etc/init.d/maild stop
 
 install-start: FORCE
-	/etc/rc.d/maild start
+	/etc/init.d/maild start
 
 install-common:
 	mkdir -p $(libdir) $(bindir)

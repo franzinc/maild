@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: recips.cl,v 1.20 2005/06/15 17:58:00 dancy Exp $
+;; $Id: recips.cl,v 1.21 2005/12/20 00:39:40 dancy Exp $
 
 (in-package :user)
 
@@ -49,6 +49,8 @@
 (defun prog-recip-p (r)
   (eq (recip-type r) :prog))
 
+(defun special-recip-p (r)
+  (member (recip-type r) '(:prog :file :error)))
 
 (defun recip-printable (r)
   (let ((type (recip-type r)))
@@ -66,9 +68,9 @@
 	(:include
 	 (format nil ":include:~A" (recip-file r)))
 	(:error
-	 (if (recip-addr r)
-	     (emailaddr-orig (recip-addr r))
-	   (format nil ":error:~A" (recip-errmsg r))))
+	 (if* (recip-addr r)
+	    then (emailaddr-orig (recip-addr r))
+	    else(format nil ":error:~A" (recip-errmsg r))))
 	(:bad
 	 (format nil ":bad:~A" (recip-orig r)))))))
   
@@ -86,9 +88,9 @@
 (defun string-or-recip-or-emailaddr-to-emailaddr (thing)
   (block nil
     (when (recip-p thing)
-      (if (recip-type thing)
-	  (error "lookup-recipient doesn't work on special recips")
-	(return (recip-addr thing))))
+      (if* (recip-type thing)
+	 then (error "lookup-recipient doesn't work on special recips")
+	 else (return (recip-addr thing))))
     (make-parsed-and-unparsed-address thing)))
     
 
@@ -145,32 +147,26 @@
 ;; Called by:   expand-addresses
 (defun lookup-recip (thing)
   (block nil
-    (let ((addr (string-or-recip-or-emailaddr-to-emailaddr thing))
-	  expansion)
+    (let ((addr (string-or-recip-or-emailaddr-to-emailaddr thing)))
       (if (not (local-domain-p addr))
 	  (return (list (make-recip :addr addr :mailer :smtp))))
       
-      (setf expansion (alias-transform thing))
-      
-      (dolist (recip expansion)
-	(mark-recip-with-suitable-mailer recip))
-      
-      expansion)))
-
+      (alias-transform thing))))
 	
 (defmacro mailing-list-p (exp)
   `(> (length ,exp) 1))
 
 ;; returns a list of recip structs w/ no duplicates.
 ;; There may be some :error recips.
+;; Called by queue-finalize
 (defun expand-addresses (addrs sender &key metoo)
   (let ((exclude-sender t)
 	(sender-exp (lookup-recip sender)))
-    (if (or metoo
-	    (mailing-list-p sender-exp)
-	    (recip-type (first sender-exp))) ;; prog/file/whatnot expansion    
-	(setf exclude-sender nil)
-      (setf sender-exp (first sender-exp)))
+    (if* (or metoo
+	     (mailing-list-p sender-exp)
+	     (recip-type (first sender-exp))) ;; prog/file/whatnot expansion
+       then (setf exclude-sender nil)
+       else (setf sender-exp (first sender-exp)))
     
     (let (recips)
       (dolist (addr addrs)
@@ -244,6 +240,7 @@
       (push (pop tokens) res))
     (values (nreverse res) tokens)))
 
+;; Called by parse-recip-list
 (defun parse-special-recip (tokens)
   (block nil
     (multiple-value-bind (tokens remainder)
@@ -297,6 +294,7 @@
   (or (null tokens) (comma-token-p (first tokens))))
 
 
+;; called by parse-regular-recip
 (defun make-recip-from-mailbox (mb &key allow-null escaped)
   (let ((recip (make-recip :escaped escaped))
 	addr)
@@ -324,7 +322,7 @@
 	      
 
 ;; Returns a list of recip structs (since a group may have more
-;; than one)
+;; than one).  Called by parse-recip-list
 (defun parse-regular-recip (tokens &key allow-null)
   (let (escaped)
     ;; check for escaped recip
@@ -357,6 +355,7 @@
 			 mblist)
 		 remainder))))))
 
+;; Called by parse-alias-right-hand-side and get-good-recips-from-string.
 (defun parse-recip-list (input &key (pos 0) allow-null)
   (block nil
     (let ((tokens (emailaddr-lex input :pos pos))
@@ -376,11 +375,9 @@
 	(multiple-value-bind (recip remainder)
 	    (parse-special-recip tokens)
 	  (if* recip
-	     then
-		  (push recip recips)
+	     then (push recip recips)
 		  (setf tokens remainder)
-	     else
-		  ;; try regular recip
+	     else ;; try regular recip
 		  (multiple-value-bind (new-recips remainder)
 		      (parse-regular-recip tokens :allow-null allow-null)
 		    (setf tokens remainder)

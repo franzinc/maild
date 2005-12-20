@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: deliver-smtp.cl,v 1.19 2005/06/15 19:53:24 dancy Exp $
+;; $Id: deliver-smtp.cl,v 1.20 2005/12/20 00:39:40 dancy Exp $
 
 (in-package :user)
 
@@ -85,6 +85,10 @@
     (let ((buf (make-string *maxlinelen*))
 	  (sender (emailaddr-orig (rewrite-smtp-envelope-sender sender)))
 	  errmsg)
+      (setf (queue-status q)
+	(format nil "Connecting to mail exchanger for ~a" domain))
+      (update-queue-file q)
+
       (multiple-value-bind (sock mxname status)
 	  (connect-to-mx domain :verbose verbose)
 	(when (eq status :no-such-domain)
@@ -103,6 +107,10 @@
 	  (maild-log-and-print verbose "~A" errmsg)
 	  (return (values :transient errmsg)))
 
+	(setf (queue-status q)
+	  (format nil "Communicating with ~a" mxname))
+	(update-queue-file q)
+	
 	;; Socket ready.
 	(unwind-protect
 	    (with-socket-timeout (sock :write *datatimeout*)

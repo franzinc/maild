@@ -1,3 +1,23 @@
+2005-12-19  Ahmon Dancy  <dancy@dancy>
+1.1.42:
+	
+	* Makefile: Mods to Kevin's recent changes.  Use /etc/init.d/maild
+	instead of /etc/rc.d/maild.  On SuSE /etc/rc.d is a symlink to
+	/etc/init.d.  /etc/rc.d does not exist on Redhat systems.  Also,
+	install /etc/init.d/maild before attempting to use it.  And don't
+	fail if maild isn't running when the stop attempt occurs.
+
+	* deliver-smtp.cl, deliver.cl, queue-process.cl: Better status
+	information in the queue file.  More robust error handling and
+	reporting.  Recompute local mailer each time a recipient is
+	processed.
+
+	* mailer.cl: Comment changes.
+
+	* recips.cl: New special-recip-p function.  Misc cosmetic changes.
+	
+	* aliases.cl, queue.cl: Minor cosmetic changes.
+
 2005-12-19  Kevin Layer  <layer@relay.known.net>
 
 	* Makefile: install-stop/start around install; install-greyadmin

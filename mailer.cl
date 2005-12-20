@@ -14,10 +14,11 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: mailer.cl,v 1.5 2005/06/15 17:58:00 dancy Exp $
+;; $Id: mailer.cl,v 1.6 2005/12/20 00:39:40 dancy Exp $
 
 (in-package :user)
 
+;; Called by make-delivery-command-for-recip
 (defun get-mailer-by-id (id)
   (let ((entry (find id *mailers* :test #'eq :key #'first)))
     (if (null entry)
@@ -44,8 +45,7 @@
 	(setf (recip-addr recip) addr)
 	recip))))
   
-
-;; Called by lookup-recip
+;; called by queue-process-single-help
 (defun mark-recip-with-suitable-mailer (recip)
   (block nil
     (if (recip-type recip) ;; special recip
@@ -70,7 +70,8 @@
     (if (lookup-recip-in-mailer mailer (make-recip :addr addr))
 	(return t))))
 
-;; returns the run-as user as a second value
+;; returns the run-as user as a second value.
+;; Called by deliver-via-mailer
 (defun make-delivery-command-for-recip (recip q)
   (let ((mailer (get-mailer-by-id (recip-mailer recip))))
     (values (funcall (fourth mailer) recip q)

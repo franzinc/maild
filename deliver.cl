@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: deliver.cl,v 1.17 2005/10/27 01:50:48 dancy Exp $
+;; $Id: deliver.cl,v 1.18 2005/12/20 00:39:40 dancy Exp $
 
 (in-package :user)
 
@@ -30,6 +30,7 @@
 
 ;;; called when a recipient has been determined to be a local user
 ;;; that exists.  Also includes program and file recipients.
+;;; Called by queue-process-single-help
 (defun deliver-local (recip q &key verbose)
   (let* ((type (recip-type recip))
 	 (file (recip-file recip))
@@ -57,6 +58,7 @@
     
     (values-list res)))
 
+;; Called by deliver-local
 (defun deliver-via-mailer (recip q &key verbose)
   (when verbose
     (format t "~A... Connecting to ~A...~%" 
@@ -130,7 +132,7 @@
 	    (maild-log "~A stderr: ~A~%" prgname errput))
 	(when (/= status 0)
 	  (maild-log "~A exited w/ status: ~D" prgname status)
-	  (return (values :transient errput)))
+	  (return (values :transient (or errput output))))
 	(when (not (eq writerstatus :ok))
 	  ;; the writer logs its own errors.
 	  (return (values :transient (format nil "~A" writerstatus))))

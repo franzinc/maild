@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: aliases.cl,v 1.17 2005/11/28 16:15:09 dancy Exp $
+;; $Id: aliases.cl,v 1.18 2005/12/20 00:39:40 dancy Exp $
 
 (in-package :user)
 
@@ -292,9 +292,9 @@
 (defun alias-transform (thing)
   (let* ((addr (make-parsed-and-unparsed-address thing))
 	 (res (expand-alias addr)))
-    (if (null res)
-	(list (make-recip :addr addr))
-      res)))
+    (if* (null res)
+       then (list (make-recip :addr addr))
+       else res)))
 
 ;; 'thing' can be a string or an emailaddr struct
 ;; returns a list of recip structs
