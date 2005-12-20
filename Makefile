@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.27 2005/12/20 00:39:40 dancy Exp $
+# $Id: Makefile,v 1.28 2005/12/20 21:35:42 dancy Exp $
 
 arch:=$(shell if [ `arch` = x86_64 ]; then echo amd64.64; else echo 86; fi)
 
@@ -20,6 +20,8 @@ libdir=/usr/local/lib
 bindir=/usr/local/sbin
 
 version := $(shell grep 'allegro-maild-version' version.cl | sed -e 's,.*"v\([0-9.]*\)".*,\1,')
+
+installer-package := maild-$(version)-installer.tar.gz
 
 all: clean maild/maild check-mail-virus/check-mail-virus
 	(cd greyadmin; ACL=$(lisp) make)
@@ -70,6 +72,12 @@ install-init: FORCE
 install-greyadmin: FORCE
 	(cd greyadmin; make install)
 
+install-dmz: dist
+	for host in duck spider; do \
+		scp $(installer-package) root@$$host:; \
+		ssh root@$$host "tar zxf $(installer-package) && ./maild-installer"; \
+	done
+
 clean: FORCE
 	rm -f *.fasl maild.tar.gz maild-*.tar.gz 
 	rm -fr maild check-mail-virus rpmbuild maild.spec
@@ -98,7 +106,7 @@ tarball: all
 	tar zcf maild.tar.gz maild
 
 dist: tarball
-	tar zcf maild-$(version)-installer.tar.gz \
+	tar zcf $(installer-package) \
 		maild.tar.gz \
 		maild.init \
 		maild-installer 
