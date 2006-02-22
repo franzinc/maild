@@ -18,21 +18,22 @@ Possibility:
 
 
 RFCs 1891 and 1894 discuss standards for delivery status notification 
- (bounces, return receipts, etc).  Gotta make MIME messages, etc. bleh
+ (bounces, return receipts, etc). 
 
 sendmail has a connect timeout (defaults to the kernel's timeout) and
 an iconnect timeout.  The latter is used to immediately send mail to
 responsive hosts.  It is a short timeout (a few seconds).  If it times
-out, the messsage is send backgrounded instead.
+out, the messsage is sent backgrounded instead.
 
 Disk space checker.  Don't accept mails if the spool directory has
 less than 'x' blocks free.  The error message:
    452 4.4.5 Insufficient disk space; try again later  
- Waiting for osi mods from Kevin
+ use (excl.osi:get-filesystem-free-space)
 
 Limit the number of threads.  
 
-Pass some useful environment variables to program aliases..
+Pass some useful environment variables to program aliases (like
+postfix does).
 
 spammer torture:
 - when delivery is attempted to an unknown user hold onto the
