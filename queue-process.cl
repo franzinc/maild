@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: queue-process.cl,v 1.19 2005/12/20 00:39:40 dancy Exp $
+;; $Id: queue-process.cl,v 1.20 2006/02/28 19:24:44 dancy Exp $
 
 (in-package :user)
 
@@ -195,10 +195,10 @@
 
 (defmacro with-queue-process-thread (() &body body)
   `(without-interrupts
-     (incf *queue-threads-running*)
      (unwind-protect (progn ,@body)
        (without-interrupts (decf *queue-threads-running*)))))
 
+;; Called by queue-process-all
 (defun queue-process-single-thread (id &key verbose)
   (with-queue-process-thread ()
     (handler-case (queue-process-single id :if-does-not-exist :ignore
@@ -212,6 +212,7 @@
     ;; Wait for the thread count to drop below max.
     (while (without-interrupts (>= *queue-threads-running* max))
       (mp:process-sleep 10 "Queue thread limit reached.  Sleeping"))
+    (without-interrupts (incf *queue-threads-running*))
     (mp:process-run-function 
 	(format nil "Processing qf~a" id)
       #'queue-process-single-thread id :verbose verbose))

@@ -1,3 +1,14 @@
+2006-02-28  root  <root@gills.dancysoft.com>
+1.1.43
+	
+	* config.cl: Bump *queue-max-threads* down to 10.  20 was too
+	aggressive on some systems.
+
+	* queue-process.cl: Bugfix.  There was a race condition between
+	checking the number of running threads and the inc of the running
+	thread counter when a new queue processing thread was started.
+	This could result in extra threads being spawned.
+	
 2005-12-19  Ahmon Dancy  <dancy@dancy>
 1.1.42:
 	
