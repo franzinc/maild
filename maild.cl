@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: maild.cl,v 1.23 2005/12/18 19:34:51 dancy Exp $
+;; $Id: maild.cl,v 1.24 2006/03/01 19:35:26 dancy Exp $
 
 (in-package :user)
 
@@ -31,6 +31,9 @@
     (when (string= (basename prgname) "mailq")
       (verify-real-user-is-root)
       (queue-list)
+      (exit 0 :quiet t))
+    ;; Pretend to support 'newaliases'
+    (when (string= (basename prgname) "newaliases")
       (exit 0 :quiet t))
     
     (if (null args)

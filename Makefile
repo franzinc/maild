@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.29 2006/01/01 14:58:24 dancy Exp $
+# $Id: Makefile,v 1.30 2006/03/01 19:35:26 dancy Exp $
 
 preferred_lisp=/fi/cl/8.0/bin/mlisp
 alt_lisp0=/usr/local/acl80/mlisp
@@ -13,14 +13,31 @@ lisp:=$(shell if test -x $(preferred_lisp); then \
 	     else \
 		echo mlisp; \
 	     fi)
-libdir=/usr/local/lib
-bindir=/usr/local/sbin
+
+ROOT ?= /
+prefix ?= $(ROOT)/usr
+libdir ?= $(prefix)/lib
+bindir ?= $(prefix)/bin
+sbindir ?= $(prefix)/sbin
 
 version := $(shell grep 'allegro-maild-version' version.cl | sed -e 's,.*"v\([0-9.]*\)".*,\1,')
 
 installer-package := maild-$(version)-installer.tar.gz
 
-all: clean maild/maild check-mail-virus/check-mail-virus
+SRCFILES=Makefile \
+	maild.init maild.sysconfig \
+	aliases.cl auth.cl blacklist.cl bounce.cl checkers.cl \
+	config.cl deliver.cl deliver-smtp.cl dns.cl emailaddr.cl \
+	greylist.cl headers.cl input.cl ipaddr.cl lex.cl load.cl \
+	lock.cl log.cl maild.cl mailer.cl queue.cl queue-process.cl \
+	recips.cl rep-server.cl rewrite.cl sasl.cl security.cl smtp.cl \
+	smtp-server-checkers.cl smtp-server.cl utils.cl version.cl www.cl
+
+DOCFILES=ALIASES MAILERS.txt NOTES STATS greylist.sql greylist.sql.notes
+
+GREYADMINSRCFILES=Makefile greyadmin.cl login.clp menu.clp super.clp
+
+all: clean maild/maild
 	(cd greyadmin; ACL=$(lisp) make)
 
 maild/maild: *.cl
@@ -31,8 +48,7 @@ check-mail-virus/check-mail-virus: check-mail-virus.cl
 	rm -fr check-mail-virus
 	$(lisp) -batch -L check-mail-virus.cl -e '(build)' -kill
 
-install: install-init install-stop install-maild install-greyadmin \
-	 install-check-mail-virus install-start
+install: install-system install-maild install-greyadmin
 
 install-stop: FORCE
 	-/etc/init.d/maild stop
@@ -41,30 +57,28 @@ install-start: FORCE
 	/etc/init.d/maild start
 
 install-common:
-	mkdir -p $(libdir) $(bindir)
+	mkdir -p $(libdir) $(sbindir)
 
 install-maild: maild/maild install-common
-	rm -fr $(DESTDIR)$(libdir)/maild.old
-	-mv $(DESTDIR)$(libdir)/maild $(DESTDIR)$(libdir)/maild.old
-	cp -pr maild $(DESTDIR)$(libdir)
-ifndef BUILD_FOR_RPM
-	chown root $(DESTDIR)$(libdir)/maild/*
-	chmod +s $(DESTDIR)$(libdir)/maild/maild
-endif
-	ln -sf ../lib/maild/maild $(DESTDIR)$(bindir)/maild
-	ln -sf ../lib/maild/maild $(DESTDIR)$(bindir)/mailq
+	rm -fr $(libdir)/maild.old
+	-mv $(libdir)/maild $(libdir)/maild.old
+	cp -r maild $(libdir)
+	chmod +s $(libdir)/maild/maild
+	rm -f $(sbindir)/maild
+	ln -s $(libdir)/maild/maild $(sbindir)/maild
 
 install-check-mail-virus: check-mail-virus/check-mail-virus install-common
-	rm -fr $(DESTDIR)$(libdir)/check-mail-virus
-	cp -pr check-mail-virus $(DESTDIR)$(libdir)
-ifndef BUILD_FOR_RPM
-	chown root $(DESTDIR)$(libdir)/check-mail-virus/*
-endif
+	rm -fr $(libdir)/check-mail-virus
+	cp -r check-mail-virus $(libdir)
+	chown root $(libdir)/check-mail-virus/*
 	ln -sf ../lib/check-mail-virus/check-mail-virus \
-	       $(DESTDIR)$(bindir)/check-mail-virus
+	       $(sbindir)/check-mail-virus
 
-install-init: FORCE
-	cp -p maild.init $(DESTDIR)/etc/init.d/maild
+install-system: FORCE
+	cp maild.init $(ROOT)/etc/rc.d/init.d/maild
+	if [ ! -e $(ROOT)/etc/sysconfig/maild ]; then \
+		cp maild.sysconfig $(ROOT)/etc/sysconfig/maild; \
+	fi
 
 install-greyadmin: FORCE
 	(cd greyadmin; make install)
@@ -77,27 +91,11 @@ install-dmz: dist
 
 clean: FORCE
 	rm -f *.fasl maild.tar.gz maild-*.tar.gz 
-	rm -fr maild check-mail-virus rpmbuild maild.spec
+	rm -fr maild check-mail-virus
 	(cd greyadmin; make clean)
 
 update: FORCE
 	cvs -q update -dP
-
-HERE := $(shell pwd)
-
-BUILDROOT = $(HERE)/rpmbuild
-
-rpm: FORCE
-	rm -fr $(BUILDROOT)
-	mkdir  $(BUILDROOT)
-	mkdir  $(BUILDROOT)/BUILD
-	mkdir  $(BUILDROOT)/RPMS
-	mkdir  $(BUILDROOT)/SOURCES
-	mkdir  $(BUILDROOT)/SPECS
-	mkdir  $(BUILDROOT)/SRPMS
-	rm -f maild.spec
-	sed -e 's,__SOURCE__,$(HERE),g' < maild.spec.in > maild.spec 
-	rpmbuild -vv --buildroot=$(BUILDROOT)/BUILD -bb maild.spec
 
 tarball: all
 	tar zcf maild.tar.gz maild
@@ -107,5 +105,14 @@ dist: tarball
 		maild.tar.gz \
 		maild.init \
 		maild-installer 
+
+src-tarball: FORCE
+	rm -fr maild-$(version) maild-$(version).tar.gz
+	mkdir maild-$(version)
+	cp $(SRCFILES) $(DOCFILES) maild-$(version)
+	mkdir maild-$(version)/greyadmin
+	(cd greyadmin && cp $(GREYADMINSRCFILES) ../maild-$(version)/greyadmin)
+	tar zcf maild-$(version).tar.gz maild-$(version)
+	rm -fr maild-$(version)
 
 FORCE:
