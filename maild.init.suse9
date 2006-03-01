@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: maild.init.suse9,v 1.2 2006/03/01 22:12:32 dancy Exp $
+# $Id: maild.init.suse9,v 1.3 2006/03/01 22:16:13 dancy Exp $
 ### BEGIN INIT INFO
 # Provides:       maild
 # Required-Start: $remote_fs $time $syslog $named
@@ -13,10 +13,16 @@
 
 MAILD=/usr/sbin/maild
 MAILD_CONF="/etc/maild.cl"
-MAILD_ARGS="-bd -q1h"
-
 GREYADMIN=/usr/sbin/greyadmin
 GREYADMIN_CONF="/etc/greyadmin.cl"
+
+QUEUE=15m
+
+if [ -r /etc/sysconfig/maild ]; then
+    . /etc/sysconfig/maild
+fi
+
+MAILD_ARGS="-bd -q$QUEUE"
 
 . /etc/rc.status
 rc_reset
@@ -27,6 +33,8 @@ if [ ! -f ${MAILD} ]; then
 	rc_status -s
 	exit 6
 fi
+
+
 
 case "$1" in
 	start)
