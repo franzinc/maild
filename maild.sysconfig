@@ -1,0 +1,4 @@
+# $Id: maild.sysconfig,v 1.1 2006/03/01 18:00:43 dancy Exp $
+
+# Change the following variable to adjust the queue processing interval
+QUEUE=15m
