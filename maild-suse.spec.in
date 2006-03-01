@@ -1,11 +1,11 @@
-# $Id: maild-suse.spec.in,v 1.2 2006/03/01 22:46:50 dancy Exp $
+# $Id: maild-suse.spec.in,v 1.3 2006/03/01 23:32:15 dancy Exp $
 
 # Spec file suitable for SuSE.
 
 Summary: Allegro Mail Daemon
 Name: maild
 Version: __VERSION__
-Release: 1
+Release: 1-suse
 License: Commercial
 Group: Productivity/Networking/Email/Servers
 #URL: 
