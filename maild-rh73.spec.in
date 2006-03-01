@@ -1,23 +1,19 @@
-# $Id: maild.spec.in,v 1.3 2006/03/01 23:26:14 dancy Exp $
+# $Id: maild-rh73.spec.in,v 1.1 2006/03/01 23:26:14 dancy Exp $
 
-# Spec file suitable for modern Redhat-like hosts.  Modeled after the
-# sendmail.spec from FC4.
+# Spec file suitable for Redhat 7.3
 
 Summary: Allegro Mail Daemon
 Name: maild
 Version: __VERSION__
-Release: 1
+Release: 1.rh73
 License: Commercial
 Group: System Environment/Daemons
 #URL: 
 # Stuff required for installation
-Prereq: /usr/sbin/alternatives 
 Prereq: /usr/sbin/useradd
 Prereq: chkconfig
 # Stuff required for operation
 Requires: procmail
-# for /etc/aliases
-Requires: setup 
 # BuildRequires: allegrocl
 Source0: %{name}-%{version}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root
@@ -44,6 +40,13 @@ make ROOT=$RPM_BUILD_ROOT install
 # Redo some symlinks here 
 ln -snf /usr/lib/maild/maild $RPM_BUILD_ROOT/usr/sbin/maild
 ln -snf /usr/lib/greyadmin/greyadmin $RPM_BUILD_ROOT/usr/sbin/greyadmin
+# additional symlinks
+ln -snf /usr/sbin/maild $RPM_BUILD_ROOT/usr/sbin/sendmail
+ln -snf /usr/sbin/maild $RPM_BUILD_ROOT/usr/lib/sendmail
+ln -snf /usr/sbin/maild $RPM_BUILD_ROOT/usr/bin/mailq
+ln -snf /usr/sbin/maild $RPM_BUILD_ROOT/usr/bin/newaliases
+# Extra
+echo MAILER-DAEMON: root > $RPM_BUILD_ROOT/etc/aliases
 
 
 %clean
@@ -57,10 +60,15 @@ rm -rf $RPM_BUILD_ROOT
 /usr/lib/maild
 /usr/sbin/maild
 /usr/sbin/greyadmin
+/usr/sbin/sendmail
+/usr/lib/sendmail
+/usr/bin/mailq
+/usr/bin/newaliases
 %dir /var/spool/maild
 %dir /var/spool/mqueue
 %doc config.cl ALIASES MAILERS.txt NOTES STATS greylist.sql greylist.sql.notes
 %config(noreplace) /etc/sysconfig/maild
+%config(noreplace) /etc/aliases
 
 %pre
 /usr/sbin/useradd -u 47 -d /var/spool/mqueue -r -s /bin/false mailnull >/dev/null 2>&1
@@ -69,18 +77,10 @@ exit 0
 %post
 /sbin/chkconfig --add maild
 
-/usr/sbin/alternatives --install \
-	/usr/sbin/sendmail mta /usr/sbin/maild 91 \
-	--slave /usr/lib/sendmail mta-sendmail /usr/sbin/maild \
-	--slave /usr/bin/mailq mta-mailq /usr/sbin/maild \
-	--slave /usr/bin/newaliases mta-newaliases /usr/sbin/maild \
-	--initscript maild
-
 %preun
 if [ $1 = 0 ]; then
 	/sbin/service maild stop >/dev/null 2>&1
 	/sbin/chkconfig --del maild
-	/usr/sbin/alternatives --remove mta /usr/sbin/maild
 fi
 exit 0
 

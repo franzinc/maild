@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.32 2006/03/01 22:27:38 dancy Exp $
+# $Id: Makefile,v 1.33 2006/03/01 23:26:14 dancy Exp $
 
 preferred_lisp=/fi/cl/8.0/bin/mlisp
 alt_lisp0=/usr/local/acl80/mlisp
@@ -119,11 +119,14 @@ src-tarball: FORCE
 	tar zcf maild-$(version).tar.gz maild-$(version)
 	rm -fr maild-$(version)
 
-maild.spec: maild.spec.in
-	sed -e "s/__VERSION__/$(version)/" < maild.spec.in > maild.spec
+%.spec: %.spec.in
+	sed -e "s/__VERSION__/$(version)/" < $< > $@
 
-maild-suse.spec: maild-suse.spec.in
-	sed -e "s/__VERSION__/$(version)/" < maild-suse.spec.in > maild-suse.spec
+%-rpm: maild-%.spec src-tarball
+	rpmbuild -ba $<
+
+redhat-rpm: maild.spec src-tarball
+	rpmbuild -ba maild.spec
 
 ifeq ($(VENDOR),suse)
 rpm: suse-rpm
@@ -132,11 +135,5 @@ else
 rpm: redhat-rpm
 
 endif
-
-redhat-rpm: maild.spec src-tarball
-	rpmbuild -ba maild.spec
-
-suse-rpm: maild-suse.spec src-tarball
-	rpmbuild -ba maild-suse.spec
 
 FORCE:
