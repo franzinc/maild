@@ -1,27 +1,25 @@
-# $Id: maild.spec.in,v 1.2 2006/03/01 22:12:32 dancy Exp $
+# $Id: maild-suse.spec.in,v 1.1 2006/03/01 22:12:32 dancy Exp $
 
-# Spec file suitable for modern Redhat-like hosts.  Modeled after the
-# sendmail.spec from FC4.
+# Spec file suitable for SuSE.
 
 Summary: Allegro Mail Daemon
 Name: maild
 Version: __VERSION__
 Release: 1
 License: Commercial
-Group: System Environment/Daemons
+Group: Productivity/Networking/Email/Servers
 #URL: 
 # Stuff required for installation
-Prereq: /usr/sbin/alternatives 
 Prereq: /usr/sbin/useradd
 Prereq: chkconfig
 # Stuff required for operation
 Requires: procmail
 # for /etc/aliases
-Requires: setup 
+Requires: netcfg
 # BuildRequires: allegrocl
 Source0: %{name}-%{version}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root
-Provides: smtpdaemon
+Provides: smtp_daemon
 Provides: %{_sbindir}/sendmail %{_bindir}/mailq %{_bindir}/newaliases
 Provides: /usr/lib/sendmail
 
@@ -37,14 +35,16 @@ make
 %install
 rm -rf $RPM_BUILD_ROOT
 mkdir -p $RPM_BUILD_ROOT/usr/{bin,sbin,lib}
-mkdir -p $RPM_BUILD_ROOT/etc/rc.d/init.d
+mkdir -p $RPM_BUILD_ROOT/etc/init.d
 mkdir -p $RPM_BUILD_ROOT/etc/sysconfig
 mkdir -p $RPM_BUILD_ROOT/var/spool/{maild,mqueue}
 make ROOT=$RPM_BUILD_ROOT install
 # Redo some symlinks here 
 ln -snf /usr/lib/maild/maild $RPM_BUILD_ROOT/usr/sbin/maild
 ln -snf /usr/lib/greyadmin/greyadmin $RPM_BUILD_ROOT/usr/sbin/greyadmin
-
+# additional symlinks
+ln -snf /usr/sbin/maild $RPM_BUILD_ROOT/usr/bin/mailq
+ln -snf /usr/sbin/maild $RPM_BUILD_ROOT/usr/bin/newaliases
 
 %clean
 rm -rf $RPM_BUILD_ROOT
@@ -52,7 +52,7 @@ rm -rf $RPM_BUILD_ROOT
 
 %files
 %defattr(-,root,root,-)
-/etc/rc.d/init.d/maild
+/etc/init.d/maild
 /usr/lib/greyadmin
 /usr/lib/maild
 /usr/sbin/maild

@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.30 2006/03/01 19:35:26 dancy Exp $
+# $Id: Makefile,v 1.31 2006/03/01 22:12:32 dancy Exp $
 
 preferred_lisp=/fi/cl/8.0/bin/mlisp
 alt_lisp0=/usr/local/acl80/mlisp
@@ -25,7 +25,7 @@ version := $(shell grep 'allegro-maild-version' version.cl | sed -e 's,.*"v\([0-
 installer-package := maild-$(version)-installer.tar.gz
 
 SRCFILES=Makefile \
-	maild.init maild.sysconfig \
+	maild.init maild.init.suse9 maild.sysconfig \
 	aliases.cl auth.cl blacklist.cl bounce.cl checkers.cl \
 	config.cl deliver.cl deliver-smtp.cl dns.cl emailaddr.cl \
 	greylist.cl headers.cl input.cl ipaddr.cl lex.cl load.cl \
@@ -75,7 +75,11 @@ install-check-mail-virus: check-mail-virus/check-mail-virus install-common
 	       $(sbindir)/check-mail-virus
 
 install-system: FORCE
+ifeq ($(VENDOR),suse)
+	cp maild.init.suse9 $(ROOT)/etc/init.d/maild
+else
 	cp maild.init $(ROOT)/etc/rc.d/init.d/maild
+endif
 	if [ ! -e $(ROOT)/etc/sysconfig/maild ]; then \
 		cp maild.sysconfig $(ROOT)/etc/sysconfig/maild; \
 	fi
@@ -114,5 +118,25 @@ src-tarball: FORCE
 	(cd greyadmin && cp $(GREYADMINSRCFILES) ../maild-$(version)/greyadmin)
 	tar zcf maild-$(version).tar.gz maild-$(version)
 	rm -fr maild-$(version)
+
+maild.spec: maild.spec.in
+	sed -e "s/__VERSION__/$(version)/" < maild.spec.in > maild.spec
+
+maild-suse.spec: maild-suse.spec.in
+	sed -e "s/__VERSION__/$(version)/" < maild-suse.spec.in > maild-suse.spec
+
+ifeq ($(VENDOR),suse)
+rpm: suse-rpm
+
+else
+rpm: redhat-rpm
+
+endif
+
+redhat-rpm: maild.spec src-tarball
+	rpmbuild -ba maild.spec
+
+suse-rpm: maild-suse.spec src-tarball
+	rpmbuild -ba maild-suse.spec
 
 FORCE:

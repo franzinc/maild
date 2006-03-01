@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: maild.init.suse9,v 1.1 2004/04/01 06:38:17 layer Exp $
+# $Id: maild.init.suse9,v 1.2 2006/03/01 22:12:32 dancy Exp $
 ### BEGIN INIT INFO
 # Provides:       maild
 # Required-Start: $remote_fs $time $syslog $named
@@ -11,11 +11,15 @@
 # Description:    Start the Maild MTA.
 ### END INIT INFO
 
-MAILD=/usr/local/sbin/maild
+MAILD=/usr/sbin/maild
 MAILD_CONF="/etc/maild.cl"
 MAILD_ARGS="-bd -q1h"
 
-GREYADMIN=/usr/local/sbin/greyadmin
+GREYADMIN=/usr/sbin/greyadmin
+GREYADMIN_CONF="/etc/greyadmin.cl"
+
+. /etc/rc.status
+rc_reset
 
 if [ ! -f ${MAILD} ]; then
 	echo -n "${MAILD} does not exist."
@@ -24,21 +28,12 @@ if [ ! -f ${MAILD} ]; then
 	exit 6
 fi
 
-if [ ! -f ${MAILD_CONF} ]; then
-	echo -n "Maild server configuration file, ${MAILD_CONF} does not exist."
-	# Tell the user this has skipped
-	rc_status -s
-	exit 6
-fi
-
-. /etc/rc.status
-rc_reset
 case "$1" in
 	start)
 		echo -n "Starting maild. "
 		startproc $MAILD $MAILD_ARGS
         rc_status -v
-		if [ -f ${GREYADMIN} ]; then
+		if [ -f ${GREYADMIN} -a -f $GREYADMIN_CONF ]; then
 			echo -n "Starting greyadmin. "
 			startproc $GREYADMIN
 	        rc_status -v

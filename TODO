@@ -1,3 +1,10 @@
+Improve logging.
+ * Output should be in a more consistent format.  
+  * All messages related to a particular queue id should be prefixed.
+    with that ID.
+  * All messages related to an SMTP connection should be prefixed
+    with smtpd and the IP address of the peer.
+
 Make sure that maild never tries to make an SMTP connection to itself.
 It should immediately bounce in that case.  or should it just hold it
 and log a complaint?  I prefer to err on the side of not bouncing.. so
