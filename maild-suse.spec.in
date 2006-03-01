@@ -1,4 +1,4 @@
-# $Id: maild-suse.spec.in,v 1.1 2006/03/01 22:12:32 dancy Exp $
+# $Id: maild-suse.spec.in,v 1.2 2006/03/01 22:46:50 dancy Exp $
 
 # Spec file suitable for SuSE.
 
@@ -11,7 +11,7 @@ Group: Productivity/Networking/Email/Servers
 #URL: 
 # Stuff required for installation
 Prereq: /usr/sbin/useradd
-Prereq: chkconfig
+Prereq: insserv
 # Stuff required for operation
 Requires: procmail
 # for /etc/aliases
@@ -34,6 +34,7 @@ make
 
 %install
 rm -rf $RPM_BUILD_ROOT
+mkdir -p $RPM_BUILD_ROOT/sbin
 mkdir -p $RPM_BUILD_ROOT/usr/{bin,sbin,lib}
 mkdir -p $RPM_BUILD_ROOT/etc/init.d
 mkdir -p $RPM_BUILD_ROOT/etc/sysconfig
@@ -43,8 +44,11 @@ make ROOT=$RPM_BUILD_ROOT install
 ln -snf /usr/lib/maild/maild $RPM_BUILD_ROOT/usr/sbin/maild
 ln -snf /usr/lib/greyadmin/greyadmin $RPM_BUILD_ROOT/usr/sbin/greyadmin
 # additional symlinks
+ln -snf /usr/sbin/maild $RPM_BUILD_ROOT/usr/sbin/sendmail
+ln -snf /usr/sbin/maild $RPM_BUILD_ROOT/usr/lib/sendmail
 ln -snf /usr/sbin/maild $RPM_BUILD_ROOT/usr/bin/mailq
 ln -snf /usr/sbin/maild $RPM_BUILD_ROOT/usr/bin/newaliases
+ln -snf /etc/init.d/maild $RPM_BUILD_ROOT/sbin/rcmaild
 
 %clean
 rm -rf $RPM_BUILD_ROOT
@@ -53,10 +57,13 @@ rm -rf $RPM_BUILD_ROOT
 %files
 %defattr(-,root,root,-)
 /etc/init.d/maild
+/sbin/rcmaild
 /usr/lib/greyadmin
 /usr/lib/maild
+/usr/lib/sendmail
 /usr/sbin/maild
 /usr/sbin/greyadmin
+/usr/sbin/sendmail
 %dir /var/spool/maild
 %dir /var/spool/mqueue
 %doc config.cl ALIASES MAILERS.txt NOTES STATS greylist.sql greylist.sql.notes
@@ -67,26 +74,18 @@ rm -rf $RPM_BUILD_ROOT
 exit 0
 
 %post
-/sbin/chkconfig --add maild
-
-/usr/sbin/alternatives --install \
-	/usr/sbin/sendmail mta /usr/sbin/maild 91 \
-	--slave /usr/lib/sendmail mta-sendmail /usr/sbin/maild \
-	--slave /usr/bin/mailq mta-mailq /usr/sbin/maild \
-	--slave /usr/bin/newaliases mta-newaliases /usr/sbin/maild \
-	--initscript maild
+/sbin/insserv maild
 
 %preun
 if [ $1 = 0 ]; then
-	/etc/rc.d/init.d/maild stop >/dev/null 2>&1
-	/sbin/chkconfig --del maild
-	/usr/sbin/alternatives --remove mta /usr/sbin/maild
+	/etc/init.d/maild stop >/dev/null 2>&1
+	/sbin/insserv -r maild
 fi
 exit 0
 
 %postun
 if [ "$1" != 0 ]; then
-	/sbin/service maild condrestart 2>&1 > /dev/null
+	/etc/init.d/maild try-restart 2>&1 > /dev/null
 fi
 exit 0
 
