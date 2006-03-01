@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.31 2006/03/01 22:12:32 dancy Exp $
+# $Id: Makefile,v 1.32 2006/03/01 22:27:38 dancy Exp $
 
 preferred_lisp=/fi/cl/8.0/bin/mlisp
 alt_lisp0=/usr/local/acl80/mlisp
@@ -94,7 +94,7 @@ install-dmz: dist
 	done
 
 clean: FORCE
-	rm -f *.fasl maild.tar.gz maild-*.tar.gz 
+	rm -f *.fasl maild.tar.gz maild-*.tar.gz autoloads.out
 	rm -fr maild check-mail-virus
 	(cd greyadmin; make clean)
 
