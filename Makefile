@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.33 2006/03/01 23:26:14 dancy Exp $
+# $Id: Makefile,v 1.34 2006/03/02 00:54:42 dancy Exp $
 
 preferred_lisp=/fi/cl/8.0/bin/mlisp
 alt_lisp0=/usr/local/acl80/mlisp
@@ -23,6 +23,8 @@ sbindir ?= $(prefix)/sbin
 version := $(shell grep 'allegro-maild-version' version.cl | sed -e 's,.*"v\([0-9.]*\)".*,\1,')
 
 installer-package := maild-$(version)-installer.tar.gz
+
+REDHAT73 := $(shell rpm -q redhat-release-7.3 >/dev/null && echo yes)
 
 SRCFILES=Makefile \
 	maild.init maild.init.suse9 maild.sysconfig \
@@ -132,8 +134,13 @@ ifeq ($(VENDOR),suse)
 rpm: suse-rpm
 
 else
+ifeq ($(REDHAT73),yes)
+rpm: rh73-rpm
+
+else
 rpm: redhat-rpm
 
+endif
 endif
 
 FORCE:

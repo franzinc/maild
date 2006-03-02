@@ -10,7 +10,7 @@
 # config: /etc/maild.cl
 
 # This script stolen from redhat's sendmail script
-# $Id: maild.init,v 1.4 2006/03/01 19:35:26 dancy Exp $
+# $Id: maild.init,v 1.5 2006/03/02 00:54:42 dancy Exp $
 
 # Source function library.
 . /etc/rc.d/init.d/functions
@@ -19,6 +19,7 @@
 . /etc/sysconfig/network
 
 QUEUE=15m
+GREYADMIN_CONF=/etc/greyadmin.cl
 
 if [ -r /etc/sysconfig/maild ]; then
     . /etc/sysconfig/maild
@@ -38,6 +39,13 @@ start() {
 	RETVAL=$?
 	echo
 	[ $RETVAL -eq 0 ] && touch /var/lock/subsys/maild
+	if [ -r $GREYADMIN_CONF ]; then
+	    echo -n $"Starting greyadmin: "
+	    daemon /usr/sbin/greyadmin
+	    RETVAL=$?
+	    [ $RETVAL -eq 0 ] && touch /var/lock/subsys/greyadmin
+	    echo
+	fi
 	return $RETVAL
 }
 
@@ -48,6 +56,13 @@ stop() {
 	RETVAL=$?
 	echo
 	[ $RETVAL -eq 0 ] && rm -f /var/lock/subsys/maild
+	if [ -f /var/lock/subsys/greyadmin ]; then
+	    echo -n $"Shutting down greyadmin: "
+	    killproc greyadmin
+	    RETVAL=$?
+	    echo
+	    [ $RETVAL -eq 0 ] && rm -f /var/lock/subsys/greyadmin
+	fi
 	return $RETVAL
 }
 
