@@ -8,7 +8,7 @@
 (defparameter *domain* "unconfigured.domain")
 (defparameter *pop-auth-server* nil)
 ;; trailing slash is required
-(defparameter *libdir* "/usr/local/lib/greyadmin/")
+(defparameter *libdir* "/usr/lib/greyadmin/")
 ;; super user
 (defparameter *admin-user* nil)
 (defparameter *admin-password* nil)

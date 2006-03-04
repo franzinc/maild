@@ -1,3 +1,10 @@
+2006-03-04  root  <root@gills.dancysoft.com>
+
+        * greyadmin/greyadmin.cl: Changed default *libdir* to
+	/usr/lib/greyadmin.
+	
+	* maild-rh73.spec.in: Bumped released to 2 for greyadmin fix.
+
 2006-03-01  root  <root@gills.dancysoft.com>
 
 	* Additional rpm-related mods.
