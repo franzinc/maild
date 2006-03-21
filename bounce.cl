@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: bounce.cl,v 1.13 2005/11/28 16:15:09 dancy Exp $
+;; $Id: bounce.cl,v 1.14 2006/03/21 18:12:45 dancy Exp $
 
 (in-package :user)
 
@@ -32,20 +32,26 @@
       (setf bounce-to (parse-email-addr "postmaster"))
       (setf subject "Subject: Postmaster notify"))
     (with-new-queue (q f errstatus (parse-email-addr "<>" :allow-null t))
+      
+      (if undeliverable
+	  (format f "----- Could not deliver message for ~D days -----~%~%"
+		  *bounce-days*))
+      
       (write-line
-       "   ----- The following addresses had permanent fatal errors -----"
+       "----- The following addresses had permanent fatal errors -----"
        f)
+      
       (dolist (recip failed-recips)
 	(write-recip-expansion recip f))
-      (write-line "" f)
-      (write-line "   ----- Transcript of session follows -----" f)
+      (terpri f)
+
+      (write-line "----- Transcript of session follows -----" f)
       (dolist (recip failed-recips)
-	(write-line (recip-status recip) f)
-	(if undeliverable
-	    (format f "Could not deliver message for ~D days" *bounce-days*)))
-      (write-line "" f)
+	(write-line (recip-status recip) f))
+      (terpri f)
+      (terpri f)
       
-      (write-line "   ----- Original message follows -----" f)
+      (write-line "----- Original message follows -----" f)
       (write-message-to-stream f oldq :norewrite :noclose t)
       
       (finish-output f)

@@ -1,3 +1,11 @@
+2006-03-21  root  <root@gills.dancysoft.com>
+1.1.45
+	
+	* bounce.cl: Adjusted bounce message appearance.
+
+	* deliver-smtp.cl: Try to generate better delivery status
+	information to aid in diagnosis of problems.
+
 2006-03-04  root  <root@gills.dancysoft.com>
 
         * greyadmin/greyadmin.cl: Changed default *libdir* to

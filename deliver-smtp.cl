@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: deliver-smtp.cl,v 1.20 2005/12/20 00:39:40 dancy Exp $
+;; $Id: deliver-smtp.cl,v 1.21 2006/03/21 18:12:45 dancy Exp $
 
 (in-package :user)
 
@@ -113,16 +113,21 @@
 	
 	;; Socket ready.
 	(unwind-protect
-	    (with-socket-timeout (sock :write *datatimeout*)
+	    (progn
 	      (multiple-value-bind (res response)
 		  (get-smtp-greeting sock buf mxname :verbose verbose)
-		(if (not (eq res :ok))
-		    (return (values res response))))
+		(when (not (eq res :ok))
+		  (setf response 
+		    (format nil "~a said ~a when we connected."
+			    mxname response))
+		  (return (values res response))))
+	      
 	      ;; HELO
 	      (multiple-value-bind (res response)
 		  (smtp-say-hello sock buf mxname :verbose verbose)
 		(if (not (eq res :ok))
 		    (return (values res response))))
+
 	      ;; MAIL FROM:
 	      (multiple-value-bind (res response)
 		  (smtp-send-mail-from sock buf mxname sender :verbose verbose)
@@ -177,13 +182,13 @@
 		   (let (recip)
 		     (while (setf recip 
 			      (pop (smtp-delivery-in-process-recips deliv)))
-			    (push recip (smtp-delivery-good-recips deliv))
+		       (push recip (smtp-delivery-good-recips deliv))
 			    
-			    (maild-log-and-print 
-			     verbose
-			     "Successful SMTP delivery to ~A (mx: ~A)" 
-			     (recip-printable recip)  
-			     mxname)))
+		       (maild-log-and-print 
+			verbose
+			"Successful SMTP delivery to ~A (mx: ~A)" 
+			(recip-printable recip)  
+			mxname)))
 		   (return :ok))
 		  ((:transient :fail)
 		   (setf (smtp-delivery-unprocessed-recips deliv)
@@ -191,32 +196,24 @@
 		   ;; not really necessary
 		   (setf (smtp-delivery-in-process-recips deliv) nil)
 		   (return (values res response))))))
+
 	  ;; cleanup forms
 	  (if sock 
 	      (ignore-errors
-	       ;; try to be polite.  But don't wait too long
-	       (mp:with-timeout (30)
-		 (smtp-finish sock buf mxname :verbose verbose))
+	       (smtp-finish sock buf mxname :verbose verbose)
 	       (close sock :abort t))))))))
 
-
-
 (defun smtp-finish (sock buf mxname &key verbose)
-  (if verbose
-      (format t ">>> QUIT~%"))
-  (outline sock "QUIT")
-  (get-smtp-reply sock buf *quittimeout* mxname :verbose verbose))
+  (smtp-tx-rx "QUIT" sock buf *quittimeout* mxname :verbose verbose))
   
 (defun smtp-send-data (sock buf mxname q &key verbose)
   (block nil
-    (if verbose
-	(format t ">>> DATA~%"))
-    (outline sock "DATA")
     (multiple-value-bind (status line)
-	(get-smtp-reply sock buf *datainitiationtimeout* mxname 
-			:verbose verbose)
+	(smtp-tx-rx "DATA" sock buf *datainitiationtimeout* mxname 
+		    :verbose verbose)
       (if (not (eq status :intermediate-ok))
 	  (return (values status line))))
+
     (handler-case (write-message-to-stream sock q :smtp :smtp t)
       (error (c)
 	(let (report)
@@ -230,39 +227,42 @@
 		      c mxname)))
 	  (maild-log-and-print verbose "~A" report)
 	  (return (values :transient report)))))
-    (if verbose
-	(format t ">>> .~%"))
-    (outline sock ".")
-    (get-smtp-reply sock buf *dataterminationtimeout* mxname 
-		    :verbose verbose)))
+    
+    (smtp-tx-rx "." sock buf *dataterminationtimeout* mxname 
+		:verbose verbose :data-term t)))
 
 (defun smtp-send-rcpt-to (sock buf mxname to &key verbose)
   (if (string= to "<>")
       (setf to ""))
-  (let ((string (format nil "RCPT TO:<~A>" to)))
-    (if verbose 
-	(format t ">>> ~A~%" string))
-    (outline sock "~A" string))
-  (get-smtp-reply sock buf *rcptcmdtimeout* mxname :verbose verbose))
+  (smtp-tx-rx (format nil "RCPT TO:<~A>" to)
+	      sock buf *rcptcmdtimeout* mxname :verbose verbose))
 
 (defun smtp-send-mail-from (sock buf mxname sender &key verbose)
   (if (string= sender "<>")
       (setf sender ""))
-  (let ((string (format nil "MAIL FROM:<~A>" sender)))
-    (if verbose 
-	(format t ">>> ~A~%" string))
-    (outline sock "~A" string))
-  (get-smtp-reply sock buf *mailcmdtimeout* mxname :verbose verbose))
+  (smtp-tx-rx (format nil "MAIL FROM:<~A>" sender)
+	      sock buf *mailcmdtimeout* mxname :verbose verbose))
 
 (defun smtp-say-hello (sock buf mxname &key verbose)
-  (let ((string (format nil "HELO ~A" (fqdn))))
-    (if verbose
-	(format t ">>> ~A~%" string))
-    (outline sock "~A" string))
-  (get-smtp-greeting sock buf mxname :verbose verbose))
+  (smtp-tx-rx (format nil "HELO ~A" (fqdn)) 
+	      sock buf *greetingtimeout* mxname :verbose verbose))
 
 (defun get-smtp-greeting (sock buf mxname &key verbose)
   (get-smtp-reply sock buf *greetingtimeout* mxname :verbose verbose))
+
+(defun smtp-tx-rx (tx sock buf timeout mxname &key verbose data-term)
+  (when verbose 
+    (format t ">>> ~A~%" tx)
+    (finish-output))
+  (with-socket-timeout (sock :write timeout)
+    (outline sock "~a" tx))
+  
+  (multiple-value-bind (status response)
+      (get-smtp-reply sock buf timeout mxname :verbose verbose)
+    (if data-term 
+	(setf tx "[message data]"))
+    (setf response (format nil "We said: ~a, ~a said: ~a" tx mxname response))
+    (values status response)))
 
 (defun get-smtp-reply (sock buf timeout mxname &key verbose)
   (let (line char)
