@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.35 2006/03/24 22:10:34 dancy Exp $
+# $Id: Makefile,v 1.36 2006/03/24 22:15:49 dancy Exp $
 
 preferred_lisp=/fi/cl/8.0/bin/mlisp
 alt_lisp0=/usr/local/acl80/mlisp
@@ -121,7 +121,7 @@ src-tarball: FORCE
 	tar zcf maild-$(version).tar.gz maild-$(version)
 	rm -fr maild-$(version)
 
-%.spec: %.spec.in
+%.spec: %.spec.in version.cl
 	sed -e "s/__VERSION__/$(version)/" < $< > $@
 
 rpm-setup: FORCE
