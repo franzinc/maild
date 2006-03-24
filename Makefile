@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.34 2006/03/02 00:54:42 dancy Exp $
+# $Id: Makefile,v 1.35 2006/03/24 22:10:34 dancy Exp $
 
 preferred_lisp=/fi/cl/8.0/bin/mlisp
 alt_lisp0=/usr/local/acl80/mlisp
@@ -124,11 +124,18 @@ src-tarball: FORCE
 %.spec: %.spec.in
 	sed -e "s/__VERSION__/$(version)/" < $< > $@
 
-%-rpm: maild-%.spec src-tarball
-	rpmbuild -ba $<
+rpm-setup: FORCE
+	mkdir -p BUILD RPMS/i386 SRPMS
 
-redhat-rpm: maild.spec src-tarball
-	rpmbuild -ba maild.spec
+%-rpm: maild-%.spec src-tarball rpm-setup
+	rpmbuild --define "_sourcedir $(CURDIR)" \
+		--define "_topdir $(CURDIR)" \
+		-ba $<
+
+redhat-rpm: maild.spec src-tarball rpm-setup
+	rpmbuild --define "_sourcedir $(CURDIR)" \
+		--define "_topdir $(CURDIR)" \
+		-ba maild.spec
 
 ifeq ($(VENDOR),suse)
 rpm: suse-rpm
