@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: maild.cl,v 1.24 2006/03/01 19:35:26 dancy Exp $
+;; $Id: maild.cl,v 1.25 2006/03/27 20:44:59 dancy Exp $
 
 (in-package :user)
 
@@ -26,6 +26,9 @@
 
 (defun main (&rest args)
   (setf *load-verbose* nil)
+
+  ;; Ensure sane umask.
+  (excl.osi:umask #o22)
   
   (let ((prgname (pop args)))
     (when (string= (basename prgname) "mailq")
