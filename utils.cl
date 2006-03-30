@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: utils.cl,v 1.17 2005/10/27 01:50:48 dancy Exp $
+;; $Id: utils.cl,v 1.18 2006/03/30 23:46:51 dancy Exp $
 
 (in-package :user)
 
@@ -130,9 +130,9 @@
       (values (coerce value 'float) pos))))
 	
 (defmacro socketp (thing)
-  `(typep ,thing 'socket:socket))
+  `(or (typep ,thing 'socket:socket)
+       (typep ,thing 'excl::ssl-server-stream)))
 
-	  
 
 (defmacro with-already-open-file ((f) &body body)
   `(when ,f

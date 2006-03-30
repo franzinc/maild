@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: smtp-server.cl,v 1.32 2005/09/22 04:02:57 dancy Exp $
+;; $Id: smtp-server.cl,v 1.33 2006/03/30 23:46:51 dancy Exp $
 
 (in-package :user)
 
@@ -179,14 +179,14 @@
     `(let ((,socksym ,sock))
        (if (socketp ,socksym)
 	   (remote-host ,socksym)
-	 #.(dotted-to-ipaddr "127.0.0.1")))))
+	 0))))
 
 (defmacro smtp-remote-dotted (sock)
   (let ((socksym (gensym)))
     `(let ((,socksym ,sock))
        (if (socketp ,socksym)
 	   (ipaddr-to-dotted (remote-host ,socksym))
-	 "localhost"))))
+	 "[local]"))))
 
 (defun start-tls-common (sess)
   (setf (session-ssl sess) t)
@@ -272,6 +272,7 @@
     (maild-log "Closing SMTP session with ~A" (smtp-remote-dotted sock))
     (when (socketp sock)
       (ignore-errors (update-smtp-stats)) ;; stats file dir might not exist
+      (ignore-errors (close sock))
       (ignore-errors (close sock :abort t)))))
 
 
