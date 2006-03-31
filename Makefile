@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.36 2006/03/24 22:15:49 dancy Exp $
+# $Id: Makefile,v 1.37 2006/03/31 00:33:24 dancy Exp $
 
 preferred_lisp=/fi/cl/8.0/bin/mlisp
 alt_lisp0=/usr/local/acl80/mlisp
@@ -88,12 +88,6 @@ endif
 
 install-greyadmin: FORCE
 	(cd greyadmin; make install)
-
-install-dmz: dist
-	for host in duck spider; do \
-		scp $(installer-package) root@$$host:; \
-		ssh root@$$host "tar zxf $(installer-package) && ./maild-installer"; \
-	done
 
 clean: FORCE
 	rm -f *.fasl maild.tar.gz maild-*.tar.gz autoloads.out
