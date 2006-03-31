@@ -1,6 +1,11 @@
 2006-03-30  Ahmon Dancy  <dancy@dancy>
+1.1.48
+        * utils.cl: Additional adjustments to fix bugs related to SSL
+	connections. 
+
+2006-03-30  Ahmon Dancy  <dancy@dancy>
 1.1.47
-	
+
 	* utils.cl:  Updated socketp macro so that it recognizes
 	excl::ssl-server-stream's as sockets.  This fixes a bug where SSL
 	connections were not being closed properly.

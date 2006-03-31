@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: utils.cl,v 1.18 2006/03/30 23:46:51 dancy Exp $
+;; $Id: utils.cl,v 1.19 2006/03/31 00:34:25 dancy Exp $
 
 (in-package :user)
 
@@ -133,7 +133,6 @@
   `(or (typep ,thing 'socket:socket)
        (typep ,thing 'excl::ssl-server-stream)))
 
-
 (defmacro with-already-open-file ((f) &body body)
   `(when ,f
      (block nil
@@ -150,6 +149,7 @@
       (setf *short-host-name* (subseq hostname 0 dot-pos)))))
     
 
+;; Only operates on hiper sockets.  
 (defmacro with-socket-timeout ((sock type timeout) &body body)
   (let* ((types '((:read . excl::stream-read-timeout)
 		  (:write . excl::stream-write-timeout)))
@@ -158,17 +158,19 @@
 	(error "with-socket-XXXX-timeout: type must be :read or :write"))
     (let ((sockvar (gensym))
 	  (timeoutvar (gensym))
-	  (origvar (gensym)))
-      `(let ((,sockvar ,sock)
-	     (,timeoutvar ,timeout)
-	     ,origvar)
-	 (if (socketp ,sockvar)
-	     (progn
-	       (setf ,origvar (,accessor ,sockvar))
-	       (setf (,accessor ,sockvar) ,timeoutvar)))
-	 (unwind-protect
-	     (progn ,@body)
-	   (if (socketp ,sockvar)
+	  (origvar (gensym))
+	  (right-type (gensym)))
+      `(let* ((,sockvar ,sock)
+	      (,timeoutvar ,timeout)
+	      (,right-type 
+	       (typep ,sockvar 'socket::hiper-socket-stream-internet-active))
+	      ,origvar)
+	 (when ,right-type
+	   (setf ,origvar (,accessor ,sockvar))
+	   (setf (,accessor ,sockvar) ,timeoutvar))
+	 (unwind-protect (progn ,@body)
+	   ;; cleanup
+	   (if ,right-type
 	       (setf (,accessor ,sockvar) ,origvar)))))))
 
 (defun flip-ip (ip)
