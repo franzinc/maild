@@ -1,4 +1,4 @@
-# $Id: maild-suse.spec.in,v 1.4 2006/03/01 23:33:01 dancy Exp $
+# $Id: maild-suse.spec.in,v 1.5 2006/04/02 17:12:58 dancy Exp $
 
 # Spec file suitable for SuSE.
 
@@ -60,10 +60,12 @@ rm -rf $RPM_BUILD_ROOT
 /sbin/rcmaild
 /usr/lib/greyadmin
 /usr/lib/maild
-/usr/lib/sendmail
 /usr/sbin/maild
 /usr/sbin/greyadmin
 /usr/sbin/sendmail
+/usr/lib/sendmail
+/usr/bin/mailq
+/usr/bin/newaliases
 %dir /var/spool/maild
 %dir /var/spool/mqueue
 %doc config.cl ALIASES MAILERS.txt NOTES STATS greylist.sql greylist.sql.notes
