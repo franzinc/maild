@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: aliases.cl,v 1.18 2005/12/20 00:39:40 dancy Exp $
+;; $Id: aliases.cl,v 1.19 2006/04/09 17:59:09 dancy Exp $
 
 (in-package :user)
 
@@ -25,6 +25,8 @@
 
 (defparameter *aliases* nil)
 
+;: expand-alias
+;: 
 (defun update-aliases-info ()
   ;; Make sure only one thread creates the aliases-info
   (without-interrupts 
@@ -41,6 +43,8 @@
 
 
 ;; Call with the lock held.
+;: update-aliases-info
+;: 
 (defun aliases-need-reparsing-p ()
   (dolist (pair (aliases-info-files *aliases*))
     (let ((filename (first pair))
@@ -49,6 +53,8 @@
 	      (> (file-write-date filename) mtime))
 	  (return t)))))
 
+;: update-aliases-info
+;: 
 (defun parse-global-aliases ()
   (let ((ht (make-hash-table :test #'equalp)))
     (setf (aliases-info-files *aliases*) nil)
@@ -56,6 +62,8 @@
     (setf (aliases-info-aliases *aliases*) ht)))
     
 
+;: parse-global-aliases, parse-aliases-file
+;: 
 (defun parse-aliases-file (filename ht files-seen &key (system t) domain)
   (when (not (probe-file filename))
     (maild-log "Skipping nonexistent aliases file ~A" filename)
@@ -69,38 +77,42 @@
       (let (ali)
 	(while (setf ali (aliases-get-alias f))
 	  (multiple-value-bind (alias expansion)
-	      (parse-alias-line ali)
-	    (multiple-value-bind (is-include include-sys include-domain)
-		(aliases-include-directive-p alias)
-	      (cond
-	       ((and is-include (not system))
-		(maild-log "~A: User include files are not allowed to contain includes" filename))
-	       (is-include
-		(dolist (entry expansion)
-		  (if* (eq (recip-type entry) :file)
-		     then
-			  (let ((ifile (recip-file entry)))
-			    (if (member ifile files-seen :test #'equal)
-				(maild-log "~A: ~A~%Include loop" 
-					   filename ali)
-			      (parse-aliases-file ifile ht files-seen
-						  :system include-sys
-						  :domain include-domain)))
-		     else
-			  (maild-log "~A: ~A~%Right hand side of an include alias must be a list of absolute pathnames" filename ali))))
-	       (t
-		(setf alias (sanity-check-alias filename alias expansion
-						:system system
-						:domain domain))
-		(when alias
-		  (if (gethash alias ht)
-		      (maild-log "~A: Redefined alias: ~A" filename alias))
-		  (setf (gethash alias ht) expansion)))))))))
+	      (parse-alias-line ali filename)
+	    (when alias
+	      (multiple-value-bind (is-include include-sys include-domain)
+		  (aliases-include-directive-p alias)
+		(cond
+		 ((and is-include (not system))
+		  (maild-log "~A: User include files are not allowed to contain includes" filename))
+	       
+		 (is-include
+		  (dolist (entry expansion)
+		    (if* (eq (recip-type entry) :file)
+		       then (let ((ifile (recip-file entry)))
+			      (if* (member ifile files-seen :test #'equal)
+				 then (maild-log "~A: ~A~%Include loop" 
+						 filename ali)
+				 else (parse-aliases-file ifile ht files-seen
+							  :system include-sys
+							  :domain include-domain)))
+		       else (maild-log "~A: ~A~%Right hand side of an include alias must be a list of absolute pathnames" filename ali))))
+	       
+		 (t
+		  (setf alias (sanity-check-alias filename alias expansion
+						  :system system
+						  :domain domain))
+		  (when alias
+		    (if (gethash alias ht)
+			(maild-log "~A: Redefined alias: ~A" filename alias))
+		    (setf (gethash alias ht) expansion))))))))))
+    
     ;; Indicate success
     (setf (second files-entry) (get-universal-time))))
 
 
 ;; returns values:  t, system, domain
+;: parse-aliases-file
+;: 
 (defun aliases-include-directive-p (string)
   (block nil
     (if (equalp string "include")
@@ -117,10 +129,14 @@
 	  (return (values t nil domain))))
     nil))
 
+;: sanity-check-alias
+;: 
 (defun allowed-user-alias-type-p (entry)
   (or (null (recip-type entry)) 
       (error-recip-p entry)))
 
+;: parse-aliases-file
+;: 
 (defun sanity-check-alias (filename lhs rhs &key domain system)
   (macrolet ((bailout (format &rest rest)
 	       `(progn 
@@ -138,8 +154,10 @@
       
       (dolist (entry rhs)
 	(if (and (not system) (not (allowed-user-alias-type-p entry)))
-	    (bailout "~A: ~A: ~A type right-hand-sides are not allowed in user includes" 
-		     filename lhs (recip-type entry)))
+	    (bailout 
+	     "~
+~A: ~A: ~A type right-hand-sides are not allowed in user includes"
+	     filename lhs (recip-type entry)))
 	(if domain
 	    (augment-recip-with-domain entry domain)))
       
@@ -149,32 +167,48 @@
       
       
   
-(defun parse-alias-line (line)
+;: parse-aliases-file
+;: 
+(defun parse-alias-line (line filename)
   (let ((len (length line)))
     (multiple-value-bind (lhs pos)
 	(aliases-get-next-word #\: line 0 len :delim-required t)
-      (if (null lhs)
-	  (error "Invalid aliases line: ~A" line))
-      (values lhs (parse-alias-right-hand-side lhs line pos)))))
+      (if* (null lhs)
+	 then (maild-log "~a: Invalid line: ~A" filename line)
+	      nil
+	 else (let ((recips 
+		     (parse-alias-right-hand-side filename lhs line pos)))
+		(if recips
+		    (values lhs recips)))))))
 
 
-(defun parse-alias-right-hand-side (lhs line pos)
+;: parse-alias-line, aliases-parse-include-file
+;: 
+(defun parse-alias-right-hand-side (filename lhs line pos)
   (let ((recips (parse-recip-list line :pos pos)))
-    (if (null recips)
-	(error "Alias ~A has blank expansion" lhs))
-    (if (and (>= (count-if #'error-recip-p recips) 1)
-	     (> (length recips) 1))
-	(error "Problem with alias ~A:  :error: expansions must be alone" lhs))
+
+    (when (and (>= (count-if #'error-recip-p recips) 1)
+	       (> (length recips) 1))
+      (maild-log "~a: Alias ~A: :error: expansions must be alone. Ignoring"
+		 filename lhs)
+      (setf recips (delete-if #'error-recip-p recips)))
+    
     (when (find-if #'bad-recip-p recips)
-      (format *error-output* "Problem with alias ~A:~%" lhs)
+      (maild-log "~a: Problem with alias ~A:" filename lhs)
       (dolist (recip recips)
 	(if (bad-recip-p recip)
-	    (format *error-output* " ~A... ~A~%" 
-		    (recip-orig recip)
-		    (recip-errmsg recip))))
-      (error "Aborting..."))
+	    (maild-log "   ~A... ~A (ignoring)" 
+		       (recip-orig recip)
+		       (recip-errmsg recip))))
+      (setf recips (delete-if #'bad-recip-p recips)))
+
+    (if (null recips)
+	(maild-log "~a: Alias ~A has no expansion" filename lhs))
+    
     recips))
   
+;: parse-alias-line
+;: 
 (defun aliases-get-next-word (delim line pos len &key delim-required)
   (block nil
     (multiple-value-bind (word newpos)
@@ -187,38 +221,50 @@
     
 
 ;; Skips unquoted spaces.
+;: aliases-get-next-word
+;: 
 (defun aliases-get-next-word-help (delim line pos len)
   (let ((newword (make-string (- len pos)))
 	(outpos 0)
 	inquote
 	char)
     (loop
-      (when (>= pos len)
-	(if inquote
-	    (error "Unterminated double-quote in: ~A" line))
+      (if (>= pos len)
 	(return (values (subseq newword 0 outpos) pos)))
       (setf char (schar line pos))
+ 
       (cond 
        ((and (not inquote) (char= char delim))
 	(return (values (subseq newword 0 outpos) (1+ pos))))
+       
        ((char= char #\")
 	(setf inquote (not inquote)))
+       
        ((and inquote (char= char #\\))
 	(incf pos)
+	
 	(if (>= pos len)
-	    (error "Unterminated double-quote in: ~A" line))
+	    ;; line was truncated.  Cope anyway.
+	    (return (values (subseq newword 0 outpos) pos)))
+	
 	(setf char (schar line pos))
 	(setf (schar newword outpos) char)
 	(incf outpos))
+       
        ((and (not inquote) (whitespace-p char))
 	;; skip unquoted whitespace
 	)
+       
        (t
 	(setf (schar newword outpos) char)
 	(incf outpos)))
+      
       (incf pos))))
 
-;; Collects a full entry (first line plus any continuation lines)
+;; Collects a full entry (first line plus any continuation lines).
+
+;: parse-aliases-file
+;: 
 (defun aliases-get-alias (f)
   (block nil
     (let ((line (aliases-get-good-line f))
@@ -233,29 +279,33 @@
 	;; See if we're done.
 	(if (and (char/= lastchar #\\)
 		 (not (member nextchar '(#\space #\tab))))
-	  (return line))
+	    (return line))
 	;; Strip trailing backslash if there is one.
 	(if (char= lastchar #\\)
 	    (setf line (subseq line 0 (1- (length line)))))
 	(setf nextline (aliases-get-good-line f))
-	(if (null nextline)
-	    (error "Continuation line isn't there"))
-	(setf line (concatenate 'string line nextline))))))
+	;; Don't panic if there is no continuation line.
+	(if nextline
+	    (setf line (concatenate 'string line nextline)))))))
 
-;; A good line is one that is non-blank and doesn't
-;; start w/ the comment (#) character.
+
+;; Return a non-blank, non-comment line. Returns nil if EOF
+
+;: aliases-get-alias, aliases-get-include-file
+;: 
 (defun aliases-get-good-line (f)
-  (let (line)
-    (loop
+  (let ((line ""))
+    (while (or (match-re "^\\s*#" line) (match-re "^\\s*$" line))
       (setf line (read-line f nil nil))
       (if (null line)
-	  (return nil))
-      (if (and (/= 0 (length line))
-	       (char/= (schar line 0) #\#))
-	  (return line)))))
+	  (return)))
+    line))
+
 
 ;; :include: files should be treated as a big multi-line right hand side.
 ;; This function returns a bigass string.
+;: aliases-parse-include-file
+;: 
 (defun aliases-get-include-file (filename)
   (verify-security filename)
   (with-open-file (f filename)
@@ -268,9 +318,11 @@
 	  (list-to-delimited-string lines #\,)
 	nil))))
 
+;: alias-expand-member-list
+;: 
 (defun aliases-parse-include-file (filename)
   (let ((line (aliases-get-include-file filename)))
-    (parse-alias-right-hand-side filename line 0)))
+    (parse-alias-right-hand-side filename filename line 0)))
 
 ;;; end parsing stuff... 
 
@@ -289,6 +341,8 @@
 
 
 ;; Called by lookup-recip
+;: lookup-recip
+;: 
 (defun alias-transform (thing)
   (let* ((addr (make-parsed-and-unparsed-address thing))
 	 (res (expand-alias addr)))
@@ -300,6 +354,8 @@
 ;; returns a list of recip structs
 ;; may include duplicates.
 ;; Called by quick-verify-recip alias-transform alias-expand-member-list
+;: quick-verify-recip, alias-transform, alias-expand-member-list
+;: 
 (defun expand-alias (thing &key (wild t) (require-qualified nil))
   ;;; XXX - may want to move this out for performance reasons
   (update-aliases-info)
@@ -322,6 +378,8 @@
 
 ;; paddr should be a parsed address.
 ;; Returns the unextended parsed address and the extension string
+;: lookup-recip-in-mailer, expand-alias
+;: 
 (defun unextended-address (paddr)
   (block nil
     (if (null *address-extension-delimiter*)
@@ -345,6 +403,8 @@
 ;; then wildcard match (*@domain) [if desired]
 ;; then short match (just user part) [if require-qualified is nil]
 
+;: expand-alias, alias-expand-member-list
+;: 
 (defun expand-alias-inner (alias ht seen owner &key wild require-qualified)
   (block nil
     ;; Check for loops
@@ -364,6 +424,8 @@
 
 ;; returns values (lhs rhs) 
 ;; lhs is returned in case a wildcard match was hit.
+;: expand-alias-inner, alias-member-self-referential-p
+;: 
 (defun alias-get-entry (alias ht &key wild require-qualified)
   (block nil
     (let (members)
@@ -397,14 +459,18 @@
 ;; 'entry' will be a recip.  It should be a regular recip because
 ;; the check for :prog, :error: and :file is done beforehand.  
 ;; sanity check is here anyway.
+;: alias-expand-member-list
+;: 
 (defun alias-member-self-referential-p (current-lhs entry ht)
   (if (not (null (recip-type entry)))
       (error "alias-member-self-referential-p called with non-regular recip: ~S" entry))
   (let ((new-lhs (alias-get-entry (recip-addr entry) ht :wild t)))
-    (and new-lhs  (emailaddr= new-lhs current-lhs))))
+    (and new-lhs (emailaddr= new-lhs current-lhs))))
   
 
 ;; 'members' is a list of recip structs
+;: expand-alias-inner, alias-expand-member-list
+;: 
 (defun alias-expand-member-list (lhs members ht seen owner &key in-include)
   (let (res type ownerstring ownerparsed)
     (setf ownerstring (concatenate 'string "owner-" (emailaddr-orig lhs)))
@@ -426,10 +492,11 @@
 	(error "While processing :include: file ~A: file aliases are not allowed in :include: files"
 	       in-include))
        
+       ((and in-include (eq type :include))
+	(error "While processing :include: file ~A: :include: is not allowed within an :include: file"
+		   in-include))
+       
        ((eq type :include)
-	(when in-include
-	  (error "While processing :include: file ~A: :include: is not allowed within an :include: file"
-		 in-include))
 	(let* ((includefile (recip-file member))
 	       (newmembers (aliases-parse-include-file includefile)))
 	  ;; recurse
@@ -456,6 +523,8 @@
     res))
 
   
+;: alias-expand-member-list
+;: 
 (defun aliases-set-recip-info (recip owner expanded-from)
   (setf recip (copy-recip recip))
   (setf (recip-owner recip) owner)

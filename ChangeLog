@@ -1,5 +1,11 @@
 2006-04-09  root  <root@gills.dancysoft.com>
+1.1.50
+       
+        * aliases.cl:  Be tolerant of syntax errors during parsing of 
+	aliases files. 
+	
 1.1.49
+
 	* config.cl: Updated some comments.  Removed *short-host-name*
 	since it's not really a configuration parameter.  
 
