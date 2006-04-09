@@ -1,5 +1,13 @@
 2006-04-09  root  <root@gills.dancysoft.com>
 1.1.51
+
+	* greylist.sql: For whitelist table, do not specify 'not null' for
+	the expire column.  A NULL in the expire column indicates a record
+	that should not expire.  Manually issue this SQL statement to fix
+	your whitelist table definition if necessary:
+
+	alter table whitelist modify expire bigint;	
+
 	* aliases.cl: Fix processing of continuation lines.
 
 1.1.50

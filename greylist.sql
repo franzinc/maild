@@ -22,7 +22,7 @@ create index ind3 on optin (receiver(50));
 create table whitelist (sender text not null, 
 			receiver text not null, 
 			source text not null,
-			expire bigint not null);
+			expire bigint);
 create index ind4 on whitelist (receiver(50), sender(50));
 create index ind5 on whitelist (source(25));
 create index ind6 on whitelist (expire);
