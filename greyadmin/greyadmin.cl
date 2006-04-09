@@ -95,9 +95,9 @@
 		       :index "login"
 		       :map '(("login" "login.clp")
 			      ("checklogin" check-login)
-			      ("super" "super.clp")
+			      ("super" "super.clp" (:redirect t))
 			      ("impersonate" impersonate)
-			      ("menu" "menu.clp")
+			      ("menu" "menu.clp" (:redirect t))
 			      ("update" update)
 			      ("whitelist" quick-whitelist-triple)
 			      ("modify-personal-whitelist" modify-personal-whitelist)))))

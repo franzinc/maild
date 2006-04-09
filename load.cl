@@ -1,4 +1,4 @@
-;; $Id: load.cl,v 1.17 2005/09/22 04:02:57 dancy Exp $
+;; $Id: load.cl,v 1.18 2006/04/09 17:29:56 jkf Exp $
 
 (in-package :user)
 
@@ -37,7 +37,7 @@
   (compile-sources)
   (generate-executable 
    "maild" 
-   (append '("config.cl" :acldns :locale)
+   (append '("config.cl" :acldns :locale :srecord)
 	   (mapcar #'(lambda (f) 
 		       (concatenate 'string f ".fasl"))
 		   *source-files*)))
