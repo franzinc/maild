@@ -1,4 +1,4 @@
-;; $Id: config.cl,v 1.36 2006/02/28 19:24:44 dancy Exp $
+;; $Id: config.cl,v 1.37 2006/04/09 17:21:50 dancy Exp $
 
 (in-package :user)
 
@@ -31,23 +31,20 @@
 
 (defparameter *stats-file* "/var/state/maild")
 
-;; If this is nil, it is determined by calling (gethostname)
-(defparameter *short-host-name* nil)
-
 ;; If this is nil, the fully qualified domain name of this
 ;; host will be determined automatically, if possible.  *fqdn*
 ;; is what is used during the HELO transaction when delivering mail
 ;; via SMTP.
 (defparameter *fqdn* nil)
 
-;; Other names by which this host is known (Besides *fqdn* and
-;; *short-host-name*).  This is used in the default rewriting rules
-;; (for masquerading).
+;; Other names by which this host is known (Besides *fqdn*,
+;; (gethostname), and *short-host-name*).  This is used in the default
+;; rewriting rules (for masquerading).
 (defparameter *host-aliases* '("localhost"))
 
 ;; Domains for which we receive mail. Add your domain name here.
-;; *short-host-name*, *fqdn*, and *host-aliases* are included
-;; implicitly so you don't need to add them.
+;; (gethostname), *short-host-name*, *fqdn*, and *host-aliases* are
+;; included implicitly so you don't need to add them.
 (defparameter *localdomains* nil)
 
 ;; List of functions to call to determine if the client is allowed to

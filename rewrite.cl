@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: rewrite.cl,v 1.10 2003/08/22 20:41:47 dancy Exp $
+;; $Id: rewrite.cl,v 1.11 2006/04/09 17:21:50 dancy Exp $
 
 (in-package :user)
 
@@ -23,7 +23,7 @@
 (defun this-host-p (addr)
   (or (null (emailaddr-domain addr))
       (member (emailaddr-domain addr)
-	      (append (list (short-host-name) (fqdn)) *host-aliases*)
+	      (list* (gethostname) (short-host-name) (fqdn) *host-aliases*)
 	      :test #'equalp)))
 
 (defun should-masquerade-p (addr)

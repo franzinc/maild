@@ -80,9 +80,4 @@
 
 ;; If there are DNS troubles, the user can set *fqdn* in the config file.
 (defun fqdn ()
-  (if *fqdn*
-      *fqdn*
-    (setf *fqdn* (compute-fqdn))))
-
-
-    
+  (or *fqdn* (setf *fqdn* (compute-fqdn))))

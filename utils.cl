@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: utils.cl,v 1.19 2006/03/31 00:34:25 dancy Exp $
+;; $Id: utils.cl,v 1.20 2006/04/09 17:21:50 dancy Exp $
 
 (in-package :user)
 
@@ -139,14 +139,14 @@
        (unwind-protect (progn ,@body)
 	 (if ,f
 	     (close ,f))))))
-  
+
+(defparameter *short-host-name* nil)
 
 (defun short-host-name ()
-  (if *short-host-name*
-      *short-host-name*
-    (let* ((hostname (gethostname))
-	   (dot-pos (position #\. hostname)))
-      (setf *short-host-name* (subseq hostname 0 dot-pos)))))
+  (or *short-host-name*
+      (let* ((hostname (gethostname))
+	     (dot-pos (position #\. hostname)))
+	(setf *short-host-name* (subseq hostname 0 dot-pos)))))
     
 
 ;; Only operates on hiper sockets.  

@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: recips.cl,v 1.21 2005/12/20 00:39:40 dancy Exp $
+;; $Id: recips.cl,v 1.22 2006/04/09 17:21:50 dancy Exp $
 
 (in-package :user)
 
@@ -75,11 +75,12 @@
 	 (format nil ":bad:~A" (recip-orig r)))))))
   
 
+;; Is the domain part of 'address' a domain for which we accept mail?
 (defun local-domain-p (address)
   (let ((domain (emailaddr-domain (make-parsed-and-unparsed-address address))))
     (or (null domain) 
-	(member domain 
-		(append (list (short-host-name) (fqdn)) 
+	(member domain
+		(append (list (gethostname) (short-host-name) (fqdn)) 
 			*host-aliases*
 			*localdomains*)
 		:test #'equalp))))
