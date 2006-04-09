@@ -1,3 +1,18 @@
+2006-04-09  root  <root@gills.dancysoft.com>
+1.1.49
+	* config.cl: Updated some comments.  Removed *short-host-name*
+	since it's not really a configuration parameter.  
+
+	* dns.cl: Minor reformatting.
+
+	* recips.cl: local-domain-p: Include (gethostname) in the list of
+	domains to automatically include.
+
+	* rewrite.cl: this-host-p: Include (gethostname) in the list of
+	domains to automatically include.
+
+	* utils.cl: Minor reformatting.
+
 2006-03-30  Ahmon Dancy  <dancy@dancy>
 1.1.48
         * utils.cl: Additional adjustments to fix bugs related to SSL
