@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: aliases.cl,v 1.19 2006/04/09 17:59:09 dancy Exp $
+;; $Id: aliases.cl,v 1.20 2006/04/09 19:46:43 dancy Exp $
 
 (in-package :user)
 
@@ -295,7 +295,7 @@
 ;: 
 (defun aliases-get-good-line (f)
   (let ((line ""))
-    (while (or (match-re "^\\s*#" line) (match-re "^\\s*$" line))
+    (while (or (string= line "") (match-re "^\\s*#" line))
       (setf line (read-line f nil nil))
       (if (null line)
 	  (return)))

@@ -1,6 +1,8 @@
 2006-04-09  root  <root@gills.dancysoft.com>
+1.1.51
+	* aliases.cl: Fix processing of continuation lines.
+
 1.1.50
-       
         * aliases.cl:  Be tolerant of syntax errors during parsing of 
 	aliases files. 
 	
