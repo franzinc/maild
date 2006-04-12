@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.38 2006/04/12 14:45:53 dancy Exp $
+# $Id: Makefile,v 1.39 2006/04/12 17:38:03 dancy Exp $
 
 preferred_lisp=/fi/cl/8.0/bin/mlisp
 alt_lisp0=/usr/local/acl80/mlisp
@@ -127,7 +127,7 @@ rpm-setup: FORCE
 		-ba $<
 
 redhat-rpm: maild.spec src-tarball rpm-setup
-	rpmbuild --define "_sourcedir $(CURDIR)" \
+	rpmbuild --sign --define "_sourcedir $(CURDIR)" \
 		--define "_topdir $(CURDIR)" \
 		-ba maild.spec
 
