@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.39 2006/04/12 17:38:03 dancy Exp $
+# $Id: Makefile,v 1.40 2006/04/12 17:49:14 dancy Exp $
 
 preferred_lisp=/fi/cl/8.0/bin/mlisp
 alt_lisp0=/usr/local/acl80/mlisp
@@ -25,6 +25,8 @@ version := $(shell grep 'allegro-maild-version' version.cl | sed -e 's,.*"v\([0-
 installer-package := maild-$(version)-installer.tar.gz
 
 REDHAT73 := $(shell rpm -q redhat-release-7.3 >/dev/null && echo yes)
+
+ARCH=$(shell uname -i)
 
 SRCFILES=Makefile \
 	maild.init maild.init.suse9 maild.sysconfig \
@@ -130,6 +132,14 @@ redhat-rpm: maild.spec src-tarball rpm-setup
 	rpmbuild --sign --define "_sourcedir $(CURDIR)" \
 		--define "_topdir $(CURDIR)" \
 		-ba maild.spec
+
+REPOHOST=fs1
+REPODIR=/storage1/franz/$(ARCH)
+
+install-repo:
+	ssh root@$(REPOHOST) "rm -f $(REPODIR)/maild-*"
+	scp RPMS/$(ARCH)/maild-$(version)-*.rpm root@$(REPOHOST):$(REPODIR)
+	ssh root@$(REPOHOST) "createrepo -q $(REPODIR)"
 
 ifeq ($(VENDOR),suse)
 rpm: suse-rpm
