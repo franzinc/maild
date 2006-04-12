@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.37 2006/03/31 00:33:24 dancy Exp $
+# $Id: Makefile,v 1.38 2006/04/12 14:45:53 dancy Exp $
 
 preferred_lisp=/fi/cl/8.0/bin/mlisp
 alt_lisp0=/usr/local/acl80/mlisp
@@ -119,7 +119,7 @@ src-tarball: FORCE
 	sed -e "s/__VERSION__/$(version)/" < $< > $@
 
 rpm-setup: FORCE
-	mkdir -p BUILD RPMS/i386 SRPMS
+	mkdir -p BUILD RPMS SRPMS
 
 %-rpm: maild-%.spec src-tarball rpm-setup
 	rpmbuild --define "_sourcedir $(CURDIR)" \
