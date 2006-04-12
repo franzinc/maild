@@ -1,3 +1,12 @@
+2006-04-12  Ahmon Dancy  <dancy@dancy>
+1.1.52
+	When adding a From: header, quote the gecos information if
+	necessary:
+
+	* emailaddr.cl: New function: quote-if-necessary.
+
+	* header.cl: make-from-header: Make use of quote-if-necessary.
+
 2006-04-09  root  <root@gills.dancysoft.com>
 1.1.51
 

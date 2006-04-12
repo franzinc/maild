@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: headers.cl,v 1.13 2003/09/19 17:30:34 dancy Exp $
+;; $Id: headers.cl,v 1.14 2006/04/12 17:34:29 dancy Exp $
 
 (in-package :user)
 
@@ -102,21 +102,17 @@
 (defun make-date-header ()
   (concatenate 'string "Date: " (datetime)))
 
-;; XXX - Should add quoting stuff in case the gecos part
-;; has special characters..
 ;; It is okay for gecos to be nil..
 (defun make-from-header (addr gecos)
   (let ((h (make-header))
-	(addr (if (emailnullp addr) 
-		  *mailer-daemon*
-		(emailaddr-orig addr))))
+	(addr (if* (emailnullp addr) 
+		 then *mailer-daemon*
+		 else (emailaddr-orig addr))))
     (add-header-word h "From:")
     (if* gecos
-       then
-	    (add-header-word h gecos)
+       then (add-header-word h (quote-if-necessary gecos))
 	    (add-header-word h (format nil "<~A>" addr))
-       else
-	    (add-header-word h addr))
+       else (add-header-word h addr))
     (header-buffer h)))
 
 (defun make-message-id-header (id)

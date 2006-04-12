@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: emailaddr.cl,v 1.12 2005/09/07 10:48:01 dancy Exp $
+;; $Id: emailaddr.cl,v 1.13 2006/04/12 17:34:29 dancy Exp $
 
 (in-package :user)
 
@@ -762,3 +762,9 @@
 	(replace-regexp string "\\b+$" "")
       string)))
 
+(defun quote-if-necessary (string)
+  (if* (every #'(lambda (char)
+		  (or (atext-char-p char) (excl::whitespace-char-p char)))
+	      string)
+     then string
+     else (format nil "~s" string)))
