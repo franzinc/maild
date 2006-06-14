@@ -1,4 +1,6 @@
-# $Id: Makefile,v 1.40 2006/04/12 17:49:14 dancy Exp $
+# $Id: Makefile,v 1.41 2006/06/14 20:22:14 dancy Exp $
+
+ARCH=$(shell uname -i)
 
 preferred_lisp=/fi/cl/8.0/bin/mlisp
 alt_lisp0=/usr/local/acl80/mlisp
@@ -25,8 +27,6 @@ version := $(shell grep 'allegro-maild-version' version.cl | sed -e 's,.*"v\([0-
 installer-package := maild-$(version)-installer.tar.gz
 
 REDHAT73 := $(shell rpm -q redhat-release-7.3 >/dev/null && echo yes)
-
-ARCH=$(shell uname -i)
 
 SRCFILES=Makefile \
 	maild.init maild.init.suse9 maild.sysconfig \

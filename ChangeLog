@@ -1,3 +1,8 @@
+2006-06-14  Ahmon Dancy  <dancy@dancy>
+1.1.53
+	
+	* Include "5.7.1" prefix on Relaying denied response.
+
 2006-04-12  Ahmon Dancy  <dancy@dancy>
 1.1.52
 	When adding a From: header, quote the gecos information if
