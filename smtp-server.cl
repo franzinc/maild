@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: smtp-server.cl,v 1.33 2006/03/30 23:46:51 dancy Exp $
+;; $Id: smtp-server.cl,v 1.34 2006/07/05 15:19:41 dancy Exp $
 
 (in-package :user)
 
@@ -36,7 +36,8 @@
   verbose
   fork
   ssl
-  auth-user)
+  auth-user
+  rcpt-to-delay)
 
 (defstruct statistics
   (stats-start (get-universal-time))
@@ -204,7 +205,10 @@
 	    (let* ((dotted (smtp-remote-dotted sock))
 		   (sess (make-session :sock sock :dotted dotted
 				       :ssl ssl
-				       :fork fork :verbose verbose))
+				       :fork fork :verbose verbose
+				       :rcpt-to-delay
+				       *rcpt-to-negative-initial-delay*
+				       ))
 		   cmd)
 
 	      (if ssl
@@ -571,6 +575,7 @@ in the HELO command (~A) from client ~A"
 	    (get-recipient-disposition addr))
 	  (ecase disp
 	    (:error
+	     (smtp-rcpt-to-delay sess)
 	     (outline sock "550 ~a... ~a" 
 		      (emailaddr-orig addr) errmsg)
 	     (maild-log "client from ~A: rcpt to:~A... error recip"
@@ -578,6 +583,7 @@ in the HELO command (~A) from client ~A"
 			(emailaddr-orig addr))
 	     (return))
 	    (:local-unknown
+	     (smtp-rcpt-to-delay sess)
 	     (outline sock "550 5.1.1 ~a... User unknown"
 		      (emailaddr-orig addr))
 	     (maild-log "Client from ~A: rcpt to:~A... User unknown"
@@ -601,6 +607,7 @@ in the HELO command (~A) from client ~A"
 			 (session-to sess))
 	      (ecase status
 		(:err
+		 (smtp-rcpt-to-delay sess)
 		 (outline sock "550 ~A" string)
 		 (maild-log "Checker ~S rejected RCPT TO:~A. Message: ~A"
 			    (first checker) (emailaddr-orig addr)
@@ -608,6 +615,7 @@ in the HELO command (~A) from client ~A"
 		 (inc-checker-stat recips-rejected-permanently (first checker))
 		 (return-from smtp-rcpt))
 		(:transient
+		 (smtp-rcpt-to-delay sess)
 		 (outline sock "451 ~A" string)
 		 (maild-log 
 		  "Checker ~S temporarily failed RCPT TO:~A. Message: ~A"
@@ -620,7 +628,12 @@ in the HELO command (~A) from client ~A"
 	  (push addr (session-to sess))
 	  (outline sock "250 2.1.5 ~a... Recipient ok" 
 		   (emailaddr-orig addr)))))))
- 
+
+(defun smtp-rcpt-to-delay (sess)
+  (sleep (session-rcpt-to-delay sess))
+  (setf (session-rcpt-to-delay sess) (* (session-rcpt-to-delay sess) 2)))
+  
+
 (defun smtp-data (sess text)
   (declare (ignore text))
   (let* ((sock (session-sock sess))

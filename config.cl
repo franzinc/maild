@@ -1,4 +1,4 @@
-;; $Id: config.cl,v 1.37 2006/04/09 17:21:50 dancy Exp $
+;; $Id: config.cl,v 1.38 2006/07/05 15:19:41 dancy Exp $
 
 (in-package :user)
 
@@ -184,6 +184,8 @@
     '(("Relay checker" smtp-rcpt-to-relay-checker)
       ("DNS blacklist checker" smtp-rcpt-to-dns-blacklist-checker)))
 
+(defparameter *rcpt-to-negative-initial-delay* 5)
+
 ;; Same idea as above.  Checkers are called with 
 ;; client ip address, sender, recips (all email addresses parsed).
 ;; This is called just before the DATA command responds with the 
@@ -233,11 +235,11 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; Only used if "smtp" entry can't be found in /etc/services and its 
-;; associates.
+;; Only used if "smtp" entry can't be found in /etc/services.
 (defparameter *smtp-port* 25) 
 (defparameter *smtp-ip* nil) ;; address to bind socket
-(defparameter *maxlinelen* 2048) ;; Max SMTP command line length.  including CR, but not LF
+;; Max SMTP command line length.  including CR, but not LF
+(defparameter *maxlinelen* 2048) 
 (defparameter *maxrecips* 100)
 (defparameter *mailer-daemon* "MAILER-DAEMON")
 

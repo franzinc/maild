@@ -1,3 +1,13 @@
+2006-07-05  Ahmon Dancy  <dancy@dancy>
+1.1.54
+	* config.cl: New parameter: *rcpt-to-negative-initial-delay*,
+	defaults to 5 (seconds).  
+
+	* smtp-server.cl: If RCPT TO is to fail with 4xx or 5xx code,
+	sleep for a while before reporting the failure.  Initially, sleep
+	for *rcpt-to-negative-initial-delay* seconds, then double each
+	subsequent time.  This is to slow down dictionary spam attacks.
+
 2006-06-14  Ahmon Dancy  <dancy@dancy>
 1.1.53
 	
