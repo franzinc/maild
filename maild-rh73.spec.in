@@ -1,11 +1,11 @@
-# $Id: maild-rh73.spec.in,v 1.4 2006/07/30 17:29:42 dancy Exp $
+# $Id: maild-rh73.spec.in,v 1.5 2006/07/30 17:33:05 dancy Exp $
 
 # Spec file suitable for Redhat 7.3
 
 Summary: Allegro Mail Daemon
 Name: maild
 Version: __VERSION__
-Release: 2.rh73
+Release: 1.rh73
 License: Commercial
 Group: System Environment/Daemons
 #URL: 
