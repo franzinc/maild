@@ -5,7 +5,7 @@
 	Changed client authentication code so that it uses PAM now.
 	Updated RPM specs to supply /etc/pam.d/smtp.
 
-	* maild.pam: New
+	* maild.pam, pam.cl: New
 
 2006-07-05  Ahmon Dancy  <dancy@dancy>
 1.1.54
