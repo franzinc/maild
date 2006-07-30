@@ -1,3 +1,5 @@
+Remove pam.cl once it is integrated into the base lisp.
+
 Improve logging.
  * Output should be in a more consistent format.  
   * All messages related to a particular queue id should be prefixed.

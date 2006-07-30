@@ -1,10 +1,10 @@
-;; $Id: load.cl,v 1.18 2006/04/09 17:29:56 jkf Exp $
+;; $Id: load.cl,v 1.19 2006/07/30 17:29:42 dancy Exp $
 
 (in-package :user)
 
 (defparameter *source-files*
     '(
-      "version" "utils" "sasl" "auth" "dns" "security" "lex"
+      "version" "utils" "pam" "sasl" "auth" "dns" "security" "lex"
       "emailaddr" "log" "ipaddr" "blacklist" 
       "recips" "aliases" "headers" "rewrite" 
       "lock" "smtp" "queue" "mailer" 

@@ -1,3 +1,12 @@
+2006-07-30  root  <root@gills.dancysoft.com>
+1.1.55
+	
+	* Makefile, *.spec.in, auth.cl, load.cl:
+	Changed client authentication code so that it uses PAM now.
+	Updated RPM specs to supply /etc/pam.d/smtp.
+
+	* maild.pam: New
+
 2006-07-05  Ahmon Dancy  <dancy@dancy>
 1.1.54
 	* config.cl: New parameter: *rcpt-to-negative-initial-delay*,

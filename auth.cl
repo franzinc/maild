@@ -1,14 +1,7 @@
-;; $Id: auth.cl,v 1.1 2005/09/23 16:26:37 dancy Exp $
-
-;; XXX -- This would be much better if we had a PAM API.
+;; $Id: auth.cl,v 1.2 2006/07/30 17:29:42 dancy Exp $
 
 (in-package :user)
 
 (defun authenticate-user (user pass)
-  (block nil
-    (let ((pwent (getpwnam user)))
-      (if (null pwent)
-	  (return))
-      
-      (string= (pwent-passwd pwent)
-	       (crypt pass (pwent-passwd pwent))))))
+  (util.pam:with-pam (pam "smtp" user)
+    (util.pam:pam-authenticate pam :password pass)))

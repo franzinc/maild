@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.41 2006/06/14 20:22:14 dancy Exp $
+# $Id: Makefile,v 1.42 2006/07/30 17:29:42 dancy Exp $
 
 ARCH=$(shell uname -i)
 
@@ -29,13 +29,14 @@ installer-package := maild-$(version)-installer.tar.gz
 REDHAT73 := $(shell rpm -q redhat-release-7.3 >/dev/null && echo yes)
 
 SRCFILES=Makefile \
-	maild.init maild.init.suse9 maild.sysconfig \
+	maild.init maild.init.suse9 maild.sysconfig maild.pam \
 	aliases.cl auth.cl blacklist.cl bounce.cl checkers.cl \
 	config.cl deliver.cl deliver-smtp.cl dns.cl emailaddr.cl \
 	greylist.cl headers.cl input.cl ipaddr.cl lex.cl load.cl \
 	lock.cl log.cl maild.cl mailer.cl queue.cl queue-process.cl \
 	recips.cl rep-server.cl rewrite.cl sasl.cl security.cl smtp.cl \
-	smtp-server-checkers.cl smtp-server.cl utils.cl version.cl www.cl
+	smtp-server-checkers.cl smtp-server.cl utils.cl version.cl www.cl \
+	pam.cl \
 
 DOCFILES=ALIASES MAILERS.txt NOTES STATS greylist.sql greylist.sql.notes
 
@@ -86,6 +87,9 @@ else
 endif
 	if [ ! -e $(ROOT)/etc/sysconfig/maild ]; then \
 		cp maild.sysconfig $(ROOT)/etc/sysconfig/maild; \
+	fi
+	if [ ! -e $(ROOT)/etc/pam.d/smtp ]; then \
+		cp maild.pam $(ROOT)/etc/pam.d/smtp; \
 	fi
 
 install-greyadmin: FORCE

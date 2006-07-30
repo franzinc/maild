@@ -1,4 +1,4 @@
-# $Id: maild-suse.spec.in,v 1.5 2006/04/02 17:12:58 dancy Exp $
+# $Id: maild-suse.spec.in,v 1.6 2006/07/30 17:29:42 dancy Exp $
 
 # Spec file suitable for SuSE.
 
@@ -38,6 +38,7 @@ mkdir -p $RPM_BUILD_ROOT/sbin
 mkdir -p $RPM_BUILD_ROOT/usr/{bin,sbin,lib}
 mkdir -p $RPM_BUILD_ROOT/etc/init.d
 mkdir -p $RPM_BUILD_ROOT/etc/sysconfig
+mkdir -p $RPM_BUILD_ROOT/etc/pam.d
 mkdir -p $RPM_BUILD_ROOT/var/spool/{maild,mqueue}
 make ROOT=$RPM_BUILD_ROOT install
 # Redo some symlinks here 
@@ -70,6 +71,7 @@ rm -rf $RPM_BUILD_ROOT
 %dir /var/spool/mqueue
 %doc config.cl ALIASES MAILERS.txt NOTES STATS greylist.sql greylist.sql.notes
 %config(noreplace) /etc/sysconfig/maild
+%config(noreplace) /etc/pam.d/maild
 
 %pre
 /usr/sbin/useradd -u 47 -d /var/spool/mqueue -r -s /bin/false mailnull >/dev/null 2>&1
