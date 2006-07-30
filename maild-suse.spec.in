@@ -1,4 +1,4 @@
-# $Id: maild-suse.spec.in,v 1.6 2006/07/30 17:29:42 dancy Exp $
+# $Id: maild-suse.spec.in,v 1.7 2006/07/30 17:30:21 dancy Exp $
 
 # Spec file suitable for SuSE.
 
@@ -71,7 +71,7 @@ rm -rf $RPM_BUILD_ROOT
 %dir /var/spool/mqueue
 %doc config.cl ALIASES MAILERS.txt NOTES STATS greylist.sql greylist.sql.notes
 %config(noreplace) /etc/sysconfig/maild
-%config(noreplace) /etc/pam.d/maild
+%config(noreplace) /etc/pam.d/smtp
 
 %pre
 /usr/sbin/useradd -u 47 -d /var/spool/mqueue -r -s /bin/false mailnull >/dev/null 2>&1
