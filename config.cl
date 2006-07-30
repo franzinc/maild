@@ -1,4 +1,4 @@
-;; $Id: config.cl,v 1.38 2006/07/05 15:19:41 dancy Exp $
+;; $Id: config.cl,v 1.39 2006/07/30 18:08:22 dancy Exp $
 
 (in-package :user)
 
@@ -11,14 +11,19 @@
 (defparameter *ssl-key-file* "/etc/maild.crt")
 
 ;; *client-authentiation*
+
 ;;  If nil, authentication is disabled.
-;;  If :relay, then authentication is required before mail can be relayed
-;;     through this server
-;;  If :required, then authentication is required before any mail transaction.
-;;     This is okay for mail hosts that are only used by clients for injecting
-;;     mail.  But it's probably a bad idea for mailhosts that receive mail
-;;     from other hosts (unless those other hosts have been configured with
-;;     the proper authentication parameters).
+
+;;  If t, then authentication is required before mail can be
+;;  relayed through this server.
+
+;;  If :required, then authentication is required before any mail
+;;  transaction.  This is okay for mail hosts that are only used by
+;;  clients for injecting mail.  But it's probably a bad idea for
+;;  mailhosts that receive mail from other hosts (unless those other
+;;  hosts have been configured with the proper authentication
+;;  parameters).
+
 (defparameter *client-authentication* nil)
 
 ;; Since, for best password database interoperability, maild only
