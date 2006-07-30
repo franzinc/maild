@@ -1,4 +1,4 @@
-# $Id: maild.spec.in,v 1.4 2006/07/30 17:29:42 dancy Exp $
+# $Id: maild.spec.in,v 1.5 2006/07/30 17:32:46 dancy Exp $
 
 # Spec file suitable for modern Redhat-like hosts, using the
 # "alternatives" system.  Modeled after the sendmail.spec from FC4.
@@ -42,10 +42,10 @@ mkdir -p $RPM_BUILD_ROOT/etc/sysconfig
 mkdir -p $RPM_BUILD_ROOT/etc/pam.d
 mkdir -p $RPM_BUILD_ROOT/var/spool/{maild,mqueue}
 make ROOT=$RPM_BUILD_ROOT install
+mv $RPM_BUILD_ROOT/etc/pam.d/smtp $RPM_BUILD_ROOT/etc/pam.d/smtp.maild
 # Redo some symlinks here 
 ln -snf /usr/lib/maild/maild $RPM_BUILD_ROOT/usr/sbin/maild
 ln -snf /usr/lib/greyadmin/greyadmin $RPM_BUILD_ROOT/usr/sbin/greyadmin
-
 
 %clean
 rm -rf $RPM_BUILD_ROOT
@@ -62,7 +62,7 @@ rm -rf $RPM_BUILD_ROOT
 %dir /var/spool/mqueue
 %doc config.cl ALIASES MAILERS.txt NOTES STATS greylist.sql greylist.sql.notes
 %config(noreplace) /etc/sysconfig/maild
-%config(noreplace) /etc/pam.d/maild
+%config(noreplace) /etc/pam.d/smtp.maild
 
 %pre
 /usr/sbin/useradd -u 47 -d /var/spool/mqueue -r -s /bin/false mailnull >/dev/null 2>&1
@@ -76,6 +76,7 @@ exit 0
 	--slave /usr/lib/sendmail mta-sendmail /usr/sbin/maild \
 	--slave /usr/bin/mailq mta-mailq /usr/sbin/maild \
 	--slave /usr/bin/newaliases mta-newaliases /usr/sbin/maild \
+	--slave /etc/pam.d/smtp mta-pam /etc/pam.d/smtp.maild \
 	--initscript maild
 
 %preun
