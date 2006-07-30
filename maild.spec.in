@@ -1,4 +1,4 @@
-# $Id: maild.spec.in,v 1.5 2006/07/30 17:32:46 dancy Exp $
+# $Id: maild.spec.in,v 1.6 2006/07/30 17:46:24 dancy Exp $
 
 # Spec file suitable for modern Redhat-like hosts, using the
 # "alternatives" system.  Modeled after the sendmail.spec from FC4.
@@ -6,7 +6,7 @@
 Summary: Allegro Mail Daemon
 Name: maild
 Version: __VERSION__
-Release: 2
+Release: 1
 License: Commercial
 Group: System Environment/Daemons
 #URL: 
