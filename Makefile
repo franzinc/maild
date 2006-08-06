@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.43 2006/07/30 17:49:26 dancy Exp $
+# $Id: Makefile,v 1.44 2006/08/06 14:33:39 layer Exp $
 
 ARCH=$(shell uname -i)
 
@@ -27,6 +27,7 @@ version := $(shell grep 'allegro-maild-version' version.cl | sed -e 's,.*"v\([0-
 installer-package := maild-$(version)-installer.tar.gz
 
 REDHAT73 := $(shell rpm -q redhat-release-7.3 >/dev/null && echo yes)
+SUSE92 := $(shell rpm -q suse-release-9.2 >/dev/null && echo yes)
 
 SRCFILES=Makefile \
 	maild.init maild.init.suse9 maild.sysconfig maild.pam \
@@ -80,7 +81,7 @@ install-check-mail-virus: check-mail-virus/check-mail-virus install-common
 	       $(sbindir)/check-mail-virus
 
 install-system: FORCE
-ifeq ($(VENDOR),suse)
+ifeq ($(SUSE92),yes)
 	cp maild.init.suse9 $(ROOT)/etc/init.d/maild
 else
 	cp maild.init $(ROOT)/etc/rc.d/init.d/maild
@@ -145,7 +146,7 @@ install-repo:
 	scp RPMS/$(ARCH)/maild-$(version)-*.rpm root@$(REPOHOST):$(REPODIR)
 	ssh root@$(REPOHOST) "createrepo -q $(REPODIR)"
 
-ifeq ($(VENDOR),suse)
+ifeq ($(SUSE92),yes)
 rpm: suse-rpm
 
 else
