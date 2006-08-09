@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: smtp-server.cl,v 1.34 2006/07/05 15:19:41 dancy Exp $
+;; $Id: smtp-server.cl,v 1.35 2006/08/09 03:17:37 dancy Exp $
 
 (in-package :user)
 
@@ -241,6 +241,8 @@
 		      (first checker) dotted string)
 		     (inc-checker-stat connections-rejected-temporarily (first checker))
 		     (return-from do-smtp))
+		    (:sufficient
+		     (return))
 		    (:ok
 		     ))))
 	      
@@ -539,6 +541,8 @@ in the HELO command (~A) from client ~A"
 		  (first checker) (emailaddr-orig addr) string)
 		 (inc-checker-stat senders-rejected-temporarily (first checker))
 		 (return-from smtp-mail))
+		(:sufficient
+		 (return))
 		(:ok
 		 ))))
 	  
@@ -622,6 +626,8 @@ in the HELO command (~A) from client ~A"
 		  (first checker) (emailaddr-orig addr) string)
 		 (inc-checker-stat recips-rejected-temporarily (first checker))
 		 (return-from smtp-rcpt))
+		(:sufficient
+		 (return))
 		(:ok
 		 ))))
 	  
@@ -650,8 +656,9 @@ in the HELO command (~A) from client ~A"
     ;; Run pre-checkers
     (dolist (checker *smtp-data-pre-checkers*)
       (multiple-value-bind (status string)
-	  (funcall (second checker) (smtp-remote-host sock) 
-		   (session-from sess) (session-to sess))
+	  (funcall (second checker) sess
+		   (smtp-remote-host sock) (session-from sess) 
+		   (session-to sess))
 	(ecase status
 	  (:err
 	   (outline sock "551 ~A" string)

@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.46 2006/08/09 02:23:40 layer Exp $
+# $Id: Makefile,v 1.47 2006/08/09 03:17:37 dancy Exp $
 
 ARCH=$(shell uname -i)
 
@@ -48,7 +48,7 @@ all: clean maild/maild
 
 maild/maild: *.cl
 	rm -fr maild
-	$(lisp) -batch -L load.cl -e "(build)" -kill
+	$(lisp) -W -batch -L load.cl -e "(build)" -kill
 
 check-mail-virus/check-mail-virus: check-mail-virus.cl
 	rm -fr check-mail-virus

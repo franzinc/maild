@@ -1,4 +1,4 @@
-;; $Id: config.cl,v 1.39 2006/07/30 18:08:22 dancy Exp $
+;; $Id: config.cl,v 1.40 2006/08/09 03:17:37 dancy Exp $
 
 (in-package :user)
 
@@ -192,7 +192,7 @@
 (defparameter *rcpt-to-negative-initial-delay* 5)
 
 ;; Same idea as above.  Checkers are called with 
-;; client ip address, sender, recips (all email addresses parsed).
+;; session, client ip address, sender, recips (all email addresses parsed).
 ;; This is called just before the DATA command responds with the 
 ;; normal go-ahead (354 Enter mail...).  
 (defparameter *smtp-data-pre-checkers* nil)

@@ -1,3 +1,21 @@
+2006-08-08  root  <root@gills.dancysoft.com>
+1.1.57
+	
+	* Makefile:  Pass -W arg to lisp when building.
+
+	* smtp-server.cl: In places where checkers are called, if one of
+	them returns :sufficient, then skip the remaining checkers in the
+	list.
+
+	Call data-pre-checkers with 'sess' as first argument.
+	
+	* smtp-server-checkers.cl (smtp-rcpt-to-relay-checker): Return
+	:sufficient if client has authenticated or is in the
+	allowed-to-relay list.
+
+	* greylist.cl (greylist-data-pre-checker): Return :ok if client is
+	authenticated.
+
 2006-08-08  Kevin Layer  <layer@relay.known.net>
 
 	* Makefile: tweaks to make suse rpm build work

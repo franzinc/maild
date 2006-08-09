@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: smtp-server-checkers.cl,v 1.16 2006/06/14 20:22:14 dancy Exp $
+;; $Id: smtp-server-checkers.cl,v 1.17 2006/08/09 03:17:37 dancy Exp $
 
 (in-package :user)
 
@@ -122,7 +122,7 @@
 
     (if (or (session-auth-user sess)
 	    (relaying-allowed-p ip from recip))
-	(return :ok))
+	(return :sufficient))
     
     (if *client-authentication*
 	(return (values :err "Authentication required")))
