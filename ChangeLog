@@ -1,3 +1,10 @@
+2006-08-08  root  <root@gills.dancysoft.com>
+1.1.56
+	
+	* Makefile: Use maild.pam.suse when building on SuSE.  
+
+	* maild.pam.suse: New.
+
 2006-08-06  Kevin Layer  <layer@relay.known.net>
 
 	* Makefile: tweaks for SuSE

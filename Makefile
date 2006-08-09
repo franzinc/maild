@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.44 2006/08/06 14:33:39 layer Exp $
+# $Id: Makefile,v 1.45 2006/08/09 02:09:57 dancy Exp $
 
 ARCH=$(shell uname -i)
 
@@ -82,15 +82,17 @@ install-check-mail-virus: check-mail-virus/check-mail-virus install-common
 
 install-system: FORCE
 ifeq ($(SUSE92),yes)
+pamsrc=maild.pam.suse
 	cp maild.init.suse9 $(ROOT)/etc/init.d/maild
 else
+pamsrc=maild.pam
 	cp maild.init $(ROOT)/etc/rc.d/init.d/maild
 endif
 	if [ ! -e $(ROOT)/etc/sysconfig/maild ]; then \
 		cp maild.sysconfig $(ROOT)/etc/sysconfig/maild; \
 	fi
 	if [ ! -e $(ROOT)/etc/pam.d/smtp ]; then \
-		cp maild.pam $(ROOT)/etc/pam.d/smtp; \
+		cp $(pamsrc) $(ROOT)/etc/pam.d/smtp; \
 	fi
 
 install-greyadmin: FORCE
