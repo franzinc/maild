@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.45 2006/08/09 02:09:57 dancy Exp $
+# $Id: Makefile,v 1.46 2006/08/09 02:23:40 layer Exp $
 
 ARCH=$(shell uname -i)
 
@@ -30,7 +30,7 @@ REDHAT73 := $(shell rpm -q redhat-release-7.3 >/dev/null && echo yes)
 SUSE92 := $(shell rpm -q suse-release-9.2 >/dev/null && echo yes)
 
 SRCFILES=Makefile \
-	maild.init maild.init.suse9 maild.sysconfig maild.pam \
+	maild.init maild.init.suse9 maild.sysconfig maild.pam maild.pam.suse \
 	aliases.cl auth.cl blacklist.cl bounce.cl checkers.cl \
 	config.cl deliver.cl deliver-smtp.cl dns.cl emailaddr.cl \
 	greylist.cl headers.cl input.cl ipaddr.cl lex.cl load.cl \
@@ -80,12 +80,16 @@ install-check-mail-virus: check-mail-virus/check-mail-virus install-common
 	ln -sf ../lib/check-mail-virus/check-mail-virus \
 	       $(sbindir)/check-mail-virus
 
-install-system: FORCE
 ifeq ($(SUSE92),yes)
 pamsrc=maild.pam.suse
-	cp maild.init.suse9 $(ROOT)/etc/init.d/maild
 else
 pamsrc=maild.pam
+endif
+
+install-system: FORCE
+ifeq ($(SUSE92),yes)
+	cp maild.init.suse9 $(ROOT)/etc/init.d/maild
+else
 	cp maild.init $(ROOT)/etc/rc.d/init.d/maild
 endif
 	if [ ! -e $(ROOT)/etc/sysconfig/maild ]; then \

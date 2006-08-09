@@ -1,3 +1,7 @@
+2006-08-08  Kevin Layer  <layer@relay.known.net>
+
+	* Makefile: tweaks to make suse rpm build work
+
 2006-08-08  root  <root@gills.dancysoft.com>
 1.1.56
 	
