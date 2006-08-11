@@ -1,4 +1,9 @@
 2006-08-11  root  <root@gills.dancysoft.com>
+1.1.59
+
+	* greylist.cl: Additional "don't greylist authenticate clients"
+	fix.
+
 1.1.58
 	
 	* config.cl: Comment updates for some checkers.
