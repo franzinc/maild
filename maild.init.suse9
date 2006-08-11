@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: maild.init.suse9,v 1.4 2006/08/11 21:57:39 dancy Exp $
+# $Id: maild.init.suse9,v 1.5 2006/08/11 21:59:48 dancy Exp $
 ### BEGIN INIT INFO
 # Provides:       maild
 # Required-Start: $remote_fs $time $syslog $named
@@ -39,22 +39,22 @@ fi
 case "$1" in
 	start)
 		echo -n "Starting maild. "
-		startproc $MAILD $MAILD_ARGS
+		startproc -L $MAILD $MAILD_ARGS
         rc_status -v
 		if [ -f ${GREYADMIN} -a -f $GREYADMIN_CONF ]; then
 			echo -n "Starting greyadmin. "
-			startproc $GREYADMIN
+			startproc -L $GREYADMIN
 	        rc_status -v
 		fi
 		;;
 
 	stop)
 		echo -n "Shutting down maild: "
-        killproc -TERM $MAILD
+        killproc -L -TERM $MAILD
         rc_status -v
 		if [ -f ${GREYADMIN} ]; then
 			echo -n "Shutting down greyadmin: "
-			killproc $GREYADMIN
+			killproc -L $GREYADMIN
 	        rc_status -v
 		fi
 		;;
