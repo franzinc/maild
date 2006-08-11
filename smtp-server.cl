@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: smtp-server.cl,v 1.35 2006/08/09 03:17:37 dancy Exp $
+;; $Id: smtp-server.cl,v 1.36 2006/08/11 21:22:53 dancy Exp $
 
 (in-package :user)
 
@@ -701,7 +701,7 @@ in the HELO command (~A) from client ~A"
 
       (dolist (checker *smtp-data-checkers*)
 	(multiple-value-bind (status string)
-	    (funcall (second checker) (smtp-remote-host sock) 
+	    (funcall (second checker) sess (smtp-remote-host sock) 
 		     (session-from sess) (session-to sess)
 		     msgsize headers (queue-datafile q))
 	  (ecase status

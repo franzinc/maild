@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: greylist.cl,v 1.22 2006/08/09 03:17:37 dancy Exp $
+;; $Id: greylist.cl,v 1.23 2006/08/11 21:22:53 dancy Exp $
 
 (in-package :user)
 
@@ -245,7 +245,10 @@
 ;; their greylists are updated properly (otherwise there will be a
 ;; very long cascading delay as each of the recipients of the message
 ;; are delayed and then whitelested, one at a time).
-(defun greylist-data-checker-common (ip from tos)
+(defun greylist-data-checker-common (sess ip from tos)
+  (if (session-auth-user sess)
+      (return-from greylist-data-checker-common :ok))
+  
   (with-greylist (ip from (first tos))
     (let ((now (get-universal-time))
 	  (ok t)
@@ -276,17 +279,16 @@
       :ok)))
 
 
-(defun greylist-data-checker (ip from tos size headers datafile)
+(defun greylist-data-checker (sess ip from tos size headers datafile)
   (declare (ignore size headers datafile))
-  (greylist-data-checker-common ip from tos))
+  (greylist-data-checker-common sess ip from tos))
 
 ;; Same as greylist-data-checker.. except it always says okay if
 ;; the message is not from mailer daemon.
 (defun greylist-data-pre-checker (sess ip from tos)
-  (if* (or (not (greylist-mailer-daemon-addr-p from))
-	   (session-auth-user sess))
+  (if* (not (greylist-mailer-daemon-addr-p from))
      then :ok
-     else (greylist-data-checker-common ip from tos)))
+     else (greylist-data-checker-common sess ip from tos)))
 
 ;;;;;;; Macros ;;;;;
 

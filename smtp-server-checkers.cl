@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: smtp-server-checkers.cl,v 1.17 2006/08/09 03:17:37 dancy Exp $
+;; $Id: smtp-server-checkers.cl,v 1.18 2006/08/11 21:22:53 dancy Exp $
 
 (in-package :user)
 
@@ -117,12 +117,10 @@
 (defun smtp-rcpt-to-relay-checker (sess ip from type recip recips)
   (declare (ignore recips))
   (block nil
-    (if (eq type :local)
-	(return :ok))
-
-    (if (or (session-auth-user sess)
+    (if (or (eq type :local)
+	    (session-auth-user sess)
 	    (relaying-allowed-p ip from recip))
-	(return :sufficient))
+	(return :ok))
     
     (if *client-authentication*
 	(return (values :err "Authentication required")))
@@ -130,6 +128,7 @@
     (values :err (format nil "5.7.1 ~A... Relaying denied" 
 			 (emailaddr-orig recip)))))
 
+;; This is called by relaying-allowed-p, which is used above.
 (defun check-relay-access (cliaddr from recip)
   (declare (ignore from recip))
   (dolist (check *relay-access*)

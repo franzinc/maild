@@ -1,3 +1,12 @@
+2006-08-11  root  <root@gills.dancysoft.com>
+1.1.58
+	
+	* config.cl: Comment updates for some checkers.
+
+	* greylist.cl: Don't greylist authenticated clients (fix).
+
+	* smtp-server-checkers.cl: Call smtp-data-checkers with 'sess' as first arg.
+
 2006-08-08  root  <root@gills.dancysoft.com>
 1.1.57
 	

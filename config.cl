@@ -1,4 +1,4 @@
-;; $Id: config.cl,v 1.40 2006/08/09 03:17:37 dancy Exp $
+;; $Id: config.cl,v 1.41 2006/08/11 21:22:53 dancy Exp $
 
 (in-package :user)
 
@@ -178,9 +178,10 @@
       ("Sender domain required checker" smtp-mail-from-domain-required-checker)
       ("Sender domain must resolve checker" smtp-mail-from-domain-checker)))
 
-;; Same idea as the above.  Checkers are called with
-;; client ip address, sender, recip-type, new recipient, existing recipients.
-;; (all email addresses are passed in parsed emailaddr struct form).
+;; Same idea as the above.  Checkers are called with:
+;; smtp session struct, client ip address, sender, recip-type, new
+;; recipient, existing recipients.  (all email addresses are passed in
+;; parsed emailaddr struct form).
 ;; recip-type will be :local or :remote.
 ;; The checkers are called after built-in blacklist (via aliases) and unknown
 ;; user checks are done.
@@ -199,7 +200,7 @@
 
 ;; These checkers are called after the client has sent the CRLF.CRLF
 ;; message terminator, but before a response code is sent. Checkers
-;; are called with:  client ip address, sender, recips (all email addressed
+;; are called with:  session, client ip address, sender, recips (all email addressed
 ;; parsed), message size, message headers, message data filename.
 (defparameter *smtp-data-checkers* nil)
 
