@@ -1,3 +1,10 @@
+2006-08-17  Ahmon Dancy  <dancy@dancy>
+1.1.60
+	
+	* aliases.cl: BUGFIX: If parsing of system aliases file was
+	aborted due to incorrect owner/permissions, it would never be
+	reparsed again.  Fixed.
+
 2006-08-11  root  <root@gills.dancysoft.com>
 1.1.59
 

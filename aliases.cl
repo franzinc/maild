@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: aliases.cl,v 1.20 2006/04/09 19:46:43 dancy Exp $
+;; $Id: aliases.cl,v 1.21 2006/08/17 23:16:03 dancy Exp $
 
 (in-package :user)
 
@@ -50,7 +50,7 @@
     (let ((filename (first pair))
 	  (mtime (second pair)))
       (if (or (not (probe-file filename))
-	      (> (file-write-date filename) mtime))
+	      (/= (file-write-date filename) mtime))
 	  (return t)))))
 
 ;: update-aliases-info
@@ -68,11 +68,11 @@
   (when (not (probe-file filename))
     (maild-log "Skipping nonexistent aliases file ~A" filename)
     (return-from parse-aliases-file))
-  (if system
-      (verify-root-only-file filename))
   (push filename files-seen)
   (let ((files-entry (list filename 0)))
     (push files-entry (aliases-info-files *aliases*))
+    (if system
+	(verify-root-only-file filename))
     (with-open-file (f filename)
       (let (ali)
 	(while (setf ali (aliases-get-alias f))
