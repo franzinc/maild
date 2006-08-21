@@ -1,3 +1,8 @@
+2006-08-21  Ahmon Dancy  <dancy@dancy>
+1.1.61
+	
+	* Use different pam files for modern redhat/fedora and redhat 7.3.
+
 2006-08-17  Ahmon Dancy  <dancy@dancy>
 1.1.60
 	

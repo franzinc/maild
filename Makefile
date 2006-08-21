@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.47 2006/08/09 03:17:37 dancy Exp $
+# $Id: Makefile,v 1.48 2006/08/21 18:24:30 dancy Exp $
 
 ARCH=$(shell uname -i)
 
@@ -30,7 +30,8 @@ REDHAT73 := $(shell rpm -q redhat-release-7.3 >/dev/null && echo yes)
 SUSE92 := $(shell rpm -q suse-release-9.2 >/dev/null && echo yes)
 
 SRCFILES=Makefile \
-	maild.init maild.init.suse9 maild.sysconfig maild.pam maild.pam.suse \
+	maild.init maild.init.suse9 maild.sysconfig \
+	maild.pam maild.pam.suse maild.pam.rh73 \
 	aliases.cl auth.cl blacklist.cl bounce.cl checkers.cl \
 	config.cl deliver.cl deliver-smtp.cl dns.cl emailaddr.cl \
 	greylist.cl headers.cl input.cl ipaddr.cl lex.cl load.cl \
@@ -83,7 +84,11 @@ install-check-mail-virus: check-mail-virus/check-mail-virus install-common
 ifeq ($(SUSE92),yes)
 pamsrc=maild.pam.suse
 else
+ifeq ($(REDHAT73),yes)
+pamsrc=maild.pam.rh73
+else
 pamsrc=maild.pam
+endif
 endif
 
 install-system: FORCE
