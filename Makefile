@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.48 2006/08/21 18:24:30 dancy Exp $
+# $Id: Makefile,v 1.49 2006/08/21 20:00:51 dancy Exp $
 
 ARCH=$(shell uname -i)
 
@@ -144,9 +144,13 @@ rpm-setup: FORCE
 		--define "_topdir $(CURDIR)" \
 		-ba $<
 
+# This is the "normal" target (non-redhat 7.3, non-suse)
 redhat-rpm: maild.spec src-tarball rpm-setup
 	rpmbuild --sign --define "_sourcedir $(CURDIR)" \
 		--define "_topdir $(CURDIR)" \
+		--define "_builddir $(CURDIR)/BUILD" \
+		--define "_rpmdir $(CURDIR)/RPMS" \
+		--define "_srcrpmdir $(CURDIR)/SRPMS" \
 		-ba maild.spec
 
 REPOHOST=fs1
