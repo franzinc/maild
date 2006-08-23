@@ -1,3 +1,7 @@
+2006-08-23  Ahmon Dancy  <dancy@dancy>
+
+	* load.cl: Added :regexp2 to the module list for building.
+
 2006-08-21  Ahmon Dancy  <dancy@dancy>
 1.1.61
 	
