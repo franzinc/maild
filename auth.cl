@@ -1,6 +1,9 @@
-;; $Id: auth.cl,v 1.2 2006/07/30 17:29:42 dancy Exp $
+;; $Id: auth.cl,v 1.3 2006/08/25 16:20:31 dancy Exp $
 
 (in-package :user)
+
+(eval-when (compile load eval)
+  (require :pam))
 
 (defun authenticate-user (user pass)
   (util.pam:with-pam (pam "smtp" user)

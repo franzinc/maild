@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.50 2006/08/25 16:02:19 dancy Exp $
+# $Id: Makefile,v 1.51 2006/08/25 16:20:31 dancy Exp $
 
 ARCH=$(shell uname -i)
 
@@ -37,8 +37,7 @@ SRCFILES=Makefile \
 	greylist.cl headers.cl input.cl ipaddr.cl lex.cl load.cl \
 	lock.cl log.cl maild.cl mailer.cl queue.cl queue-process.cl \
 	recips.cl rep-server.cl rewrite.cl sasl.cl security.cl smtp.cl \
-	smtp-server-checkers.cl smtp-server.cl utils.cl version.cl www.cl \
-	pam.cl \
+	smtp-server-checkers.cl smtp-server.cl utils.cl version.cl www.cl 
 
 DOCFILES=ALIASES MAILERS.txt NOTES STATS greylist.sql greylist.sql.notes
 
