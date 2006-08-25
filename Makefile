@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.49 2006/08/21 20:00:51 dancy Exp $
+# $Id: Makefile,v 1.50 2006/08/25 16:02:19 dancy Exp $
 
 ARCH=$(shell uname -i)
 
@@ -111,6 +111,10 @@ clean: FORCE
 	rm -f *.fasl maild.tar.gz maild-*.tar.gz autoloads.out
 	rm -fr maild check-mail-virus
 	(cd greyadmin; make clean)
+
+realclean: clean
+	rm -fr RPMS BUILD SRPMS 
+	rm -f *~
 
 update: FORCE
 	cvs -q update -dP
