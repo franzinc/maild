@@ -14,33 +14,31 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: aliases.cl,v 1.21 2006/08/17 23:16:03 dancy Exp $
+;; $Id: aliases.cl,v 1.22 2006/08/26 18:48:21 dancy Exp $
 
 (in-package :user)
 
-(defstruct aliases-info
-  files ;; list of (filename mtime) pairs
-  aliases
-  (lock (mp:make-process-lock))) ;; so only one thread will reparse
+;; 'files' is a list of (filename mtime) pairs.  null mtime
+;; means the file was never probed before or wasn't accessible at the
+;; time of the probe.
 
-(defparameter *aliases* nil)
+(defstruct aliases-info
+  (lock (mp:make-process-lock))
+  aliases ;; hash table
+  files)
+
+(defparameter *aliases* (make-aliases-info))
 
 ;: expand-alias
 ;: 
 (defun update-aliases-info ()
-  ;; Make sure only one thread creates the aliases-info
-  (without-interrupts 
-    (if (null *aliases*) 
-	(setf *aliases* 
-	  (make-aliases-info :files (list (list *aliases-file* 0))))))
-
-  ;; Make sure only one thread reparses the aliases.
   (mp:with-process-lock ((aliases-info-lock *aliases*) 
 			 :whostate "Waiting for aliases lock")
-    (when (aliases-need-reparsing-p)
-      (maild-log "Reparsing aliases")
-      (parse-global-aliases))))
-
+    (if* (null (aliases-info-files *aliases*))
+       then (parse-global-aliases)
+     elseif (aliases-need-reparsing-p)
+       then (maild-log "Reparsing aliases")
+	    (parse-global-aliases))))
 
 ;; Call with the lock held.
 ;: update-aliases-info
@@ -49,66 +47,67 @@
   (dolist (pair (aliases-info-files *aliases*))
     (let ((filename (first pair))
 	  (mtime (second pair)))
-      (if (or (not (probe-file filename))
-	      (/= (file-write-date filename) mtime))
+      ;; file-write-dates are bignums so can't use 'eq'. 
+      (if (not (eql (file-write-date filename) mtime))
 	  (return t)))))
 
 ;: update-aliases-info
 ;: 
 (defun parse-global-aliases ()
-  (let ((ht (make-hash-table :test #'equalp)))
-    (setf (aliases-info-files *aliases*) nil)
-    (parse-aliases-file *aliases-file* ht nil)
-    (setf (aliases-info-aliases *aliases*) ht)))
-    
+  (let ((ht (make-hash-table :test #'equalp))
+	(files (list nil)))
+    (parse-aliases-file *aliases-file* ht nil files)
+    (setf (aliases-info-aliases *aliases*) ht)
+    (setf (aliases-info-files *aliases*) (car files))))
 
 ;: parse-global-aliases, parse-aliases-file
 ;: 
-(defun parse-aliases-file (filename ht files-seen &key (system t) domain)
-  (when (not (probe-file filename))
-    (maild-log "Skipping nonexistent aliases file ~A" filename)
-    (return-from parse-aliases-file))
-  (push filename files-seen)
-  (let ((files-entry (list filename 0)))
-    (push files-entry (aliases-info-files *aliases*))
-    (if system
-	(verify-root-only-file filename))
-    (with-open-file (f filename)
-      (let (ali)
-	(while (setf ali (aliases-get-alias f))
-	  (multiple-value-bind (alias expansion)
-	      (parse-alias-line ali filename)
-	    (when alias
-	      (multiple-value-bind (is-include include-sys include-domain)
-		  (aliases-include-directive-p alias)
-		(cond
-		 ((and is-include (not system))
-		  (maild-log "~A: User include files are not allowed to contain includes" filename))
-	       
-		 (is-include
-		  (dolist (entry expansion)
-		    (if* (eq (recip-type entry) :file)
-		       then (let ((ifile (recip-file entry)))
-			      (if* (member ifile files-seen :test #'equal)
-				 then (maild-log "~A: ~A~%Include loop" 
-						 filename ali)
-				 else (parse-aliases-file ifile ht files-seen
-							  :system include-sys
-							  :domain include-domain)))
-		       else (maild-log "~A: ~A~%Right hand side of an include alias must be a list of absolute pathnames" filename ali))))
-	       
-		 (t
-		  (setf alias (sanity-check-alias filename alias expansion
-						  :system system
-						  :domain domain))
-		  (when alias
-		    (if (gethash alias ht)
-			(maild-log "~A: Redefined alias: ~A" filename alias))
-		    (setf (gethash alias ht) expansion))))))))))
-    
-    ;; Indicate success
-    (setf (second files-entry) (get-universal-time))))
+(defun parse-aliases-file (filename ht files-seen files &key (system t) domain)
+  (let ((mtime (file-write-date filename)))
+    (push (list filename mtime) (car files))
+    (when (null mtime)
+      (maild-log "Skipping nonexistent aliases file ~A" filename)
+      (return-from parse-aliases-file)))
 
+  (if system
+      (verify-root-only-file filename)) ;; generates error if necessary
+
+  (push filename files-seen)
+  
+  (with-open-file (f filename)
+    (let (ali)
+      (while (setf ali (aliases-get-alias f))
+	(multiple-value-bind (alias expansion)
+	    (parse-alias-line ali filename)
+	  (when alias
+	    (multiple-value-bind (is-include include-sys include-domain)
+		(aliases-include-directive-p alias)
+	      (cond
+	       ((and is-include (not system))
+		(maild-log "~A: User include files are not allowed to contain includes" filename))
+	       
+	       (is-include
+		(dolist (entry expansion)
+		  (if* (eq (recip-type entry) :file)
+		     then (let ((ifile (recip-file entry)))
+			    (if* (member ifile files-seen :test #'equal)
+			       then (maild-log "~A: ~A~%Include loop" 
+					       filename ali)
+			       else (parse-aliases-file ifile ht files-seen
+							files
+							:system include-sys
+							:domain include-domain)))
+		     else (maild-log "~A: ~A~%Right hand side of an include alias must be a list of absolute pathnames" filename ali))))
+	       
+	       (t
+		(setf alias (sanity-check-alias filename alias expansion
+						:system system
+						:domain domain))
+		(when alias
+		  (if (gethash alias ht)
+		      (maild-log "~A: Redefined alias: ~A" filename alias))
+		  (setf (gethash alias ht) expansion)))))))))))
+    
 
 ;; returns values:  t, system, domain
 ;: parse-aliases-file

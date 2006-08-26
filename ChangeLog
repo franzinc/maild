@@ -1,3 +1,15 @@
+2006-08-26  root  <root@gills.dancysoft.com>
+1.1.63
+
+	* aliases.cl: Don't log "Reparsing aliases" if aliases hadn't been
+	parsed at all yet (such as when starting maild from the command
+	line).  Rearranged some code and structures to make the system
+	more robust in case of alias parsing errors.  Fixed bug where 'eq'
+	was being used to compare file-write-dates.  file-write-dates tend
+	to be bignums so will 'eq' will return nil for two bignums that
+	look the same.  Changed to 'eql' (not using = because 'nil' may be
+	returned for non-existent files).
+
 2006-08-25  Ahmon Dancy  <dancy@dancy>
 1.1.62
 	
