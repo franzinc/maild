@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: smtp-server.cl,v 1.36 2006/08/11 21:22:53 dancy Exp $
+;; $Id: smtp-server.cl,v 1.37 2006/08/28 01:02:22 dancy Exp $
 
 (in-package :user)
 
@@ -86,7 +86,16 @@
 		      *allegro-maild-version*)
 	   (if (and queue-interval (> queue-interval 0))
 	       (queue-process-daemon queue-interval))
-	   (smtp-server)))
+	   (when *pid-file*
+	     (with-open-file (f *pid-file* 
+			      :direction :output
+			      :if-exists :supersede
+			      :if-does-not-exist :create)
+	       (format f "~d~%" (excl.osi:getpid))))
+	   (unwind-protect (smtp-server)
+	     (if *pid-file*
+		 (ignore-errors (delete-file *pid-file*))))))
+	     
     (if* *debug*
        then (startup)
 	    (loop (sleep 200000))

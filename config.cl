@@ -1,4 +1,4 @@
-;; $Id: config.cl,v 1.41 2006/08/11 21:22:53 dancy Exp $
+;; $Id: config.cl,v 1.42 2006/08/28 01:02:22 dancy Exp $
 
 (in-package :user)
 
@@ -116,8 +116,9 @@
 ;; this test.
 (defparameter *helo-must-match-ip* nil)
 
-
 (defparameter *queuedir* "/var/spool/maild")
+
+(defparameter *pid-file* "/var/run/maild.pid")
 
 ;; Users who can use the -f command line argument without generating
 ;; an X-Authentication-Warning header in the outgoing message.

@@ -1,3 +1,11 @@
+2006-08-27  root  <root@gills2.dancysoft.com>
+1.1.64
+        * config.cl:  New option: *pid-file*, defaults to /var/run/maild.pid.
+
+	* smtp-server.cl: If *pid-file* is true, record the process at the
+	specified location at SMTP server startup.  Use an unwind-protect
+	to clean it up during shutdown.
+
 2006-08-26  root  <root@gills.dancysoft.com>
 1.1.63
 
