@@ -27,4 +27,4 @@ create index ind4 on whitelist (receiver(50), sender(50));
 create index ind5 on whitelist (source(25));
 create index ind6 on whitelist (expire);
 
-grant all on greylist.* to greylist identified by "greypasswd";
+grant all on greylist.* to greylist@localhost identified by "greypasswd";

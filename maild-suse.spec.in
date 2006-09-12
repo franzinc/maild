@@ -1,4 +1,4 @@
-# $Id: maild-suse.spec.in,v 1.7 2006/07/30 17:30:21 dancy Exp $
+# $Id: maild-suse.spec.in,v 1.8 2006/09/12 21:41:54 dancy Exp $
 
 # Spec file suitable for SuSE.
 
@@ -39,7 +39,10 @@ mkdir -p $RPM_BUILD_ROOT/usr/{bin,sbin,lib}
 mkdir -p $RPM_BUILD_ROOT/etc/init.d
 mkdir -p $RPM_BUILD_ROOT/etc/sysconfig
 mkdir -p $RPM_BUILD_ROOT/etc/pam.d
+# I don't know why /var/spool/mqueue is created.  maild doesn't
+# use it.
 mkdir -p $RPM_BUILD_ROOT/var/spool/{maild,mqueue}
+chmod 0700 $RPM_BUILD_ROOT/var/spool/maild
 make ROOT=$RPM_BUILD_ROOT install
 # Redo some symlinks here 
 ln -snf /usr/lib/maild/maild $RPM_BUILD_ROOT/usr/sbin/maild

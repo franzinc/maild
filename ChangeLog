@@ -1,3 +1,8 @@
+2006-09-12  root  <root@gills2.dancysoft.com>
+	* *.spec.in:  Chmod 0700 /var/spool/maild.
+
+	* greylist.sql: Adjusted grant statement per jkfs recommendation.
+
 2006-08-27  root  <root@gills2.dancysoft.com>
 1.1.64
         * config.cl:  New option: *pid-file*, defaults to /var/run/maild.pid.

@@ -1,4 +1,4 @@
-# $Id: maild.spec.in,v 1.6 2006/07/30 17:46:24 dancy Exp $
+# $Id: maild.spec.in,v 1.7 2006/09/12 21:41:55 dancy Exp $
 
 # Spec file suitable for modern Redhat-like hosts, using the
 # "alternatives" system.  Modeled after the sendmail.spec from FC4.
@@ -40,7 +40,10 @@ mkdir -p $RPM_BUILD_ROOT/usr/{bin,sbin,lib}
 mkdir -p $RPM_BUILD_ROOT/etc/rc.d/init.d
 mkdir -p $RPM_BUILD_ROOT/etc/sysconfig
 mkdir -p $RPM_BUILD_ROOT/etc/pam.d
+# I don't know why /var/spool/mqueue is created.  maild doesn't
+# use it.
 mkdir -p $RPM_BUILD_ROOT/var/spool/{maild,mqueue}
+chmod 0700 $RPM_BUILD_ROOT/var/spool/maild
 make ROOT=$RPM_BUILD_ROOT install
 mv $RPM_BUILD_ROOT/etc/pam.d/smtp $RPM_BUILD_ROOT/etc/pam.d/smtp.maild
 # Redo some symlinks here 
