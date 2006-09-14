@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: smtp-server-checkers.cl,v 1.18 2006/08/11 21:22:53 dancy Exp $
+;; $Id: smtp-server-checkers.cl,v 1.19 2006/09/14 16:30:52 dancy Exp $
 
 (in-package :user)
 
@@ -60,7 +60,7 @@
 (defun smtp-connection-reverse-dns-checker (ip)
   (block nil
     (if (or (not *reverse-dns-required*)
-	    (relaying-allowed-p ip nil nil))
+	    (trusted-client-p ip))
 	(return :ok))
     
     ;; When doing :ptr lookups, dns-query automatically flips the address
@@ -115,11 +115,11 @@
 ;; RCPT TO:
 
 (defun smtp-rcpt-to-relay-checker (sess ip from type recip recips)
-  (declare (ignore recips))
+  (declare (ignore recips from))
   (block nil
     (if (or (eq type :local)
 	    (session-auth-user sess)
-	    (relaying-allowed-p ip from recip))
+	    (trusted-client-p ip))
 	(return :ok))
     
     (if *client-authentication*
@@ -127,15 +127,6 @@
     
     (values :err (format nil "5.7.1 ~A... Relaying denied" 
 			 (emailaddr-orig recip)))))
-
-;; This is called by relaying-allowed-p, which is used above.
-(defun check-relay-access (cliaddr from recip)
-  (declare (ignore from recip))
-  (dolist (check *relay-access*)
-    (if (addr-in-network-p cliaddr (parse-addr check))
-	(return t))))
-
-  
 
 (defun smtp-rcpt-to-dns-blacklist-checker (sess ip from type recip recips)
   (declare (ignore type recips sess))

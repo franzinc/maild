@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: utils.cl,v 1.21 2006/09/14 15:09:43 dancy Exp $
+;; $Id: utils.cl,v 1.22 2006/09/14 16:30:52 dancy Exp $
 
 (in-package :user)
 
@@ -180,19 +180,17 @@
 	   (ash (logand ip #x0000ff00) 8)
 	   (ash (logand ip #x000000ff) 24))))
 
+(defun addr-in-list-p (addr list)
+  (dolist (entry list)
+    (if (addr-in-network-p addr (parse-addr entry))
+	(return t))))
+
 (defun trusted-client-p (addr)
-  )
-
-(defun addr-in-relay-access-list-p (addr)
-  (dolist (check *relay-access*)
-    (if (addr-in-network-p cliaddr (parse-addr check))
-	(return t))))
-
-
-(defun relaying-allowed-p (addr from to)
-  (dolist (checker *relay-checkers*)
-    (if (funcall checker addr from to)
-	(return t))))
+  (if* (addr-in-list-p addr *trusted-clients*)
+     then t
+     else (dolist (checker *trusted-client-checkers*)
+	    (if (funcall checker addr)
+		(return t)))))
 
 ;; Return true if string is a fully qualified domain name.
 ;; which basically means, return true if there is at least one

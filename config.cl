@@ -1,4 +1,4 @@
-;; $Id: config.cl,v 1.43 2006/09/14 15:09:43 dancy Exp $
+;; $Id: config.cl,v 1.44 2006/09/14 16:30:52 dancy Exp $
 
 (in-package :user)
 
@@ -52,23 +52,13 @@
 ;; included implicitly so you don't need to add them.
 (defparameter *localdomains* nil)
 
-(defparameter *trusted-client-checkers* nil)
-
+;; Trusted clients are exempt from various anti-spam techniques.
+;; They are also given relay access.
 (defparameter *trusted-clients* '("127.0.0.1"))
-
-;; List of functions to call to determine if the client is allowed to
-;; relay through this server.  Function is called with arguments:
-;;  1) ip address of client 
-;;  2) envelope sender
-;;  3) envelope recipient
-;; The function should return true (non-nil) if relaying is allowed,
-;; otherwise nil.  The first function that returns true will
-;; terminate the checking.
-(defparameter *relay-checkers* '(check-relay-access))
-
-;; List of IP addresses or networks.  This is used by the default
-;; relay checker "check-relay-access"
-(defparameter *relay-access* '("127.0.0.1"))
+;; The default checker matches the client IP address against the
+;; *trusted-clients* list.  Additional checkers can be added to the
+;; list below.  The first one that returns true terminates the scan.
+(defparameter *trusted-client-checkers* nil)
 
 
 ;; Addresses to reject during the MAIL FROM: transaction

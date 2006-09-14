@@ -1,3 +1,21 @@
+2006-09-14  root  <root@gills2.dancysoft.com>
+1.1.65:
+
+        *** INCOMPATIBLE CHANGES *** /etc/maild.cl may need to be updated.
+	
+	* config.cl: Replaced *relay-access* and *relay-checkers* with
+	*trusted-clients* and *trusted-client-checker*.  trusted client
+	checkers just take a single argument: the ip address of the
+	client.
+
+	* greylist.cl, greylist-init: Replaced call to relaying-allowed-p
+	to trusted-client-p.  Also moved the check to the top of the function.
+
+	* smtp-server-checkers.cl: Replaced calls to relaying-allowed-p to
+	trusted-client-p.  Removed function 'check-relay-access'.  
+
+	* utils.cl:  Added functions 'addr-in-list-p' and 'trusted-client-p'
+	
 2006-09-12  root  <root@gills2.dancysoft.com>
 	* *.spec.in:  Chmod 0700 /var/spool/maild.
 

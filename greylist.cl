@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: greylist.cl,v 1.24 2006/08/11 22:17:44 dancy Exp $
+;; $Id: greylist.cl,v 1.25 2006/09/14 16:30:52 dancy Exp $
 
 (in-package :user)
 
@@ -178,22 +178,18 @@
 ;; (:transient ...) -- something wrong connecting to database
 
 (defun greylist-init (ip from to)
+  ;; Trusted clients are exempt from greylisting.
+  (when (trusted-client-p ip)
+    (maild-log "Client from ~A:  Whitelisted (relay client)."
+	       (ipaddr-to-dotted ip))
+    (return-from greylist-init :skip))
+  
   ;; Check ip whitelist.
   (dolist (net *greylist-ip-whitelist-parsed*)
     (when (addr-in-network-p ip net)
       (maild-log "Client from ~A:  Whitelisted (ip-whitelist)."
 		 (ipaddr-to-dotted ip))
       (return-from greylist-init :skip)))
-  
-  ;; Hosts that are allowed to relay through us aren't subject
-  ;; to greylisting.   Most (all?) relay checkers ignore the 'to'
-  ;; parameter so this won't cause problems when there are really
-  ;; multiple recipients (i.e., it is unlikely that this function
-  ;; will return different values depending on the 'to' parameter).
-  (when (relaying-allowed-p ip from to)
-    (maild-log "Client from ~A:  Whitelisted (relay client)."
-	       (ipaddr-to-dotted ip))
-    (return-from greylist-init :skip))
   
   (multiple-value-bind (res string)
       (greylist-db-init) ;; check below needs the db

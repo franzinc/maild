@@ -1,9 +1,4 @@
-Make a standard function that can be called to determine if a client
-is trusted based on IP address.  This function will use 127.0.0.1 and
-*relay-access* as its initial basis, but also needs to be able to
-include data from other sources (such as drac).  There should be a
-list of functions that are called.  Add-ons would simply add to the
-list.
+Make greyadmin use pam.
 
 Improve logging.
  * Output should be in a more consistent format.  
@@ -45,7 +40,9 @@ less than 'x' blocks free.  The error message:
  use (excl.osi:get-filesystem-free-space)
 
 Limit the number of threads.  This is done for delivery threads, but
-not for SMTP threads.
+not for SMTP threads.  Also add load average control.  If it gets past
+a certain point, stop accepting mail via SMTP and only queue mails
+from command line.
 
 Pass some useful environment variables to program aliases (like
 postfix does).
