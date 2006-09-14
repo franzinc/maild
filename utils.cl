@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: utils.cl,v 1.20 2006/04/09 17:21:50 dancy Exp $
+;; $Id: utils.cl,v 1.21 2006/09/14 15:09:43 dancy Exp $
 
 (in-package :user)
 
@@ -179,6 +179,15 @@
 	   (ash (logand ip #x00ff0000) -8)
 	   (ash (logand ip #x0000ff00) 8)
 	   (ash (logand ip #x000000ff) 24))))
+
+(defun trusted-client-p (addr)
+  )
+
+(defun addr-in-relay-access-list-p (addr)
+  (dolist (check *relay-access*)
+    (if (addr-in-network-p cliaddr (parse-addr check))
+	(return t))))
+
 
 (defun relaying-allowed-p (addr from to)
   (dolist (checker *relay-checkers*)

@@ -1,4 +1,9 @@
-Remove pam.cl once it is integrated into the base lisp.
+Make a standard function that can be called to determine if a client
+is trusted based on IP address.  This function will use 127.0.0.1 and
+*relay-access* as its initial basis, but also needs to be able to
+include data from other sources (such as drac).  There should be a
+list of functions that are called.  Add-ons would simply add to the
+list.
 
 Improve logging.
  * Output should be in a more consistent format.  

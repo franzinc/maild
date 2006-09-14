@@ -1,4 +1,4 @@
-;; $Id: config.cl,v 1.42 2006/08/28 01:02:22 dancy Exp $
+;; $Id: config.cl,v 1.43 2006/09/14 15:09:43 dancy Exp $
 
 (in-package :user)
 
@@ -51,6 +51,10 @@
 ;; (gethostname), *short-host-name*, *fqdn*, and *host-aliases* are
 ;; included implicitly so you don't need to add them.
 (defparameter *localdomains* nil)
+
+(defparameter *trusted-client-checkers* nil)
+
+(defparameter *trusted-clients* '("127.0.0.1"))
 
 ;; List of functions to call to determine if the client is allowed to
 ;; relay through this server.  Function is called with arguments:
