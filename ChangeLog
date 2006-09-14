@@ -1,4 +1,9 @@
 2006-09-14  root  <root@gills2.dancysoft.com>
+1.1.67:
+       
+	* smtp-server.cl, do-smtp: Adjusted pre-greeting traffic check so
+	that it doesn't treat client disconnect as traffic.
+	
 1.1.66:
 
 	* Makefile/maild*.spec.in: Default release number (1) is specified

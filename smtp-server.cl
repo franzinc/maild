@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: smtp-server.cl,v 1.38 2006/09/14 17:51:17 dancy Exp $
+;; $Id: smtp-server.cl,v 1.39 2006/09/14 18:08:13 dancy Exp $
 
 (in-package :user)
 
@@ -260,7 +260,7 @@
 	      (when (and *greet-pause* 
 			 (not (trusted-client-p (smtp-remote-host sock))))
 		(sleep *greet-pause*)
-		(when (listen sock)
+		(when (peek-char nil sock nil)
 		  ;; Pre-greeting traffic received.
 		  (let ((strict nil))
 		    (if* (not strict)
