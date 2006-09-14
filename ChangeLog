@@ -1,5 +1,5 @@
 2006-09-14  root  <root@gills2.dancysoft.com>
-1.1.67:
+1.1.67/1.1.68
        
 	* smtp-server.cl, do-smtp: Adjusted pre-greeting traffic check so
 	that it doesn't treat client disconnect as traffic.
