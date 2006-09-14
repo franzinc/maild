@@ -1,4 +1,16 @@
 2006-09-14  root  <root@gills2.dancysoft.com>
+1.1.66:
+
+	* Makefile/maild*.spec.in: Default release number (1) is specified
+	in Makefile and can be overridden with an environment variable.
+
+	* config.cl: New *greet-pause*.
+
+	* smtp-server.cl: Add support for *greet-pause* setting.  See docs
+	near *greet-pause* in config.cl for details.  Right now
+	pre-greeting traffic is simply logged.  After a testing period, it
+	will be changed to disconnection violators.
+	
 1.1.65:
 
         *** INCOMPATIBLE CHANGES *** /etc/maild.cl may need to be updated.

@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: smtp-server.cl,v 1.37 2006/08/28 01:02:22 dancy Exp $
+;; $Id: smtp-server.cl,v 1.38 2006/09/14 17:51:17 dancy Exp $
 
 (in-package :user)
 
@@ -256,6 +256,21 @@
 		     ))))
 	      
 	      (inc-smtp-stat connections-accepted)
+
+	      (when (and *greet-pause* 
+			 (not (trusted-client-p (smtp-remote-host sock))))
+		(sleep *greet-pause*)
+		(when (listen sock)
+		  ;; Pre-greeting traffic received.
+		  (let ((strict nil))
+		    (if* (not strict)
+		       then (maild-log "Pre-greeting traffic from ~a" dotted)
+		       else (maild-log "Dropping connection from ~a due to pre-greeting traffic" dotted)
+			    (outline sock "554 Terminating connection due to protocol violation")
+			    ;; RFC2821 says that we must wait continue to respond
+			    ;; to commands until the client says QUIT.  But if the
+			    ;; client is going to violate the protocol, so are we.
+			    (return-from do-smtp)))))
 	      
 	      ;; Greet
 	      (outline sock "220 ~A Allegro Maild ~A ready" 

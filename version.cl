@@ -1,5 +1,5 @@
 (in-package :user)
 
-;; $Id: version.cl,v 1.69 2006/09/14 16:30:52 dancy Exp $
+;; $Id: version.cl,v 1.70 2006/09/14 17:51:17 dancy Exp $
 
-(defparameter *allegro-maild-version* "v1.1.65")
+(defparameter *allegro-maild-version* "v1.1.66")

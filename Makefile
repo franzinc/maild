@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.52 2006/09/14 16:48:02 dancy Exp $
+# $Id: Makefile,v 1.53 2006/09/14 17:51:17 dancy Exp $
 
 ARCH=$(shell uname -i)
 
@@ -27,6 +27,8 @@ bindir ?= $(prefix)/bin
 sbindir ?= $(prefix)/sbin
 
 version := $(shell grep 'allegro-maild-version' version.cl | sed -e 's,.*"v\([0-9.]*\)".*,\1,')
+
+release ?= 1
 
 installer-package := maild-$(version)-installer.tar.gz
 
@@ -149,6 +151,7 @@ rpm-setup: FORCE
 %-rpm: maild-%.spec src-tarball rpm-setup
 	rpmbuild --define "_sourcedir $(CURDIR)" \
 		--define "_topdir $(CURDIR)" \
+		--define "release $(release)" \
 		-ba $<
 
 # This is the "normal" target (non-redhat 7.3, non-suse)
@@ -158,6 +161,7 @@ redhat-rpm: maild.spec src-tarball rpm-setup
 		--define "_builddir $(CURDIR)/BUILD" \
 		--define "_rpmdir $(CURDIR)/RPMS" \
 		--define "_srcrpmdir $(CURDIR)/SRPMS" \
+		--define "release $(release)" \
 		-ba maild.spec
 
 REPOHOST=fs1

@@ -1,8 +1,6 @@
-;; $Id: config.cl,v 1.44 2006/09/14 16:30:52 dancy Exp $
+;; $Id: config.cl,v 1.45 2006/09/14 17:51:17 dancy Exp $
 
 (in-package :user)
-
-(defparameter *debug* nil)
 
 (defparameter *ssl-support* nil)
 ;; Must be set if *ssl-support* is true
@@ -92,6 +90,16 @@
 
 ;;;;;;
 
+
+;; If non-nil, Maild will delay for the specified number of seconds
+;; before sending the connection greeting.  Clients who send data before
+;; the greeting is transmitted will receive a 554 response and will 
+;; immediately be disconnected (due to protocol violation).  This is
+;; an anti-spam mechanism.  Trusted clients will not be subject to the
+;; pause.
+(defparameter *greet-pause* nil)
+
+;;;;;;
 
 
 ;; If non-nil, then envelope senders in the SMTP session must have
@@ -289,7 +297,9 @@
 (defparameter *queue-lock-refresh-interval* (* 10 60)) ;; every 10 minutes
 (defparameter *queue-max-threads* 10) ;; max number of delivery threads
     
-;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;; Debugging/development settings ;;;;;;;;;;;;;;;;;;;;;
+
+(defparameter *debug* nil)
 
 (defparameter *rep-start-server* nil)
 (defparameter *rep-server-port* 9567)
