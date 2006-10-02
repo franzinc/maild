@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: queue-process.cl,v 1.20 2006/02/28 19:24:44 dancy Exp $
+;; $Id: queue-process.cl,v 1.21 2006/10/02 20:24:46 dancy Exp $
 
 (in-package :user)
 
@@ -54,6 +54,7 @@
     (let (failed-recips recip-addr recip-printable status response smtp-recips)
       (dolist (recip (queue-recips q))
 	(setf recip-addr (recip-addr recip))
+	(setf recip-printable (recip-printable recip))
 	(if (null (recip-owner recip))
 	    (setf (recip-owner recip) (queue-from q)))
 	

@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: deliver-smtp.cl,v 1.21 2006/03/21 18:12:45 dancy Exp $
+;; $Id: deliver-smtp.cl,v 1.22 2006/10/02 20:24:46 dancy Exp $
 
 (in-package :user)
 
@@ -261,11 +261,12 @@
       (get-smtp-reply sock buf timeout mxname :verbose verbose)
     (if data-term 
 	(setf tx "[message data]"))
-    (setf response (format nil "We said: ~a, ~a said: ~a" tx mxname response))
+    (setf response 
+      (format nil "When said: ~a, ~a said:~%~a" tx mxname response))
     (values status response)))
 
 (defun get-smtp-reply (sock buf timeout mxname &key verbose)
-  (let (line char)
+  (let (line char lines)
     (loop
       (setf line (smtp-get-line sock buf timeout))
       (if verbose
@@ -295,11 +296,14 @@
 	       verbose "Got short reply line from ~A: ~A" mxname line)
 	      (return (values :transient line)))
       (setf char (schar line 3))
+      (push line lines)
       (case char
-	(#\-  ;; line will be continued.. ignore
-	 nil) 
+	(#\-  ;; more lines follow
+	 nil)
 	(#\space ;; final reply line.  Use this for processing the code
-	 (return (smtp-response-disposition line mxname)))
+	 (return (smtp-response-disposition 
+		  (list-to-delimited-string (nreverse lines) #\newline)
+		  mxname)))
 	(t
 	 (maild-log-and-print
 	  verbose "Got weird reply line from ~A: ~A" mxname line)
@@ -308,11 +312,10 @@
 (defun smtp-response-disposition (line mxname)
   (block nil
     (multiple-value-bind (found whole code)
-	(match-regexp "^\\([0-9][0-9][0-9]\\) " line)
+	(match-re "^(\\d{3})[ -]" line)
       (declare (ignore whole))
       (if* (not found)
-	 then
-	      (maild-log "Got weird reply line from ~A: ~A" mxname line)
+	 then (maild-log "Got weird reply from ~A: ~A" mxname line)
 	      (return (values :transient line)))
       (case (schar code 0)
 	(#\2

@@ -1,3 +1,12 @@
+2006-10-02  Ahmon Dancy  <dancy@dancy>
+1.1.69:
+       
+	* deliver-smtp.cl, get-smtp-reply: Collect all the server's
+	response for proper reporting in bounce messages.
+
+	* queue-process.cl: Fixed case where 'nil' would be printed in a
+	bounce message instead of a recipient address.
+
 2006-09-14  root  <root@gills2.dancysoft.com>
 1.1.67/1.1.68
        
