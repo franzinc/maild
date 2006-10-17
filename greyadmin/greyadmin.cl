@@ -3,7 +3,6 @@
 (defparameter *configfile* "/etc/greyadmin.cl")
 
 (defparameter *port* 2526)
-;; need root to use shadow passwords
 (defparameter *run-as* "root")
 (defparameter *domain* "unconfigured.domain")
 (defparameter *pop-auth-server* nil)
@@ -34,7 +33,9 @@
   (use-package :excl.osi)
   (require :mysql)
   (use-package :dbi.mysql)
-  (require :socket))
+  (require :socket)
+  (require :pam))
+
 
 (defmacro greysql (&rest rest)
   ;; gah!
@@ -122,13 +123,6 @@
 	   (:h3 "Greylist administration")
 	   (emit-clp-entity req ent body)))))))
 
-(defun check-shadow-password (user pw)
-  (when (shadow-passwd-supported-p)
-    (let ((ent (getspnam user)))
-      (when ent
-	(string= (crypt pw (spwd-passwd ent)) 
-		 (spwd-passwd ent))))))
-
 (defmacro with-socket ((var &key remote-host remote-port) &body body)
   `(let (,var)
      (unwind-protect
@@ -166,14 +160,12 @@
 	  (pop-send-line "QUIT" sock)
 	  (read-line sock)
 	  res)))))
-	  
 
 (defun check-password (user pw)
-  (let ((ent (getpwnam user)))
-    (or (when ent 
-	  (or (string= (crypt pw (pwent-passwd ent)) (pwent-passwd ent))
-	      (check-shadow-password user pw)))
-	(check-pop-password user pw))))
+  (util.pam:with-pam (pam "login" user)
+    (if* (util.pam:pam-authenticate pam :password pw)
+       then t
+       else (check-pop-password user pw))))
 
 
 (defun check-login (req ent)

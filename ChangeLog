@@ -1,3 +1,8 @@
+2006-10-05  Ahmon Dancy  <dancy@dancy>
+1.1.70
+	
+	* greyadmin/greyadmin.cl: Updated to use PAM auth.
+
 2006-10-02  Ahmon Dancy  <dancy@dancy>
 1.1.69:
        
