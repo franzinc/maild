@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: bounce.cl,v 1.14 2006/03/21 18:12:45 dancy Exp $
+;; $Id: bounce.cl,v 1.15 2006/11/14 23:09:07 dancy Exp $
 
 (in-package :user)
 
@@ -31,7 +31,8 @@
     (when (emailnullp bounce-to)
       (setf bounce-to (parse-email-addr "postmaster"))
       (setf subject "Subject: Postmaster notify"))
-    (with-new-queue (q f errstatus (parse-email-addr "<>" :allow-null t))
+    (with-new-queue (q f errstatus (parse-email-addr "<>" :allow-null t)
+		       *localhost*)
       
       (if undeliverable
 	  (format f "----- Could not deliver message for ~D days -----~%~%"
@@ -60,7 +61,6 @@
       (queue-finalize 
        q (list bounce-to)
        (list subject  (format nil "To: ~a" (emailaddr-orig bounce-to)))
-       (dotted-to-ipaddr "127.0.0.1")
        :date t
        :add-from t 
        :from-gecos "Mail Delivery Subsystem"))

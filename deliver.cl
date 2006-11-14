@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: deliver.cl,v 1.18 2005/12/20 00:39:40 dancy Exp $
+;; $Id: deliver.cl,v 1.19 2006/11/14 23:09:08 dancy Exp $
 
 (in-package :user)
 
@@ -123,7 +123,7 @@
   (block nil
     (let* ((prgvec (coerce (cons (car prglist) prglist) 'vector))
 	   (prgname (svref prgvec 0)))
-      (multiple-value-bind (output errput status writerstatus)
+      (multiple-value-bind (status output errput writerstatus)
 	  (send-message-to-program q prgvec :rewrite rewrite
 				   :run-as run-as)
 	(if output
@@ -143,8 +143,9 @@
 
 ;; run-as should be nil or a string like "root" or "dancy".
 ;; Returns values:
-;;  output, errput, exit code
-(defun send-message-to-program (q prg &key (rewrite :norewrite) run-as)
+;;  exit code, output, errput, writer status
+(defun send-message-to-program (q prg &key (rewrite :norewrite) run-as
+					   (add-mbox-from t))
   (let (uid gid initgroups-user dir async)
     (when run-as
       (let ((pwent (getpwnam (string-downcase run-as))))
@@ -158,7 +159,7 @@
       (setf async (make-wmts-async :stream writeto
 				   :queue q
 				   :rewrite-type rewrite
-				   :add-mbox-from t))
+				   :add-mbox-from add-mbox-from))
       (mp:process-run-function "message text generator"
 	#'write-message-to-stream-async async)
       (multiple-value-bind (output errput status)
@@ -174,7 +175,7 @@
 	;; wait for writer to finish
 	(mp:process-wait "Waiting for message text generator to finish"
 			 #'mp:gate-open-p (wmts-async-gate async))
-	(values output errput status (wmts-async-status async))))))
+	(values status output errput (wmts-async-status async))))))
 
 
 (defun write-message-to-stream (stream q rewrite-type 

@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: queue.cl,v 1.21 2005/12/20 00:39:40 dancy Exp $
+;; $Id: queue.cl,v 1.22 2006/11/14 23:09:08 dancy Exp $
 
 (in-package :user)
 
@@ -22,6 +22,7 @@
   id
   (ctime (get-universal-time)) ;; when this message was queued
   (status "Reading message data...")
+  client-address
   from
   recips ;; remaining recipients to be processed (list of recip structs)
   orig-recips ;; parsed email addrs, pre-alias expansion
@@ -57,8 +58,7 @@
 	(format f "~d" seqnum)))
     (format nil "~12,'0d" seqnum)))
 
-
-(defun make-queue-file (from)
+(defun make-queue-file (from cliaddr)
   (let ((status :try-again)
 	id lockfile qfile q)
     (while (eq status :try-again)
@@ -68,7 +68,7 @@
       (when (lock-file lockfile) 
 	(unwind-protect
 	    (when (null (probe-file qfile))
-	      (setf q (make-queue :id id :from from))
+	      (setf q (make-queue :id id :from from :client-address cliaddr))
 	      (update-queue-file q) ;; write it out
 	      (setf status :ok))
 	  ;; cleanup forms
@@ -117,24 +117,24 @@
 (defun queue-locate-header (q header)
   (locate-header header (queue-headers q)))
 
-;; recips is a list of email addresses or a list of recip structs
-(defun queue-finalize (q recips headers cliaddr &key date add-from from-gecos
-						     metoo)
-  (let ((emailaddrs 
-	 (if (emailaddr-p (first recips))
-	     recips
-	   (mapcar #'recip-addr recips))))
+;; recips is a list of email addresses or recip structs
+(defun queue-prefinalize (q recips headers &key metoo)
+  (let ((emailaddrs (if* (emailaddr-p (first recips))
+		       then recips
+		       else (mapcar #'recip-addr recips))))
     
     (setf (queue-orig-recips q) emailaddrs)
     (setf (queue-recips q) 
       (expand-addresses emailaddrs (queue-from q) :metoo metoo)))
   
-  ;; Add in any necessary headers.
-  ;; Received header always goes in front.
   (setf (queue-headers q)
     (cons 
-     (make-received-header cliaddr (queue-id q))
-     headers))
+     (make-received-header (queue-client-address q) (queue-id q))
+     headers)))
+
+(defun queue-finalize (q recips headers &key date add-from from-gecos metoo)
+  (queue-prefinalize q recips headers :metoo metoo)
+  
   (if (null (locate-header "Message-Id:" headers))
       (queue-append-header q (make-message-id-header (queue-id q))))
   (if (and date (null (locate-header "Date:" headers)))
@@ -144,7 +144,7 @@
   
   (if *extra-headers-func*
       (funcall *extra-headers-func* q))
-
+  
   (setf (queue-status q) "Ready for delivery")
   (setf (queue-valid q) t)
   (update-queue-file q)
@@ -225,10 +225,9 @@
 	       ,@body)))))))
 
 ;; 'q' and 'errvar' should be variables that are already in scope.  
-;; shame on me.
-(defmacro with-new-queue ((q streamvar errvar from) &body body)
+(defmacro with-new-queue ((q streamvar errvar from cliaddr) &body body)
   `(let (,streamvar)
-     (setf ,q (make-queue-file ,from))
+     (setf ,q (make-queue-file ,from ,cliaddr))
      (unwind-protect
 	 (with-queue-lock-refresher (,q)
 	   (block nil

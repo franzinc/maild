@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: headers.cl,v 1.14 2006/04/12 17:34:29 dancy Exp $
+;; $Id: headers.cl,v 1.15 2006/11/14 23:09:08 dancy Exp $
 
 (in-package :user)
 
@@ -127,9 +127,9 @@
 (defun get-message-id (headers)
   (multiple-value-bind (h pos)
       (locate-header "Message-ID:" headers)
-    (if (null h)
-	"<none>"
-      (subseq h pos))))
+    (if* (null h)
+       then "<none>"
+       else (subseq h pos))))
 
 (defun make-received-header (cliaddr id)
   (let ((h (make-header)))
@@ -137,11 +137,9 @@
     (add-header-word h "from")
     (let ((hostname (ipaddr-to-hostname cliaddr)))
       (if* hostname
-	 then
-	      (add-header-word h hostname)
+	 then (add-header-word h hostname)
 	      (add-header-word h (format nil "(~A)" (ipaddr-to-dotted cliaddr)))
-	 else
-	      (add-header-word h (ipaddr-to-dotted cliaddr))))
+	 else (add-header-word h (ipaddr-to-dotted cliaddr))))
     (add-header-word h "by")
     (add-header-word h (fqdn))
     (add-header-word h 

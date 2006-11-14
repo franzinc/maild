@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: input.cl,v 1.15 2005/06/13 18:19:40 dancy Exp $
+;; $Id: input.cl,v 1.16 2006/11/14 23:09:08 dancy Exp $
 
 (in-package :user)
 
@@ -73,9 +73,9 @@
   (multiple-value-bind (fromaddr gecos authwarn realuser)
       (compute-sender-info from gecos)
     (let (q errstatus)
-      (with-new-queue (q f errstatus fromaddr)
+      (with-new-queue (q f errstatus fromaddr *localhost*)
 	;; body doesn't execute if datafile open failed.
-	(multiple-value-bind (status headers msgsize)
+	(multiple-value-bind (status headers)
 	    (read-message-stream *standard-input* f :dot dot)
 	  (if (not (member status '(:eof :dot)))
 	      (error "got status ~s from read-message-stream" status))
@@ -91,9 +91,11 @@
 	      (setf headers 
 		(append headers 
 			(list (make-x-auth-warning-header realuser fromaddr)))))
+	  (queue-prefinalize q recips headers :metoo metoo)
+
 	  ;; Run message checkers.
 	  (multiple-value-bind (res text checker)
-	      (check-message-checkers q headers msgsize)
+	      (check-message-checkers q)
 	    (declare (ignore checker))
 	    (ecase res
 	      (:ok 
@@ -103,11 +105,11 @@
 
 	  
 	  ;; This marks the message as complete.
-	  (queue-finalize q recips headers (dotted-to-ipaddr "127.0.0.1")
-			      :date t
-			      :add-from t 
-			      :from-gecos gecos
-			      :metoo metoo)))
+	  (queue-finalize q recips headers 
+			  :date t
+			  :add-from t 
+			  :from-gecos gecos
+			  :metoo metoo)))
       
       (when errstatus
 	;; somethin' went wrong.  It should already have been logged.

@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: checkers.cl,v 1.6 2003/09/19 17:30:34 dancy Exp $
+;; $Id: checkers.cl,v 1.7 2006/11/14 23:09:07 dancy Exp $
 
 (in-package :user)
 
@@ -48,10 +48,10 @@
 ;;  3) name of checker (if :transient or :reject)
 
 
-(defun check-message-checkers (q headers size)
+(defun check-message-checkers (q)
   (dolist (checker *message-data-checkers* :ok)
     (multiple-value-bind (res text)
-	(funcall (second checker) headers size (queue-datafile q))
+	(funcall (second checker) q)
       (case res
 	(:reject
 	 (if (null text)
@@ -71,53 +71,35 @@
 	 (maild-log "~A" text)
 	 (return (values :transient text (first checker))))))))
 
-(defun message-size-checker (headers size datafile)
-  (declare (ignore headers datafile))
-  (if (and *maxmsgsize* (> *maxmsgsize* 0) (>= size *maxmsgsize*))
-      (values :reject 
-	      (format nil "5.2.3 Message exceeds maximum fixed size (~D)"
-		      *maxmsgsize*))
-    :ok))
+(defun message-size-checker (q)
+  (if* (and *maxmsgsize* 
+	    (> *maxmsgsize* 0) 
+	    (>= (file-length (queue-datafile q)) *maxmsgsize*))
+     then (values :reject 
+		  (format nil "5.2.3 Message exceeds maximum fixed size (~D)"
+			  *maxmsgsize*))
+     else :ok))
 
-(defun hop-count-checker (headers size datafile)
-  (declare (ignore size datafile))
-  (if (> (count-received-headers headers) *maximum-hop-count*)
-      (values :reject "5.4.6 Too many hops")
-    :ok))
+(defun hop-count-checker (q)
+  (if* (> (count-received-headers (queue-headers q)) *maximum-hop-count*)
+     then (values :reject "5.4.6 Too many hops")
+     else :ok))
 
-(defun external-checker (prglist headers datafile)
+;; Return values: (from send-message-to-program):
+;;   exit code, output, errput  (the latter two will be lists of strings)
+(defun external-checker (q prglist)
   (block nil
     (let ((pwent (getpwnam *external-checker-user*)))
       (when (null pwent)
 	(maild-log "external-checker: User ~a does not exist"
 		   *external-checker-user*)
 	(return :transient))
-      (with-pipe (readfrom writeto)
-	(mp:process-run-function "external checker message text generator"
-	  #'external-checker-msgwriter writeto headers datafile)
-	(multiple-value-bind (output errput status)
-	    (command-output
-	     (coerce (cons (first prglist) prglist) 'vector)
-	     :directory "/tmp"
-	     :input readfrom
-	     :whole t
-	     :uid (pwent-uid pwent)
-	     :gid (pwent-gid pwent)
-	     :initgroups-user *external-checker-user*)
-	  (close readfrom)
-	  (values status output errput))))))
+      (send-message-to-program q 
+			       (coerce (cons (first prglist) prglist) 'vector)
+			       :run-as *external-checker-user*
+			       :add-mbox-from nil))))
 
-(defun external-checker-msgwriter (writestream headers datafile)
-  (dolist (h headers)
-    (write-line h writestream))
-  (write-line "" writestream)
-  (with-open-file (f datafile)
-    (let (char)
-      (while (setf char (read-char f nil nil))
-	     (write-char char writestream))))
-  (close writestream))
-
-;; utility for config file
+;; utility for use in /etc/maild.cl
 (defun add-checker (name function)
   (setf *message-data-checkers* 
     (nconc *message-data-checkers* (list (list name function)))))

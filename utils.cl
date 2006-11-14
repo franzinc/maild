@@ -14,13 +14,15 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: utils.cl,v 1.22 2006/09/14 16:30:52 dancy Exp $
+;; $Id: utils.cl,v 1.23 2006/11/14 23:09:08 dancy Exp $
 
 (in-package :user)
 
 (eval-when (compile load eval)
   (require :osi)
   (use-package :excl.osi))
+
+(defconstant *localhost* (socket:dotted-to-ipaddr "127.0.0.1"))
 
 (defparameter *outline-crlf* t)
 (defparameter *outline-flush* t)
@@ -238,3 +240,17 @@
 	(setf count nil)) ;; EOF
     
     (values count newline)))
+
+(defun zoom (stream)
+  (with-standard-io-syntax
+    (let ((*print-readably* nil)
+	  (*print-miser-width* 40)
+	  (*print-pretty* t)
+	  (tpl:*zoom-print-circle* nil)
+	  (tpl:*zoom-print-level* nil)
+	  (tpl:*zoom-print-length* nil)
+	  (*terminal-io* stream)
+	  (*standard-output* stream))
+      (tpl:do-command "zoom"
+	:from-read-eval-print-loop nil
+	:count t :all t))))

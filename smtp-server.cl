@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: smtp-server.cl,v 1.40 2006/09/14 18:18:22 dancy Exp $
+;; $Id: smtp-server.cl,v 1.41 2006/11/14 23:09:08 dancy Exp $
 
 (in-package :user)
 
@@ -206,98 +206,124 @@
      :certificate *ssl-certificate-file*
      :key *ssl-key-file*)))
   
-    
+(defmacro with-smtp-err-handler ((sock) &body body)
+  (let ((s (gensym)))
+    `(let ((,s ,sock))
+       (block nil
+	 (handler-bind 
+	     ((socket-error 
+	       #'(lambda (c)
+		   (maild-log "~a: ~a" (smtp-remote-dotted ,s) c)
+		   (return)))
+	      (errno-stream-error 
+	       #'(lambda (c)
+		   (if* (not (eq (stream-error-code c) *epipe*))
+		      then (report-unexpected-smtp-error c)
+		      else (maild-log "~a: Broken pipe" (smtp-remote-dotted ,s)))
+		   (return)))
+	      (error 
+	       #'(lambda (c)
+		   (report-unexpected-smtp-error c)
+		   (return))))
+	   ,@body)))))
+
+(defun report-unexpected-smtp-error (c)
+  (maild-log "SMTP server error: ~A" c)
+  (maild-log "Begin backtrace~%")
+  (let ((backtrace (with-output-to-string (s) (zoom s))))
+    (dolist (line (delimited-string-to-list backtrace #\newline))
+      (maild-log "  ~a" line))
+    (maild-log "End backtrace")))
+
 (defun do-smtp (sock &key fork verbose ssl)
   (unwind-protect
-      (handler-case
-	  (with-socket-timeout (sock :write *datatimeout*)
-	    (let* ((dotted (smtp-remote-dotted sock))
-		   (sess (make-session :sock sock :dotted dotted
-				       :ssl ssl
-				       :fork fork :verbose verbose
-				       :rcpt-to-delay
-				       *rcpt-to-negative-initial-delay*
-				       ))
-		   cmd)
+      (with-smtp-err-handler (sock)
+	(with-socket-timeout (sock :write *datatimeout*)
+	  (let* ((dotted (smtp-remote-dotted sock))
+		 (sess (make-session :sock sock :dotted dotted
+				     :ssl ssl
+				     :fork fork :verbose verbose
+				     :rcpt-to-delay
+				     *rcpt-to-negative-initial-delay*
+				     ))
+		 cmd)
 
-	      (if ssl
-		  (setf sock (start-tls-common sess)))
+	    (if ssl
+		(setf sock (start-tls-common sess)))
 	      
-	      (maild-log "~ASMTP connection from ~A" 
-			 (if ssl "SSL " "")
-			 dotted)
+	    (maild-log "~ASMTP connection from ~A" 
+		       (if ssl "SSL " "")
+		       dotted)
 	      
-	      (inc-smtp-stat num-connections)
+	    (inc-smtp-stat num-connections)
 	      
-	      (parse-connections-blacklist)
+	    (parse-connections-blacklist)
 	      
-	      ;; Run through checkers.
-	      (dolist (checker *smtp-connection-checkers*)
-		(multiple-value-bind (status string)
-		    (funcall (second checker) (smtp-remote-host sock))
-		  (ecase status
-		    (:err
-		     (outline sock "500 ~A" string)
-		     (maild-log 
-		      "Checker ~S rejected connection from ~A. Message: ~A"
-		      (first checker) dotted string)
-		     (inc-checker-stat connections-rejected-permanently (first checker))
-		     (return-from do-smtp))
-		    (:transient
-		     (outline sock "400 ~A" string)
-		     (maild-log 
-		      "Checker ~S temporarily rejected connection from ~A. Message: ~A"
-		      (first checker) dotted string)
-		     (inc-checker-stat connections-rejected-temporarily (first checker))
-		     (return-from do-smtp))
-		    (:sufficient
-		     (return))
-		    (:ok
-		     ))))
+	    ;; Run through checkers.
+	    (dolist (checker *smtp-connection-checkers*)
+	      (multiple-value-bind (status string)
+		  (funcall (second checker) (smtp-remote-host sock))
+		(ecase status
+		  (:err
+		   (outline sock "500 ~A" string)
+		   (maild-log 
+		    "Checker ~S rejected connection from ~A. Message: ~A"
+		    (first checker) dotted string)
+		   (inc-checker-stat connections-rejected-permanently (first checker))
+		   (return-from do-smtp))
+		  (:transient
+		   (outline sock "400 ~A" string)
+		   (maild-log 
+		    "Checker ~S temporarily rejected connection from ~A. Message: ~A"
+		    (first checker) dotted string)
+		   (inc-checker-stat connections-rejected-temporarily (first checker))
+		   (return-from do-smtp))
+		  (:sufficient
+		   (return))
+		  (:ok
+		   ))))
 	      
-	      (inc-smtp-stat connections-accepted)
+	    (inc-smtp-stat connections-accepted)
 
-	      (when (and *greet-pause* 
-			 (not (trusted-client-p (smtp-remote-host sock))))
-		(sleep *greet-pause*)
-		(when (and (listen sock) (peek-char nil sock nil))
-		  ;; Pre-greeting traffic received.
-		  (let ((strict nil))
-		    (if* (not strict)
-		       then (maild-log "Pre-greeting traffic from ~a" dotted)
-		       else (maild-log "Dropping connection from ~a due to pre-greeting traffic" dotted)
-			    (outline sock "554 Terminating connection due to protocol violation")
-			    ;; RFC2821 says that we must wait continue to respond
-			    ;; to commands until the client says QUIT.  But if the
-			    ;; client is going to violate the protocol, so are we.
-			    (return-from do-smtp)))))
+	    (when (and *greet-pause* 
+		       (not (trusted-client-p (smtp-remote-host sock))))
+	      (sleep *greet-pause*)
+	      (when (and (listen sock) (peek-char nil sock nil))
+		;; Pre-greeting traffic received.
+		(let ((strict nil))
+		  (if* (not strict)
+		     then (maild-log "Pre-greeting traffic from ~a" dotted)
+		     else (maild-log "Dropping connection from ~a due to pre-greeting traffic" dotted)
+			  (outline sock "554 Terminating connection due to protocol violation")
+			  ;; RFC2821 says that we must wait continue to respond
+			  ;; to commands until the client says QUIT.  But if the
+			  ;; client is going to violate the protocol, so are we.
+			  (return-from do-smtp)))))
 	      
-	      ;; Greet
-	      (outline sock "220 ~A Allegro Maild ~A ready" 
-		       (fqdn) *allegro-maild-version*)
+	    ;; Greet
+	    (outline sock "220 ~A Allegro Maild ~A ready" 
+		     (fqdn) *allegro-maild-version*)
 
-	      (loop
-		(setf cmd 
-		  (smtp-get-line (session-sock sess) (session-buf sess) 
-				 *cmdtimeout*))
-		(case cmd
-		  (:timeout 
-		   (maild-log "Closing idle SMTP connection from ~A" dotted)
+	    (loop
+	      (setf cmd 
+		(smtp-get-line (session-sock sess) (session-buf sess) 
+			       *cmdtimeout*))
+	      (case cmd
+		(:timeout 
+		 (maild-log "Closing idle SMTP connection from ~A" dotted)
 
-		   (outline sock "421 Control connection idle for too long")
-		   (return :timeout)) 
-		  (:eof
-		   ;; client closed the connection or something.
-		   (return :eof))
-		  (:longline
-		   (maild-log "SMTP client ~A sent excessively long command"
-			      dotted)
-		   (outline sock "500 Line too long."))
-		  (t
-		   (if (eq (process-smtp-command sess cmd) :quit)
-		       (return :quit)))))))
-	(error (c)
-	  (maild-log "SMTP server error: ~A" c)))
+		 (outline sock "421 Control connection idle for too long")
+		 (return :timeout)) 
+		(:eof
+		 ;; client closed the connection or something.
+		 (return :eof))
+		(:longline
+		 (maild-log "SMTP client ~A sent excessively long command"
+			    dotted)
+		 (outline sock "500 Line too long."))
+		(t
+		 (if (eq (process-smtp-command sess cmd) :quit)
+		     (return :quit))))))))
     ;; cleanup forms
     (maild-log "Closing SMTP session with ~A" (smtp-remote-dotted sock))
     (when (socketp sock)
@@ -668,7 +694,7 @@ in the HELO command (~A) from client ~A"
   (declare (ignore text))
   (let* ((sock (session-sock sess))
 	 (dotted (session-dotted sess))
-	 q status headers msgsize err rejected)
+	 q status headers err rejected)
     ;; Sanity checks first
     (if (null (session-from sess))
 	(return-from smtp-data 
@@ -700,10 +726,10 @@ in the HELO command (~A) from client ~A"
 	  (:ok
 	   ))))
     
-    (with-new-queue (q f err (session-from sess))
+    (with-new-queue (q f err (session-from sess) (smtp-remote-host sock))
       (outline sock "354 Enter mail, end with \".\" on a line by itself")
       (handler-case 
-	  (multiple-value-setq (status headers msgsize)
+	  (multiple-value-setq (status headers)
 	    (read-message-stream sock f :smtp t))
 	(socket-error (c)
 	  (if (eq (stream-error-identifier c) :read-timeout)
@@ -723,11 +749,12 @@ in the HELO command (~A) from client ~A"
 	(:dot  ;;okay
 	 ))
 
+      (queue-prefinalize q (session-to sess) headers :metoo *metoo*)
+      
+      ;; Run through smtp-specific checkers.
       (dolist (checker *smtp-data-checkers*)
 	(multiple-value-bind (status string)
-	    (funcall (second checker) sess (smtp-remote-host sock) 
-		     (session-from sess) (session-to sess)
-		     msgsize headers (queue-datafile q))
+	    (funcall (second checker) sess q)
 	  (ecase status
 	    (:err
 	     (outline sock "551 ~A" string)
@@ -749,7 +776,7 @@ in the HELO command (~A) from client ~A"
       ;; Run through non-smtp-specific checkers.
       (when (and (not err) (not rejected))
 	(multiple-value-bind (res text checker)
-	    (check-message-checkers q headers msgsize)
+	    (check-message-checkers q)
 	  (ecase res
 	    (:ok
 	     ) ;; all is well
@@ -770,8 +797,7 @@ in the HELO command (~A) from client ~A"
       
       (when (and (not err) (not rejected))
 	;; This finalizes and unlocks the queue item.
-	(queue-finalize q (session-to sess) headers (smtp-remote-host sock)
-			:date t)))
+	(queue-finalize q (session-to sess) headers :date t :metoo *metoo*)))
     
     ;; At this point, the queue file is saved on disk.. or it has been
     ;; deleted due to an error/rejection in processing.

@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: greylist.cl,v 1.25 2006/09/14 16:30:52 dancy Exp $
+;; $Id: greylist.cl,v 1.26 2006/11/14 23:09:08 dancy Exp $
 
 (in-package :user)
 
@@ -85,13 +85,11 @@
   (load configfile :verbose nil)
   (setf *greylisting-enabled* t)
   (if* (not *greylist-after-data-received*)
-     then
-	  (add-smtp-rcpt-to-checker 
+     then (add-smtp-rcpt-to-checker 
 	   "Greylist checker" 'greylist-rcpt-to-checker)
 	  (add-smtp-data-pre-checker 
 	   "Greylist checker" 'greylist-data-pre-checker)
-     else
-	  (add-smtp-data-checker "Greylist checker" 'greylist-data-checker))
+     else (add-smtp-data-checker "Greylist checker" 'greylist-data-checker))
   (setf *greylist-ip-whitelist-parsed* nil)
   (dolist (ip *greylist-ip-whitelist*)
     (push (parse-addr ip) *greylist-ip-whitelist-parsed*)))
@@ -278,9 +276,12 @@
       :ok)))
 
 
-(defun greylist-data-checker (sess ip from tos size headers datafile)
-  (declare (ignore size headers datafile))
-  (greylist-data-checker-common sess ip from tos))
+(defun greylist-data-checker (sess q)
+  (greylist-data-checker-common sess 
+				(queue-client-address q) 
+				(queue-from q) 
+				(queue-orig-recips q)))
+
 
 ;; Same as greylist-data-checker.. except it always says okay if
 ;; the message is not from mailer daemon.

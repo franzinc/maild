@@ -1,3 +1,17 @@
+2006-11-14  Ahmon Dancy  <dancy@dancy>
+1.2.0
+
+	* INCOMPATIBLE CHANGE: Adjusted the way (smtp and non-smtp) data
+	checkers are invoked.  If you use checkers in your /etc/maild.cl,
+	you'll need to update their argument lists and code.  The
+	'external-checker' function has also been changed.
+
+	* Added *metoo* configuration variable to force senders who send
+	mail to a mailing list their on to get a copy of that mail.
+
+	* smtp-server.cl:  Added an error handler which will log a
+	backtrace in the case of unexpected errors.
+
 2006-10-05  Ahmon Dancy  <dancy@dancy>
 1.1.70
 	

@@ -1,4 +1,4 @@
-;; $Id: config.cl,v 1.45 2006/09/14 17:51:17 dancy Exp $
+;; $Id: config.cl,v 1.46 2006/11/14 23:09:08 dancy Exp $
 
 (in-package :user)
 
@@ -89,6 +89,12 @@
 (defparameter *dns-blacklist-temp-failure-response* nil)
 
 ;;;;;;
+
+;; By default, if the sender of a message is a member of a mailing
+;; list expansion, the sender will not receive a copy of the message 
+;; (unless the sender is also specified as an explicit recipient).  
+;; If *metoo* is true, this supression is not performed.
+(defparameter *metoo* nil)
 
 
 ;; If non-nil, Maild will delay for the specified number of seconds
@@ -202,9 +208,12 @@
 (defparameter *smtp-data-pre-checkers* nil)
 
 ;; These checkers are called after the client has sent the CRLF.CRLF
-;; message terminator, but before a response code is sent. Checkers
-;; are called with:  session, client ip address, sender, recips (all email addressed
-;; parsed), message size, message headers, message data filename.
+;; message terminator, but before a response code is sent.  A checker
+;; entry is a list with two elements.  The first element is a string
+;; which describes the checker.  The second element is the checker
+;; function (or a symbol naming the function).  SMTP data checkers are
+;; called with two arguments: (1) The smtp session structure and (2)
+;; the queue structure.
 (defparameter *smtp-data-checkers* nil)
 
 ;; Initial connection checkers.  Checkers are called with the 
@@ -215,11 +224,12 @@
 
 
 ;; List of checkers to be called after a message body has been
-;; received.  A checker entry is a list with two elements.  The first
-;; element is a string which describes the checker.  The second
-;; element is the checker function (or a symbol naming the function.
-;; All listed checkers must return :ok before the message is accepted.
-;; see checker.cl for more details.
+;; received (from any source (SMTP or command line).  A checker entry
+;; is a list with two elements.  The first element is a string which
+;; describes the checker.  The second element is the checker function
+;; (or a symbol naming the function).  All listed checkers must return
+;; :ok before the message is accepted.  Checkers are called with one
+;; argument, the queue structure.  see checker.cl for more details.
 (defparameter *message-data-checkers* 
     '(("Message size checker" message-size-checker)
       ("Hop count checker" hop-count-checker)))
