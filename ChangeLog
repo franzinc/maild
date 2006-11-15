@@ -1,3 +1,13 @@
+2006-11-15  Ahmon Dancy  <dancy@dancy>
+1.2.1
+	
+	* queue.cl: queue-prefinalize: Copy the headers list since it may
+	be destructively modified by subsequent calls to
+	queue-append-header.  
+
+	* smtp-server.cl: with-smtp-err-handler: Print socket errors in a
+	nicer way.
+
 2006-11-14  Ahmon Dancy  <dancy@dancy>
 1.2.0
 

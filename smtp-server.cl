@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: smtp-server.cl,v 1.41 2006/11/14 23:09:08 dancy Exp $
+;; $Id: smtp-server.cl,v 1.42 2006/11/15 17:11:24 dancy Exp $
 
 (in-package :user)
 
@@ -213,7 +213,9 @@
 	 (handler-bind 
 	     ((socket-error 
 	       #'(lambda (c)
-		   (maild-log "~a: ~a" (smtp-remote-dotted ,s) c)
+		   (maild-log "~a: ~a" 
+			      (smtp-remote-dotted ,s) 
+			      (excl.osi:strerror (stream-error-code c)))
 		   (return)))
 	      (errno-stream-error 
 	       #'(lambda (c)
