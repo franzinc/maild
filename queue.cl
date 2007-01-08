@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: queue.cl,v 1.23 2006/11/15 17:11:24 dancy Exp $
+;; $Id: queue.cl,v 1.24 2007/01/08 17:52:17 dancy Exp $
 
 (in-package :user)
 
@@ -133,7 +133,8 @@
      (copy-list headers))))
 
 (defun queue-finalize (q recips headers &key date add-from from-gecos metoo)
-  (queue-prefinalize q recips headers :metoo metoo)
+  (if (null (queue-orig-recips q))
+      (queue-prefinalize q recips headers :metoo metoo))
   
   (if (null (locate-header "Message-Id:" headers))
       (queue-append-header q (make-message-id-header (queue-id q))))

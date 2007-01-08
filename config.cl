@@ -1,4 +1,4 @@
-;; $Id: config.cl,v 1.46 2006/11/14 23:09:08 dancy Exp $
+;; $Id: config.cl,v 1.47 2007/01/08 17:52:17 dancy Exp $
 
 (in-package :user)
 
@@ -245,7 +245,7 @@
 
 ;; See MAILERS.txt for information on mailers.
 (defparameter *mailers*
-    '((:local ;; keyword iden
+    '((:local ;; keyword identifier
        "Unix mailbox" 
        lookup-addr-in-passwd
        deliver-local-command

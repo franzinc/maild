@@ -1,3 +1,11 @@
+2007-01-08  Ahmon Dancy  <dancy@dancy>
+1.2.2
+	
+	* queue.cl: queue-finalize: Only call queue-prefinalize if it
+	hasn't been called before.
+
+	* config.cl: Fixed typo in comment.
+
 2006-11-15  Ahmon Dancy  <dancy@dancy>
 1.2.1
 	
