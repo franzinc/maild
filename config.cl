@@ -1,4 +1,4 @@
-;; $Id: config.cl,v 1.47 2007/01/08 17:52:17 dancy Exp $
+;; $Id: config.cl,v 1.48 2007/02/07 01:29:10 dancy Exp $
 
 (in-package :user)
 
@@ -254,8 +254,8 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; Only used if "smtp" entry can't be found in /etc/services.
 (defparameter *smtp-port* 25) 
+(defparameter *smtps-port* 465)
 (defparameter *smtp-ip* nil) ;; address to bind socket
 ;; Max SMTP command line length.  including CR, but not LF
 (defparameter *maxlinelen* 2048) 

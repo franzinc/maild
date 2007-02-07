@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: smtp-server.cl,v 1.42 2006/11/15 17:11:24 dancy Exp $
+;; $Id: smtp-server.cl,v 1.43 2007/02/07 01:29:10 dancy Exp $
 
 (in-package :user)
 
@@ -131,20 +131,16 @@
   
   (parse-connections-blacklist)
 
-  (let ((port *smtp-port*)
-	(ent (getservbyname "smtp" "tcp"))
-	sockets sock sslsock)
-    (if ent
-	(setf port (servent-port ent)))
+  (let (sockets sock sslsock)
     (handler-case 
 	(progn
-	  (setf sock (make-socket :local-port port 
+	  (setf sock (make-socket :local-port *smtp-port*
 				  :local-host *smtp-ip*
 				  :type :hiper
 				  :connect :passive
 				  :reuse-address t))
 	  (if *ssl-support*
-	      (setf sslsock (make-socket :local-port 465
+	      (setf sslsock (make-socket :local-port *smtps-port*
 					 :local-host *smtp-ip*
 					 :type :hiper
 					 :connect :passive

@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: queue.cl,v 1.24 2007/01/08 17:52:17 dancy Exp $
+;; $Id: queue.cl,v 1.25 2007/02/07 01:29:10 dancy Exp $
 
 (in-package :user)
 
@@ -166,7 +166,6 @@
   (lock-file (queue-lockfile-from-id id)))
 
 (defun refresh-queue-lock (q)
-  ;; XXXX
   (maild-log "Refreshing lockfile for qf~A" (queue-id q))
   (refresh-lock-file (queue-lockfile-from-id (queue-id q))))
 

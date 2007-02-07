@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: headers.cl,v 1.15 2006/11/14 23:09:08 dancy Exp $
+;; $Id: headers.cl,v 1.16 2007/02/07 01:29:10 dancy Exp $
 
 (in-package :user)
 
@@ -119,7 +119,7 @@
   (multiple-value-bind (second minute hour date month year day daylight-p zone)
       (get-decoded-time)
     (declare (ignore-if-unused second minute hour date month year day daylight-p zone))
-    (format nil "Message-Id: <~D~D~D~D~D~D.~a@~A>"
+    (format nil "Message-Id: <~d~2,'0d~2,'0d~2,'0d~2,'0d~2,'0d.~a@~A>"
 	    year month date hour minute second
 	    id
 	    (fqdn))))

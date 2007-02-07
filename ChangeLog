@@ -1,3 +1,15 @@
+2007-02-06  Ahmon Dancy  <dancy@dancy>
+1.2.3
+	
+	* config.cl: Added *smtps-port* parameter.  Removed comment from
+	*smtp-port* parameter.
+
+	* headers.cl: Construct message ids in a better way.
+
+	* smtp-server.cl: Use *smtp-port* always.  Ignore 'smtp' entry in
+	/etc/services.  This makes it easier to run maild on a
+	non-standard port.
+
 2007-01-08  Ahmon Dancy  <dancy@dancy>
 1.2.2
 	
