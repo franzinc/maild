@@ -1,3 +1,12 @@
+2007-03-01  Ahmon Dancy  <dancy@dancy>
+1.2.4
+	
+	* deliver-smtp.cl: Improve error reporting for MX connection
+	failures.  Also, always make connections to port 25, not
+	*smtp-port* (which is used to define the port that maild listens
+	on).
+	
+
 2007-02-06  Ahmon Dancy  <dancy@dancy>
 1.2.3
 	

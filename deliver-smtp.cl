@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: deliver-smtp.cl,v 1.22 2006/10/02 20:24:46 dancy Exp $
+;; $Id: deliver-smtp.cl,v 1.23 2007/03/01 21:43:08 dancy Exp $
 
 (in-package :user)
 
@@ -102,8 +102,8 @@
 	(when (null sock)
 	  (setf errmsg 
 	    (format nil 
-		    "Failed to connect to any mail exchanger for domain ~A"
-		    domain))
+		    "Failed to connect to any mail exchanger for domain ~a: ~a"
+		    domain status))
 	  (maild-log-and-print verbose "~A" errmsg)
 	  (return (values :transient errmsg)))
 
@@ -333,28 +333,39 @@
 
 (defun connect-to-mx (domain &key verbose)
   (block nil
-    (let ((mxs (get-good-mxs domain)))
+    (let ((mxs (get-good-mxs domain))
+	  errs)
       (if (or (eq mxs :no-such-domain) (eq mxs :servfail))
 	  (return (values nil nil mxs)))
-      (dolist (mx mxs)
-	(let (sock)
-	  (handler-case 
-	      (progn
-		(if verbose
-		    (format t "Connecting to ~A...~%" (cdr mx)))
-		(setf sock (make-socket :type :hiper
-					:remote-host (car mx) 
-					:remote-port *smtp-port*)))
-	    (error (c)
-	      (if verbose
-		  (format t "..failed: ~A~%" c))
-	      (maild-log "Error ~A while connecting to ~A" c (cdr mx))
-	      nil))
-	  (if* sock
-	     then
+      (flet ((process-error (hostname reason)
+	       (push (format nil "~a: ~a" hostname reason) errs)
+	       (if verbose
+		   (format t "..failed: ~A~%" reason))
+	       (maild-log "Error while connecting to ~A: ~a" hostname reason)
+	       nil))
+	
+	(dolist (mx mxs)
+	  (let (sock)
+	    (handler-case 
+		(progn
 		  (if verbose
-		      (format t "..connected.~%"))
-		  (return (values sock (cdr mx) :ok))))))))
+		      (format t "Connecting to ~A...~%" (cdr mx)))
+		  (setf sock (make-socket :type :hiper
+					  :remote-host (car mx) 
+					  :remote-port 25)))
+	      (socket-error (c)
+		(process-error (cdr mx) (strerror (stream-error-code c))))
+	      (error (c)
+		(process-error (cdr mx) (format nil "~a" c))))
+
+	    (if* sock
+	       then (if verbose
+			(format t "..connected.~%"))
+		    (return (values sock (cdr mx) :ok)))))
+	
+	;; no luck.
+	(values nil nil (list-to-delimited-string errs #\,))))))
+	
 
 ;; return a list of (addr . name)
 (defun get-good-mxs (domain &key verbose)
