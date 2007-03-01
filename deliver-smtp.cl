@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: deliver-smtp.cl,v 1.23 2007/03/01 21:43:08 dancy Exp $
+;; $Id: deliver-smtp.cl,v 1.24 2007/03/01 21:52:53 dancy Exp $
 
 (in-package :user)
 
@@ -361,7 +361,7 @@
 	    (if* sock
 	       then (if verbose
 			(format t "..connected.~%"))
-		    (return (values sock (cdr mx) :ok)))))
+		    (return-from connect-to-mx (values sock (cdr mx) :ok)))))
 	
 	;; no luck.
 	(values nil nil (list-to-delimited-string errs #\,))))))

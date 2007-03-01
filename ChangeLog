@@ -1,4 +1,7 @@
 2007-03-01  Ahmon Dancy  <dancy@dancy>
+1.2.5
+       * deliver-smtp.cl: Bugfix
+	
 1.2.4
 	
 	* deliver-smtp.cl: Improve error reporting for MX connection
