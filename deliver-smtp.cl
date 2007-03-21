@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: deliver-smtp.cl,v 1.24 2007/03/01 21:52:53 dancy Exp $
+;; $Id: deliver-smtp.cl,v 1.25 2007/03/21 18:52:19 dancy Exp $
 
 (in-package :user)
 
@@ -198,10 +198,10 @@
 		   (return (values res response))))))
 
 	  ;; cleanup forms
-	  (if sock 
-	      (ignore-errors
-	       (smtp-finish sock buf mxname :verbose verbose)
-	       (close sock :abort t))))))))
+	  (when sock 
+	    (ignore-errors (smtp-finish sock buf mxname :verbose verbose))
+	    (ignore-errors (close sock))
+	    (ignore-errors (close sock :abort t))))))))
 
 (defun smtp-finish (sock buf mxname &key verbose)
   (smtp-tx-rx "QUIT" sock buf *quittimeout* mxname :verbose verbose))
