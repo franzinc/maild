@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: maild.cl,v 1.25 2006/03/27 20:44:59 dancy Exp $
+;; $Id: maild.cl,v 1.26 2007/04/12 17:15:02 dancy Exp $
 
 (in-package :user)
 
@@ -98,6 +98,10 @@
 	  (verify-real-user-is-root)
 	  (smtp-server-daemon :queue-interval processqueue)
 	  (exit 0 :quiet t)) ;; parent gets here.
+	 ((string= runmode "D")
+	  (verify-real-user-is-root)
+	  (setf *debug* t)
+	  (smtp-server-daemon :queue-interval processqueue))
 	 ((string= runmode "s")
 	  (do-smtp *terminal-io* :fork t :verbose verbose)
 	  (exit 0 :quiet t))

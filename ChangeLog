@@ -1,3 +1,9 @@
+2007-04-12  Ahmon Dancy  <dancy@dancy>
+1.2.7
+	
+	* maild.cl: Added support for -bD run mode.. which is the same as
+	-bd, but does not fork, and turns on debugging mode.
+
 2007-03-21  Ahmon Dancy  <dancy@dancy>
 1.2.6
 	* delivr-smtp.cl Fix suspected fd leak during failed SMTP delivery.
