@@ -1,4 +1,7 @@
 2007-04-24  Ahmon Dancy  <dancy@dancy>
+1.2.8
+	
+	* Version number bump to easily identify 8.1.beta build.
 
 	* load.cl: Include :mcombin in module list (unless version>= 8 1)
 
