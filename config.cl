@@ -1,4 +1,4 @@
-;; $Id: config.cl,v 1.48 2007/02/07 01:29:10 dancy Exp $
+;; $Id: config.cl,v 1.49 2007/05/09 22:06:16 dancy Exp $
 
 (in-package :user)
 
@@ -6,7 +6,7 @@
 ;; Must be set if *ssl-support* is true
 (defparameter *ssl-certificate-file* "/etc/maild.crt")
 ;; Can be nil if *ssl-certificate-file* contains the key
-(defparameter *ssl-key-file* "/etc/maild.crt")
+(defparameter *ssl-key-file* "/etc/maild.key")
 
 ;; *client-authentiation*
 

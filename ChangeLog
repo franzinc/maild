@@ -1,3 +1,10 @@
+2007-05-09  Ahmon Dancy  <dancy@dancy>
+1.2.9
+	
+	* Rebuild w/ latest 8.1.beta.
+
+	* config.cl: Default ssl key file is now /etc/maild.key
+
 2007-04-24  Ahmon Dancy  <dancy@dancy>
 1.2.8
 	
