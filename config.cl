@@ -1,4 +1,4 @@
-;; $Id: config.cl,v 1.49 2007/05/09 22:06:16 dancy Exp $
+;; $Id: config.cl,v 1.50 2007/05/18 16:21:56 dancy Exp $
 
 (in-package :user)
 
@@ -201,6 +201,13 @@
 
 (defparameter *rcpt-to-negative-initial-delay* 5)
 
+;; If this is true, all optional checkers will not be executed until
+;; after the smtp-data-checkers run.  This option should not be
+;; enabled on typical mail servers. However, it is useful for doing
+;; tricky things like collecting a copy of an email message (within
+;; the smtp-data-checker) before rejecting it.
+(defparameter *postpone-checkers* nil)
+
 ;; Same idea as above.  Checkers are called with 
 ;; session, client ip address, sender, recips (all email addresses parsed).
 ;; This is called just before the DATA command responds with the 
@@ -306,7 +313,7 @@
 (defparameter *queue-lock-timeout* (* 15 60)) ;; 15 minutes
 (defparameter *queue-lock-refresh-interval* (* 10 60)) ;; every 10 minutes
 (defparameter *queue-max-threads* 10) ;; max number of delivery threads
-    
+
 ;;;;;;;;;;;;;;; Debugging/development settings ;;;;;;;;;;;;;;;;;;;;;
 
 (defparameter *debug* nil)

@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: smtp-server.cl,v 1.43 2007/02/07 01:29:10 dancy Exp $
+;; $Id: smtp-server.cl,v 1.44 2007/05/18 16:21:56 dancy Exp $
 
 (in-package :user)
 
@@ -45,6 +45,7 @@
   connections-rejected-permanently ;; list of checker/count pairs
   connections-rejected-temporarily ;; list of checker/count pairs
   (connections-accepted 0)
+  (transactions-started 0)
   senders-rejected-permanently ;; list of checker/count pairs
   senders-rejected-temporarily ;; list of checker/count pairs
   recips-rejected-permanently ;; list of checker/count pairs
@@ -258,28 +259,9 @@
 	    (parse-connections-blacklist)
 	      
 	    ;; Run through checkers.
-	    (dolist (checker *smtp-connection-checkers*)
-	      (multiple-value-bind (status string)
-		  (funcall (second checker) (smtp-remote-host sock))
-		(ecase status
-		  (:err
-		   (outline sock "500 ~A" string)
-		   (maild-log 
-		    "Checker ~S rejected connection from ~A. Message: ~A"
-		    (first checker) dotted string)
-		   (inc-checker-stat connections-rejected-permanently (first checker))
-		   (return-from do-smtp))
-		  (:transient
-		   (outline sock "400 ~A" string)
-		   (maild-log 
-		    "Checker ~S temporarily rejected connection from ~A. Message: ~A"
-		    (first checker) dotted string)
-		   (inc-checker-stat connections-rejected-temporarily (first checker))
-		   (return-from do-smtp))
-		  (:sufficient
-		   (return))
-		  (:ok
-		   ))))
+	    (when (not *postpone-checkers*)
+	      (if (null (run-connection-checkers sock))
+		  (return-from do-smtp)))
 	      
 	    (inc-smtp-stat connections-accepted)
 
@@ -329,6 +311,31 @@
       (ignore-errors (close sock))
       (ignore-errors (close sock :abort t)))))
 
+;; Returns 't' if accepted, nil if rejected.
+(defun run-connection-checkers (sock &key postponed)
+  (let ((dotted (smtp-remote-dotted sock)))
+    (dolist (checker *smtp-connection-checkers* t)
+      (multiple-value-bind (status string)
+	  (funcall (second checker) (smtp-remote-host sock))
+	(ecase status
+	  (:err
+	   (inc-checker-stat connections-rejected-permanently (first checker))
+	   (outline sock "500 ~A" string)
+	   (maild-log 
+	    "~aChecker ~S rejected connection from ~A. Message: ~A"
+	    (if postponed "Postponed " "") (first checker) dotted string)
+	   (return))
+	  (:transient
+	   (inc-checker-stat connections-rejected-temporarily (first checker))
+	   (outline sock "400 ~A" string)
+	   (maild-log 
+	    "~aChecker ~S temporarily rejected connection from ~A. Message: ~A"
+	    (if postponed "Postponed " "") (first checker) dotted string)
+	   (return))
+	  (:sufficient
+	   (return t))
+	  (:ok
+	   ))))))
 
 (defparameter *smtp-stats-lock* nil)
 
@@ -396,12 +403,12 @@
 	  (declare (ignore ttl))
 	  (when (member :no-such-domain flags)
 	    (if* (eq 't *helo-must-match-ip*)
-	       then (outline sock "501 Invalid domain name")
+	       then (inc-checker-stat connections-rejected-permanently
+				      "HELO domain checker")
+		    (outline sock "501 Invalid domain name")
 		    (maild-log
 		     "Rejected HELO ~A from client ~A (invalid domain)"
 		     text (session-dotted sess))
-		    (inc-checker-stat connections-rejected-permanently
-				      "HELO domain checker")
 		    (return :quit)
 	       else ;; log only
 		    (maild-log
@@ -410,12 +417,12 @@
 	  
 	  (when (null first)
 	    (if* (eq 't *helo-must-match-ip*)
-	       then (outline sock "401 Unable to resolve domain")
+	       then (inc-checker-stat connections-rejected-temporarily
+						      "HELO domain checker")
+		    (outline sock "401 Unable to resolve domain")
 		    (maild-log "Temporarily rejected client from ~A ~
 because we couldn't resolve the name supplied in the HELO command (~A)" 
 			       (session-dotted sess) text)
-		    (inc-checker-stat connections-rejected-temporarily
-				      "HELO domain checker")
 		    (return :quit)
 	       else ;; log only
 		    (maild-log "NOTE: couldn't resolve the name supplied ~
@@ -426,13 +433,13 @@ in the HELO command (~A) from client ~A"
 	    (when (not (member (smtp-remote-host sock) addrs))
 	      (if* (eq 't *helo-must-match-ip*)
 		 then ;; do it
+		      (inc-checker-stat connections-rejected-permanently
+					"HELO domain checker")
 		      (outline sock
 			       "501 HELO domain must match your IP address")
 		      (maild-log
 		       "Rejected HELO ~A from client ~A (No IP match)"
 		       text (session-dotted sess))
-		      (inc-checker-stat connections-rejected-permanently
-					"HELO domain checker")
 		      (return :quit)
 		 else ;; log only
 		      (maild-log
@@ -546,6 +553,7 @@ in the HELO command (~A) from client ~A"
 	(return))
 
       (when (session-from sess)
+	(inc-checker-stat senders-rejected-permanently "protocol violation checker")
 	(outline sock "503 5.5.0 Sender already specified")
 	(return))
 
@@ -560,63 +568,78 @@ in the HELO command (~A) from client ~A"
 			text :case-fold t)
 	(declare (ignore whole auth))
 	(when (not matched)
+	  (inc-checker-stat senders-rejected-permanently "command syntax checker")
 	  (outline sock "501 5.5.2 Syntax error in command")
 	  (return))
 	(let ((addr (parse-email-addr addr :allow-null t)))
 	  (when (null addr)
+	    (inc-checker-stat senders-rejected-permanently "email address syntax checker")
 	    (outline sock "553 5.3.0 Invalid address")
 	    (maild-log "Client from ~a: MAIL ~A: Invalid address"
 		       (session-dotted sess) text)
 	    (return))
 	  
-	  ;; Call checkers
-	  (dolist (checker *smtp-mail-from-checkers*)
-	    (multiple-value-bind (status string)
-		(funcall (second checker) (smtp-remote-host sock) addr)
-	      (ecase status
-		(:err
-		 (outline sock "551 ~A" string)
-		 (maild-log "Checker ~S rejected MAIL FROM:~A. Message: ~A"
-			    (first checker) (emailaddr-orig addr)
-			    string)
-		 
-		 (inc-checker-stat senders-rejected-permanently (first checker))
-		 (return-from smtp-mail))
-		(:transient
-		 (outline sock "451 ~A" string)
-		 (maild-log 
-		  "Checker ~S temporarily failed MAIL FROM:~A. Message: ~A"
-		  (first checker) (emailaddr-orig addr) string)
-		 (inc-checker-stat senders-rejected-temporarily (first checker))
-		 (return-from smtp-mail))
-		(:sufficient
-		 (return))
-		(:ok
-		 ))))
+	  (inc-smtp-stat transactions-started)
 	  
+	  ;; Call checkers
+	  (when (not *postpone-checkers*)
+	    (if (null (run-mail-from-checkers sock addr))
+		(return-from smtp-mail)))
+
 	  (setf (session-from sess) addr)
 	  (outline sock "250 2.1.0 ~A... Sender ok" (emailaddr-orig addr)))))))
+
+(defun run-mail-from-checkers (sock addr &key postponed)
+  (dolist (checker *smtp-mail-from-checkers* t)
+    (multiple-value-bind (status string)
+	(funcall (second checker) (smtp-remote-host sock) addr)
+      (ecase status
+	(:err
+	 (inc-checker-stat senders-rejected-permanently (first checker))
+	 (outline sock "551 ~A" string)
+	 (maild-log "~aChecker ~S rejected MAIL FROM:~A. Message: ~A"
+		    (if postponed "Postponed " "")
+		    (first checker) (emailaddr-orig addr)
+		    string)
+	 (return))
+	(:transient
+	 (inc-checker-stat senders-rejected-temporarily (first checker))
+	 (outline sock "451 ~A" string)
+	 (maild-log 
+	  "~aChecker ~S temporarily failed MAIL FROM:~A. Message: ~A"
+	  (if postponed "Postponed " "")
+	  (first checker) (emailaddr-orig addr) string)
+	 (return))
+	(:sufficient
+	 (return t))
+	(:ok
+	 )))))
+	  
 
 (defun smtp-rcpt (sess text)
   (block nil
     (let ((sock (session-sock sess))
 	  disp errmsg)
       (when (>= (length (session-to sess)) *maxrecips*)
+	(inc-checker-stat recips-rejected-temporarily "recipient count checker")
 	(outline sock "452 4.5.3 Too many recipients")
 	(maild-log "Client from ~A: Too many recipients"
 		   (session-dotted sess))
 	(return))
       (when (null (session-from sess))
+	(inc-checker-stat recips-rejected-permanently "protocol violation checker")
 	(outline sock "503 5.0.0 Need MAIL before RCPT")
 	(return))
       (multiple-value-bind (matched whole addrstring)
 	  (match-regexp "^\\b+to:\\b*\\(\\B\\B*\\)\\b*$" text :case-fold t)
 	(declare (ignore whole))
 	(when (not matched)
+	  (inc-checker-stat recips-rejected-permanently "command syntax checker")
 	  (outline sock "501 5.5.2 Syntax error in command")
 	  (return))
 	(let ((addr (parse-email-addr addrstring)))
 	  (when (null addr)
+	    (inc-checker-stat recips-rejected-permanently "email address syntax checker")
 	    (outline sock "553 5.3.0 Invalid address")
 	    (maild-log "Client from ~A: rcpt to:~A... Invalid address"
 		       (session-dotted sess)
@@ -628,6 +651,7 @@ in the HELO command (~A) from client ~A"
 	  (ecase disp
 	    (:error
 	     (smtp-rcpt-to-delay sess)
+	     (inc-checker-stat recips-rejected-permanently ":error recip checker")
 	     (outline sock "550 ~a... ~a" 
 		      (emailaddr-orig addr) errmsg)
 	     (maild-log "client from ~A: rcpt to:~A... error recip"
@@ -636,64 +660,80 @@ in the HELO command (~A) from client ~A"
 	     (return))
 	    (:local-unknown
 	     (smtp-rcpt-to-delay sess)
+	     (inc-checker-stat recips-rejected-permanently "unknown recip checker")
 	     (outline sock "550 5.1.1 ~a... User unknown"
 		      (emailaddr-orig addr))
 	     (maild-log "Client from ~A: rcpt to:~A... User unknown"
 			(session-dotted sess)
 			(emailaddr-orig addr))
 	     (return))
-	    (:local-ok
-	     (setf disp :local))
-	    (:non-local
-	     (setf disp :remote)))
+	    ((:local-ok :non-local)
+	     ))
 	  
 	  ;; Run checkers
-	  (dolist (checker *smtp-rcpt-to-checkers*)
-	    (multiple-value-bind (status string)
-		(funcall (second checker) 
-			 sess
-			 (smtp-remote-host sock)
-			 (session-from sess)
-			 disp
-			 addr
-			 (session-to sess))
-	      (ecase status
-		(:err
-		 (smtp-rcpt-to-delay sess)
-		 (outline sock "550 ~A" string)
-		 (maild-log "Checker ~S rejected RCPT TO:~A. Message: ~A"
-			    (first checker) (emailaddr-orig addr)
-			    string)
-		 (inc-checker-stat recips-rejected-permanently (first checker))
-		 (return-from smtp-rcpt))
-		(:transient
-		 (smtp-rcpt-to-delay sess)
-		 (outline sock "451 ~A" string)
-		 (maild-log 
-		  "Checker ~S temporarily failed RCPT TO:~A. Message: ~A"
-		  (first checker) (emailaddr-orig addr) string)
-		 (inc-checker-stat recips-rejected-temporarily (first checker))
-		 (return-from smtp-rcpt))
-		(:sufficient
-		 (return))
-		(:ok
-		 ))))
+	  (when (not *postpone-checkers*)
+	    (if (null (run-rcpt-to-checkers sock sess addr disp))
+		(return-from smtp-rcpt)))
 	  
 	  (push addr (session-to sess))
 	  (outline sock "250 2.1.5 ~a... Recipient ok" 
 		   (emailaddr-orig addr)))))))
 
+(defun run-rcpt-to-checkers (sock sess addr disp &key postponed)
+  (case disp
+    (:local-ok
+     (setf disp :local))
+    (:non-local
+     (setf disp :remote)))
+  
+  (dolist (checker *smtp-rcpt-to-checkers* t) 
+    (multiple-value-bind (status string)
+	(funcall (second checker) 
+		 sess
+		 (smtp-remote-host sock)
+		 (session-from sess)
+		 disp
+		 addr
+		 (session-to sess))
+      (ecase status
+	(:err
+	 (smtp-rcpt-to-delay sess)
+	 (inc-checker-stat recips-rejected-permanently (first checker))		 
+	 (outline sock "550 ~A" string)
+	 (maild-log "~aChecker ~S rejected RCPT TO:~A. Message: ~A"
+		    (if postponed "Postponed " "")
+		    (first checker) (emailaddr-orig addr)
+		    string)
+	 (return))
+	(:transient
+	 (smtp-rcpt-to-delay sess)
+	 (inc-checker-stat recips-rejected-temporarily (first checker))
+	 (outline sock "451 ~A" string)
+	 (maild-log 
+	  "~aChecker ~S temporarily failed RCPT TO:~A. Message: ~A"
+	  (if postponed "Postponed " "")
+	  (first checker) (emailaddr-orig addr) string)
+	 (return))
+	(:sufficient
+	 (return t))
+	(:ok
+	 )))))
+
+
 (defun smtp-rcpt-to-delay (sess)
   (sleep (session-rcpt-to-delay sess))
   (setf (session-rcpt-to-delay sess) (* (session-rcpt-to-delay sess) 2)))
-  
 
+(defmacro with-session-reset-on-unwind ((sess) &body body)
+  `(unwind-protect (progn ,@body)
+     (reset-smtp-session ,sess)))
+  
 (defun smtp-data (sess text)
   (declare (ignore text))
   (let* ((sock (session-sock sess))
 	 (dotted (session-dotted sess))
-	 q status headers err rejected)
-    ;; Sanity checks first
+	 q status headers err)
+    ;; Check for protocol violations.
     (if (null (session-from sess))
 	(return-from smtp-data 
 	  (outline sock "503 5.0.0 Need MAIL command")))
@@ -701,117 +741,102 @@ in the HELO command (~A) from client ~A"
 	(return-from smtp-data 
 	  (outline sock "503 5.0.0 Need RCPT (recipient)")))
 
-    ;; Run pre-checkers
-    (dolist (checker *smtp-data-pre-checkers*)
-      (multiple-value-bind (status string)
-	  (funcall (second checker) sess
-		   (smtp-remote-host sock) (session-from sess) 
-		   (session-to sess))
+    (with-session-reset-on-unwind (sess)
+      ;; Run pre-checkers
+      (when (not *postpone-checkers*)
+	(if (null (run-pre-data-checkers sock sess))
+	    (return-from smtp-data)))
+	
+      
+      (with-new-queue (q f err (session-from sess) (smtp-remote-host sock))
+	(outline sock "354 Enter mail, end with \".\" on a line by itself")
+	(handler-case 
+	    (multiple-value-setq (status headers)
+	      (read-message-stream sock f :smtp t))
+	  (socket-error (c)
+	    (if* (eq (stream-error-identifier c) :read-timeout)
+	       then (maild-log "Client from ~A stopped transmitting." dotted)
+	       else (maild-log "Client from ~A: socket error: ~A" dotted c))
+	    (return-from smtp-data :quit))
+	  (error (c)
+	    (maild-log "Unexpected error during read-message-stream: ~A" c)
+	    (setf err :transient)
+	    (return))) ;; break from with-new-queue
+	
 	(ecase status
-	  (:err
-	   (outline sock "551 ~A" string)
-	   (maild-log "Checker ~S rejected DATA phase initiation. Message: ~A"
-		      (first checker) string)
-	   (inc-checker-stat messages-pre-rejected-permanently (first checker))
-	   (return-from smtp-data))
-	  (:transient
-	   (outline sock "451 ~A" string)
-	   (maild-log 
-	    "Checker ~S temporarily failed DATA phase initiation. Message: ~A"
-	    (first checker) string)
-	   (inc-checker-stat messages-pre-rejected-temporarily (first checker))
-	   (return-from smtp-data))
-	  (:ok
-	   ))))
-    
-    (with-new-queue (q f err (session-from sess) (smtp-remote-host sock))
-      (outline sock "354 Enter mail, end with \".\" on a line by itself")
-      (handler-case 
-	  (multiple-value-setq (status headers)
-	    (read-message-stream sock f :smtp t))
-	(socket-error (c)
-	  (if (eq (stream-error-identifier c) :read-timeout)
-	      (maild-log "Client from ~A stopped transmitting." dotted)
-	    (maild-log "Client from ~A: socket error: ~A" dotted c))
-	  (return-from smtp-data :quit))
-	(error (c)
-	  (maild-log "Unexpected error during read-message-stream: ~A" c)
-	  (setf err :transient)
-	  (return))) ;; break from with-new-queue
-      
-      (ecase status
-	(:eof
-	 (maild-log "Client ~A disconnected during SMTP data transmission"
-		    dotted)
-	 (return-from smtp-data :quit))
-	(:dot  ;;okay
-	 ))
+	  (:eof
+	   (maild-log "Client ~A disconnected during SMTP data transmission"
+		      dotted)
+	   (return-from smtp-data :quit))
+	  (:dot  ;;okay
+	   ))
+	
+	(queue-prefinalize q (session-to sess) headers :metoo *metoo*)
+	
+	;; Run through smtp-specific checkers.
+	(dolist (checker *smtp-data-checkers*)
+	  (multiple-value-bind (status string)
+	      (funcall (second checker) sess q)
+	    (ecase status
+	      (:err
+	       (inc-checker-stat messages-rejected-permanently (first checker))
+	       (outline sock "551 ~A" string)
+	       (maild-log "Checker ~S rejected message data. Message: ~A"
+			  (first checker) string)
+	       (return-from smtp-data))
+	      (:transient
+	       (inc-checker-stat messages-rejected-temporarily (first checker))
+	       (outline sock "451 ~A" string)
+	       (maild-log 
+		"Checker ~S temporarily failed message. Message: ~A"
+		(first checker) string)
+	       (return-from smtp-data))
+	      (:ok
+	       ))))
 
-      (queue-prefinalize q (session-to sess) headers :metoo *metoo*)
-      
-      ;; Run through smtp-specific checkers.
-      (dolist (checker *smtp-data-checkers*)
-	(multiple-value-bind (status string)
-	    (funcall (second checker) sess q)
-	  (ecase status
-	    (:err
-	     (outline sock "551 ~A" string)
-	     (maild-log "Checker ~S rejected message data. Message: ~A"
-			(first checker) string)
-	     (inc-checker-stat messages-rejected-permanently (first checker))
-	     (return-from smtp-data))
-	    (:transient
-	     (outline sock "451 ~A" string)
-	     (maild-log 
-	      "Checker ~S temporarily failed message. Message: ~A"
-	      (first checker) string)
-	     (inc-checker-stat messages-rejected-temporarily (first checker))
-	     (return-from smtp-data))
-	    (:ok
-	     ))))
-
-      
-      ;; Run through non-smtp-specific checkers.
-      (when (and (not err) (not rejected))
+	;; Run postponed checkers.
+	(if (and *postpone-checkers* (null (run-postponed-checkers sock sess)))
+	    (return-from smtp-data))
+	
+	;; Run through non-smtp-specific checkers.
 	(multiple-value-bind (res text checker)
 	    (check-message-checkers q)
 	  (ecase res
 	    (:ok
 	     ) ;; all is well
 	    (:reject
+	     (inc-checker-stat messages-rejected-permanently checker)
 	     (maild-log "Rejecting message from ~A" 
 			(emailaddr-orig (session-from sess)))
 	     (maild-log "Checker ~S said: ~A" checker text)
-	     
 	     (outline sock "552 ~A" text)
-	     (inc-checker-stat messages-rejected-permanently checker)
-	     
-	     (setf rejected t))
+	     (return-from smtp-data))
 	    (:transient
+	     (inc-checker-stat messages-rejected-temporarily checker)
 	     (maild-log "Checker ~s reported a transient error: ~A"
 			checker text)
-	     (inc-checker-stat messages-rejected-temporarily checker)
-	     (setf err :transient)))))
-      
-      (when (and (not err) (not rejected))
+	     (outline sock "452 ~a" text)
+	     (return-from smtp-data))))
+	
 	;; This finalizes and unlocks the queue item.
-	(queue-finalize q (session-to sess) headers :date t :metoo *metoo*)))
+	(queue-finalize q (session-to sess) headers :date t :metoo *metoo*))
+      ;; outside of with-new-queue.
+      
+      ;; At this point, the queue file is saved on disk.. or it has been
+      ;; deleted due to an error/rejection in processing.
     
-    ;; At this point, the queue file is saved on disk.. or it has been
-    ;; deleted due to an error/rejection in processing.
+      ;; Rejected messages have already been reported to the client.
+      ;; Report transient errors now.
     
-    ;; Rejected messages have already been reported to the client.
-    ;; Report transient errors now.
+      (when (or (eq err :transient)
+		(and (listp err) (eq (first err) :transient)))
+	(outline 
+	 sock "451 Requested action aborted: local error in processing")
+	(return-from smtp-data))
     
-    (when (or (eq err :transient)
-	      (and (listp err) (eq (first err) :transient)))
-      (outline 
-       sock "451 Requested action aborted: local error in processing"))
-    
-    ;; If we have a good message, report it to the client and
-    ;; begin delivering it.
+      ;; We have a good message.  Report it to the client and begin
+      ;; delivering it.
 
-    (when (and (not err) (not rejected))
       (maild-log "Accepted SMTP message from client ~A: from ~A to ~A"
 		 dotted
 		 (emailaddr-orig (session-from sess))
@@ -838,6 +863,47 @@ in the HELO command (~A) from client ~A"
 	;; else.. we must be running in daemon mode already..
 	(mp:process-run-function 
 	    (format nil "Processing id ~A" (queue-id q)) 
-	  #'queue-process-single (queue-id q))))
+	  #'queue-process-single (queue-id q))))))
+
+(defun run-pre-data-checkers (sock sess &key postponed)
+  (dolist (checker *smtp-data-pre-checkers* t)
+    (multiple-value-bind (status string)
+	(funcall (second checker) sess
+		 (smtp-remote-host sock) (session-from sess) 
+		 (session-to sess))
+      (ecase status
+	(:err
+	 (inc-checker-stat messages-pre-rejected-permanently (first checker))
+	 (outline sock "551 ~A" string)
+	 (maild-log "~aChecker ~S rejected DATA phase initiation. Message: ~A"
+		    (if postponed "Postponed " "")
+		    (first checker) string)
+	 (return))
+	(:transient
+	 (inc-checker-stat messages-pre-rejected-temporarily (first checker))
+	 (outline sock "451 ~A" string)
+	 (maild-log 
+	  "~aChecker ~S temporarily failed DATA phase initiation. Message: ~A"
+	  (if postponed "Postponed " "")
+	  (first checker) string)
+	 (return))
+	(:sufficient
+	 (return t))
+	(:ok
+	 )))))
+
+(defun run-postponed-checkers (sock sess)
+  (block nil
+    (if (null (run-connection-checkers sock :postponed t))
+	(return))
+    (if (null (run-mail-from-checkers sock (session-from sess) :postponed t))
+	(return))
+    (dolist (addr (session-to sess))
+      (if (null (run-rcpt-to-checkers sock sess addr 
+				      (get-recipient-disposition addr) 
+				      :postponed t))
+	  (return-from run-postponed-checkers)))
+    (if (null (run-pre-data-checkers sock sess :postponed t))
+	(return))
     
-    (reset-smtp-session sess)))
+    t))

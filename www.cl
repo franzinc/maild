@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: www.cl,v 1.5 2003/07/23 16:56:42 dancy Exp $
+;; $Id: www.cl,v 1.6 2007/05/18 16:21:56 dancy Exp $
 
 (in-package :user)
 
@@ -84,6 +84,8 @@
 	 (:ul
 	  (:li "Client connections made: " (:princ (get-smtp-stat num-connections)))
 	  (:li "Client connections accepted: " (:princ (get-smtp-stat connections-accepted))))
+	 (:ul
+	  (:li "Transactions started: " (:princ (get-smtp-stat transactions-started))))
 	 
 	 (webserver-show-checker "Client connections rejected temporarily..." connections-rejected-temporarily)
 	 (webserver-show-checker "Client connections rejected permanently..." connections-rejected-permanently)

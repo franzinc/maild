@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: deliver-smtp.cl,v 1.25 2007/03/21 18:52:19 dancy Exp $
+;; $Id: deliver-smtp.cl,v 1.26 2007/05/18 16:21:56 dancy Exp $
 
 (in-package :user)
 
@@ -262,7 +262,7 @@
     (if data-term 
 	(setf tx "[message data]"))
     (setf response 
-      (format nil "When said: ~a, ~a said:~%~a" tx mxname response))
+      (format nil "When we said: ~a, ~a said:~%~a" tx mxname response))
     (values status response)))
 
 (defun get-smtp-reply (sock buf timeout mxname &key verbose)
