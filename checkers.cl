@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: checkers.cl,v 1.7 2006/11/14 23:09:07 dancy Exp $
+;; $Id: checkers.cl,v 1.8 2007/05/30 14:09:22 dancy Exp $
 
 (in-package :user)
 
@@ -70,15 +70,6 @@
 		   (first checker) res))
 	 (maild-log "~A" text)
 	 (return (values :transient text (first checker))))))))
-
-(defun message-size-checker (q)
-  (if* (and *maxmsgsize* 
-	    (> *maxmsgsize* 0) 
-	    (>= (file-length (queue-datafile q)) *maxmsgsize*))
-     then (values :reject 
-		  (format nil "5.2.3 Message exceeds maximum fixed size (~D)"
-			  *maxmsgsize*))
-     else :ok))
 
 (defun hop-count-checker (q)
   (if* (> (count-received-headers (queue-headers q)) *maximum-hop-count*)

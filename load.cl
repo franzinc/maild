@@ -1,4 +1,4 @@
-;; $Id: load.cl,v 1.22 2007/04/24 18:29:54 dancy Exp $
+;; $Id: load.cl,v 1.23 2007/05/30 14:09:22 dancy Exp $
 
 (in-package :user)
 
@@ -27,7 +27,9 @@
 (eval-when (compile load eval)
   (require :osi)
   (use-package :excl.osi)
-  (use-package :socket))
+  (use-package :socket)
+  (require :regexp2))
+
 
 (eval-when (load eval)
   (load "config.cl")

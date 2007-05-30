@@ -1,4 +1,4 @@
-;; $Id: config.cl,v 1.50 2007/05/18 16:21:56 dancy Exp $
+;; $Id: config.cl,v 1.51 2007/05/30 14:09:22 dancy Exp $
 
 (in-package :user)
 
@@ -238,8 +238,7 @@
 ;; :ok before the message is accepted.  Checkers are called with one
 ;; argument, the queue structure.  see checker.cl for more details.
 (defparameter *message-data-checkers* 
-    '(("Message size checker" message-size-checker)
-      ("Hop count checker" hop-count-checker)))
+    '(("Hop count checker" hop-count-checker)))
 
 ;; User to run external checkers as.
 (defparameter *external-checker-user* "mailnull")
@@ -307,6 +306,10 @@
 ;; not really a maximum.. it's just the buffer size... but it must
 ;; be bigger than the largest anticipated header name.
 (defparameter *maxdatalinelen* 2048)
+
+;; Maximum total size of headers portion of an email.  Emails with a 
+;; header portion longer than this will be rejected.
+(defparameter *maxheadersize* 32768)
 
 ;;;;;;;;;;;;;;;
 

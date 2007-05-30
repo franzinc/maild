@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: input.cl,v 1.16 2006/11/14 23:09:08 dancy Exp $
+;; $Id: input.cl,v 1.17 2007/05/30 14:09:22 dancy Exp $
 
 (in-package :user)
 
@@ -75,10 +75,13 @@
     (let (q errstatus)
       (with-new-queue (q f errstatus fromaddr *localhost*)
 	;; body doesn't execute if datafile open failed.
-	(multiple-value-bind (status headers)
+	(multiple-value-bind (status headers complaint)
 	    (read-message-stream *standard-input* f :dot dot)
 	  (if (not (member status '(:eof :dot)))
 	      (error "got status ~s from read-message-stream" status))
+	
+	  (if complaint
+	    (error "~a" complaint))
 	  
 	  (if grab-recips
 	      (setf recips 
@@ -154,46 +157,66 @@
 			(get-good-recips-from-string h :pos pos))))))
     good-recips))
 
+(defmacro msg-too-large-p (count)
+  `(and *maxmsgsize* (> *maxmsgsize* 0) (> ,count *maxmsgsize*)))
+
+;; called from send-from-stdin, smtp-data
 (defun read-message-stream (s bodystream &key smtp dot)
-  (let ((res (multiple-value-list 
-	      (read-message-stream-inner s bodystream :smtp smtp :dot dot))))
+  (multiple-value-prog1 
+      (read-message-stream-inner s bodystream :smtp smtp :dot dot)
     (finish-output bodystream)
-    (fsync bodystream) ;; Try to make sure the data file is really on disk.
-    (values-list res)))
+    (fsync bodystream))) ;; Try to make sure the data file is really on disk.
   
 
+;; Returns:
+;;  Termination reason (:eof or :dot)
+;;  List of header lines
+;;  Error keyword (or nil)
+;;  Error string (or nil)
 (defun read-message-stream-inner (s bodystream &key smtp dot)
   (let ((count 0)
 	(doingheaders t)
 	(firstline t)
 	(buffer (make-string *maxdatalinelen*))
 	lastincomplete
-	headers)
+	headers
+	headers-too-big)
     (if smtp 
 	(setf dot t))
     (loop
       (multiple-value-bind (endpos maxed)
 	  (read-message-stream-line s buffer
 				    :timeout (if smtp *datatimeout*))
-	(if (eq endpos :eof)
-	    (return (values :eof (reverse headers) count)))
 	
-	(if (and dot
-		 (not lastincomplete) 
-		 (= endpos 1) 
-		 (char= (schar buffer 0) #\.))
-	    (return (values :dot (reverse headers) count)))
-
+	(when (or (eq endpos :eof) (and dot 
+					(not lastincomplete) 
+					(= endpos 1) 
+					(char= (schar buffer 0) #\.)
+					(setf endpos :dot)))
+	  (if* headers-too-big
+	     then (return 
+		    (values 
+		     endpos
+		     nil
+		     (format nil "Headers too large (~d max)" *maxheadersize*)))
+	   elseif (msg-too-large-p count)
+	     then (return
+		    (values
+		     endpos
+		     nil
+		     (format nil "Message exceeds maximum fixed size (~D)"
+			     *maxmsgsize*)))
+	     else (return (values endpos (nreverse headers)))))
+	
 	(incf count endpos)
 	
 	(if* doingheaders
-	   then
+	   then 
 		(cond
 		 ;; Special case.  Messages that begin w/ a Unix
 		 ;; mailbox "From " separator have the separator 
 		 ;; stripped.
-		 ((and firstline (>= endpos 5) 
-		       (string= (subseq buffer 0 5) "From "))
+		 ((and firstline (match-re "^From " buffer :end endpos))
 		  ;; Just ignore it
 		  )
 		 ((and firstline 
@@ -203,12 +226,18 @@
 		   bodystream buffer endpos count 
 		   :nonewline maxed
 		   :smtp smtp))
+		 (lastincomplete
+		  (if (not headers-too-big)
+		      (push (concatenate 'string 
+			      (pop headers) (subseq buffer 0 endpos)) 
+			    headers)))
 		 ((= endpos 0) ;; blank line
 		  (setf doingheaders nil)
 		  (if (null headers)
 		      (write-char #\newline bodystream)))
 		 ((valid-header-line-p buffer endpos)
-		  (push (subseq buffer 0 endpos) headers))
+		  (if (not headers-too-big)
+		      (push (subseq buffer 0 endpos) headers)))
 		 (t ;; non-header
 		  (setf doingheaders nil)
 		  (read-message-stream-write-body 
@@ -217,6 +246,9 @@
 		   :smtp smtp)))
 		
 		(setf firstline nil)
+		
+		(if (> count *maxheadersize*)
+		    (setf headers-too-big t))
 	   else
 		;; doing body.
 		(read-message-stream-write-body 
@@ -229,14 +261,13 @@
 
 (defun read-message-stream-write-body (s buffer endpos count 
 				       &key nonewline smtp)
-  (when (or (null *maxmsgsize*) (<= *maxmsgsize* 0) (< count *maxmsgsize*))
-    (write-string buffer s 
-		  :start 
-		  (if (and smtp 
-			   (>= endpos 2) 
-			   (string= (subseq buffer 0 2) ".."))
-		      1 0)
-		  :end endpos)
+  (when (not (msg-too-large-p count))
+    (write-string 
+     buffer s 
+     :start (if* (and smtp (match-re "^\\.\\." buffer :end endpos))
+	       then 1 
+	       else 0)
+     :end endpos)
     (if (null nonewline)
 	(write-char #\newline s))))
 

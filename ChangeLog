@@ -1,3 +1,32 @@
+2007-05-30  Ahmon Dancy  <dancy@dancy>
+1.2.13
+
+        * config.cl: Added new config parametr *maxheadersize* which
+	defaults to 32768.  Messages with total header size larger than
+	this will be rejected.
+
+	* input.cl: 
+
+	Adjusted read-message-stream so that it checks the
+	maximum header size and returns a complaint if exceeded.  
+
+	Header lines longer than *maxdatalinelen* are handled properly
+	now.
+
+	read-message-stream now returns information about any size
+	constraint violations (headers or total message size) to the
+	caller.
+
+	read-from-stdin will now properly generate an error for messages
+	that exceeded size contraints.
+	
+	* checkers.cl: Removed message-size-checker.  It's function has
+	been integrated into input.cl:read-message-stream.
+
+	* smtp-server.cl: smtp-data.  Allow either :err or :reject return
+	status from smtp-data-checkers.
+	
+
 2007-05-18  Ahmon Dancy  <dancy@dancy>
 1.2.12
 	

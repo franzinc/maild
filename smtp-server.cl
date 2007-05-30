@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: smtp-server.cl,v 1.44 2007/05/18 16:21:56 dancy Exp $
+;; $Id: smtp-server.cl,v 1.45 2007/05/30 14:09:22 dancy Exp $
 
 (in-package :user)
 
@@ -732,7 +732,7 @@ in the HELO command (~A) from client ~A"
   (declare (ignore text))
   (let* ((sock (session-sock sess))
 	 (dotted (session-dotted sess))
-	 q status headers err)
+	 q status headers err complaint)
     ;; Check for protocol violations.
     (if (null (session-from sess))
 	(return-from smtp-data 
@@ -751,7 +751,7 @@ in the HELO command (~A) from client ~A"
       (with-new-queue (q f err (session-from sess) (smtp-remote-host sock))
 	(outline sock "354 Enter mail, end with \".\" on a line by itself")
 	(handler-case 
-	    (multiple-value-setq (status headers)
+	    (multiple-value-setq (status headers complaint)
 	      (read-message-stream sock f :smtp t))
 	  (socket-error (c)
 	    (if* (eq (stream-error-identifier c) :read-timeout)
@@ -771,6 +771,12 @@ in the HELO command (~A) from client ~A"
 	  (:dot  ;;okay
 	   ))
 	
+	(when complaint
+	  (inc-checker-stat messages-rejected-permanently complaint)
+	  (outline sock "552 ~a" complaint)
+	  (maild-log "~a: Message data rejected: ~a" dotted complaint)
+	  (return-from smtp-data))
+	
 	(queue-prefinalize q (session-to sess) headers :metoo *metoo*)
 	
 	;; Run through smtp-specific checkers.
@@ -778,7 +784,7 @@ in the HELO command (~A) from client ~A"
 	  (multiple-value-bind (status string)
 	      (funcall (second checker) sess q)
 	    (ecase status
-	      (:err
+	      ((:err :reject)
 	       (inc-checker-stat messages-rejected-permanently (first checker))
 	       (outline sock "551 ~A" string)
 	       (maild-log "Checker ~S rejected message data. Message: ~A"
