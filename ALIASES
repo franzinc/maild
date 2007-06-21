@@ -45,6 +45,15 @@ Right hand side features:
    be rejected.  You can specify an optional string after :error: to
    specify a specific rejection string.  See the example below.
 
+  Program recipients:
+   
+   If the right hand side of an alias is of the form |<program>, then
+   email will be delivered by setting up a pipeline to <program> and
+   writing the message data to its stdin.  The program will be run
+   under the *program-alias-user* user (default: mailnull).  This is
+   the same as sendmail.  An enhancement over sendmail is that you can
+   also specify a program alias in the form |(user)<program>.  This will
+   run the program under the 'user' account.
 
 Examples:
 ###
