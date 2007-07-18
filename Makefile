@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.56 2007/07/18 15:36:57 dancy Exp $
+# $Id: Makefile,v 1.57 2007/07/18 15:40:18 dancy Exp $
 
 ARCH=$(shell uname -i)
 
@@ -170,7 +170,7 @@ REPODIR=/storage1/franz/$(ARCH)
 install-repo:
 	ssh root@$(REPOHOST) "rm -f $(REPODIR)/maild-*"
 	scp RPMS/$(ARCH)/maild-$(version)-*.rpm root@$(REPOHOST):$(REPODIR)
-	ssh root@$(REPOHOST) "createrepo -q $(REPODIR)"
+	ssh root@$(REPOHOST) "createrepo -q --update $(REPODIR)"
 
 ifeq ($(SUSE92),yes)
 rpm: suse-rpm
