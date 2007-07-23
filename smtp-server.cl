@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: smtp-server.cl,v 1.45 2007/05/30 14:09:22 dancy Exp $
+;; $Id: smtp-server.cl,v 1.46 2007/07/23 20:23:06 dancy Exp $
 
 (in-package :user)
 
@@ -285,6 +285,11 @@
 		     (fqdn) *allegro-maild-version*)
 
 	    (loop
+	      ;; bug17189.
+	      ;; Make sure that 'sock' always has the correct current
+	      ;; socket.  The STARTTLS command might change it.
+	      (setf sock (session-sock sess))
+	      
 	      (setf cmd 
 		(smtp-get-line (session-sock sess) (session-buf sess) 
 			       *cmdtimeout*))

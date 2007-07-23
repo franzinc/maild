@@ -1,3 +1,10 @@
+2007-07-23  Ahmon Dancy  <dancy@dancy>
+1.2.15
+	
+	* smtp-server.cl: bug17189.  Reduce memory leaks caused by failing
+	to close the ssl-server-stream created by the STARTTLS command.  A
+	leak still exists in the real C heap, though. 
+
 2007-07-18  Ahmon Dancy  <dancy@dancy>
 1.2.14
 	
