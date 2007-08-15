@@ -1,10 +1,10 @@
-# $Id: Makefile,v 1.57 2007/07/18 15:40:18 dancy Exp $
+# $Id: Makefile,v 1.58 2007/08/15 17:41:52 dancy Exp $
 
 ARCH=$(shell uname -i)
 
 preferred_lisp?=/fi/cl/8.1/bin/mlisp
-alt_lisp0=/usr/local/acl80/mlisp
-alt_lisp1=/storage1/acl80/mlisp
+alt_lisp0=/usr/local/acl81/mlisp
+alt_lisp1=/storage1/acl81/mlisp
 
 ifeq ($(ARCH),x86_64)
 lisp:=/fi/cl/8.1/bin/mlisp-64
