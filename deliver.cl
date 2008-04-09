@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: deliver.cl,v 1.19 2006/11/14 23:09:08 dancy Exp $
+;; $Id: deliver.cl,v 1.20 2008/04/09 16:45:42 dancy Exp $
 
 (in-package :user)
 
@@ -127,9 +127,9 @@
 	  (send-message-to-program q prgvec :rewrite rewrite
 				   :run-as run-as)
 	(if output
-	    (maild-log "~A stdout: ~A~%" prgname output))
+	    (maild-log "~A stdout: ~A" prgname output))
 	(if errput
-	    (maild-log "~A stderr: ~A~%" prgname errput))
+	    (maild-log "~A stderr: ~A" prgname errput))
 	(when (/= status 0)
 	  (maild-log "~A exited w/ status: ~D" prgname status)
 	  (return (values :transient (or errput output))))

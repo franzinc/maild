@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: blacklist.cl,v 1.6 2004/12/15 19:32:51 layer Exp $
+;; $Id: blacklist.cl,v 1.7 2008/04/09 16:45:42 dancy Exp $
 
 (in-package :user)
 
@@ -83,4 +83,18 @@
 			    :ignore-cache *ignore-dns-cache*)
 	  (return domain)))))
 
+;;; DNS Whitelisting (dnswl.org)
 
+(defun dnswl-lookup (ip)
+  (let* ((lookup (concatenate 'string (flip-ip ip) ".list.dnswl.org"))
+	 (res (socket:dns-query lookup)))
+    (when res
+      (multiple-value-bind (x x category score)
+	  (socket:ipaddr-to-dotted res :values t)
+	(declare (ignore x))
+	(let ((txt (socket:dns-query lookup :type :txt)))
+	  (if txt
+	      (setf txt (subseq (first txt) 0 (position #\space (first txt)))))
+	  (values category score txt))))))
+    
+    

@@ -1,3 +1,16 @@
+2008-04-09  root  <root@gills.dancysoft.com>
+1.2.16
+	
+	* greylist.cl: Added dnswl.org support in the greylisting module.
+	Greylisting is bypassed for IPs found in dnswl.org.
+
+	* deliver.cl: Remove extra newlines when reporting stdout/stderr
+	from delivery program.
+
+	* maild.spec.in: Added %define debug_package %{nil} to avoid
+	building the debuginfo package (which doesn't currently work w/
+	8.1 shared lib).
+	
 2007-07-23  Ahmon Dancy  <dancy@dancy>
 1.2.15
 	

@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: greylist.cl,v 1.26 2006/11/14 23:09:08 dancy Exp $
+;; $Id: greylist.cl,v 1.27 2008/04/09 16:45:42 dancy Exp $
 
 (in-package :user)
 
@@ -187,6 +187,13 @@
     (when (addr-in-network-p ip net)
       (maild-log "Client from ~A:  Whitelisted (ip-whitelist)."
 		 (ipaddr-to-dotted ip))
+      (return-from greylist-init :skip)))
+
+  ;; Check dnswl.org
+  (multiple-value-bind (category score domain)
+      (dnswl-lookup ip)
+    (when category
+      (maild-log "Client from ~a:  Whitelisted (list.dnswl.org, Cat: ~d, Score: ~d, Domain: ~a)" (ipaddr-to-dotted ip) category score domain)
       (return-from greylist-init :skip)))
   
   (multiple-value-bind (res string)

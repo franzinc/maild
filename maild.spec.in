@@ -1,4 +1,4 @@
-# $Id: maild.spec.in,v 1.8 2006/09/14 17:51:17 dancy Exp $
+# $Id: maild.spec.in,v 1.9 2008/04/09 16:45:42 dancy Exp $
 
 # Spec file suitable for modern Redhat-like hosts, using the
 # "alternatives" system.  Modeled after the sendmail.spec from FC4.
@@ -25,8 +25,11 @@ Provides: smtpdaemon
 Provides: %{_sbindir}/sendmail %{_bindir}/mailq %{_bindir}/newaliases
 Provides: /usr/lib/sendmail
 
+# Don't attempt to make the debuginfo package
+%define debug_package %{nil}
+
 %description
-Allegro Mail Daemon.  Highly configurable.  Resistant to buffer overflows.
+Allegro Mail Daemon.  Highly configurable.
 
 %prep
 %setup -q
