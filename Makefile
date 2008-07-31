@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.58 2007/08/15 17:41:52 dancy Exp $
+# $Id: Makefile,v 1.59 2008/07/31 14:50:00 layer Exp $
 
 ARCH=$(shell uname -i)
 
@@ -154,9 +154,11 @@ rpm-setup: FORCE
 		--define "release $(release)" \
 		-ba $<
 
+SIGN = --sign
+
 # This is the "normal" target (non-redhat 7.3, non-suse)
 redhat-rpm: maild.spec src-tarball rpm-setup
-	rpmbuild --sign --define "_sourcedir $(CURDIR)" \
+	rpmbuild $(SIGN) --define "_sourcedir $(CURDIR)" \
 		--define "_topdir $(CURDIR)" \
 		--define "_builddir $(CURDIR)/BUILD" \
 		--define "_rpmdir $(CURDIR)/RPMS" \
