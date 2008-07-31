@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: smtp-server-checkers.cl,v 1.19 2006/09/14 16:30:52 dancy Exp $
+;; $Id: smtp-server-checkers.cl,v 1.20 2008/07/31 02:28:28 dancy Exp $
 
 (in-package :user)
 
@@ -50,11 +50,9 @@
 
 (defun smtp-connection-blacklist-checker (ip)
   (let ((bl (connection-blacklisted-p ip)))
-    (if* (null bl)
-       then
-	    :ok
-       else
-	    (values :err 
+    (if* (or (trusted-client-p ip) (null bl))
+       then :ok
+       else (values :err 
 		    (format nil "~A (~A)" *blacklisted-response* bl)))))
 
 (defun smtp-connection-reverse-dns-checker (ip)

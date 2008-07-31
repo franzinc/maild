@@ -14,7 +14,7 @@
 ;; Commercial Software developed at private expense as specified in
 ;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
 ;;
-;; $Id: blacklist.cl,v 1.7 2008/04/09 16:45:42 dancy Exp $
+;; $Id: blacklist.cl,v 1.8 2008/07/31 02:28:28 dancy Exp $
 
 (in-package :user)
 
@@ -77,11 +77,13 @@
 
 ;; Treats non-responses as not-blacklisted.
 (defun connection-dns-blacklisted-p (ip)
-  (let ((flipped (flip-ip ip)))
-    (dolist (domain *dns-blacklists* nil)
-      (if (socket:dns-query (concatenate 'string flipped "." domain)
-			    :ignore-cache *ignore-dns-cache*)
-	  (return domain)))))
+  ;; Never blacklist trusted clients
+  (when (not (trusted-client-p ip))
+    (let ((flipped (flip-ip ip)))
+      (dolist (domain *dns-blacklists* nil)
+	(if (socket:dns-query (concatenate 'string flipped "." domain)
+			      :ignore-cache *ignore-dns-cache*)
+	    (return domain))))))
 
 ;;; DNS Whitelisting (dnswl.org)
 
