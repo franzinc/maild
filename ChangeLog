@@ -1,3 +1,8 @@
+2008-08-18  Kevin Layer  <layer@relay.known.net>
+
+	* Makefile: more tweaks for non-franz building, of the rpm and
+	  repo installation, this time.
+
 2008-07-31  Kevin Layer  <layer@relay.known.net>
 
 	* Makefile: make --sign a make variable, so I can specify it

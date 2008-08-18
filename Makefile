@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.59 2008/07/31 14:50:00 layer Exp $
+# $Id: Makefile,v 1.60 2008/08/18 20:18:02 layer Exp $
 
 ARCH=$(shell uname -i)
 
@@ -166,12 +166,19 @@ redhat-rpm: maild.spec src-tarball rpm-setup
 		--define "release $(release)" \
 		-ba maild.spec
 
+ifdef ($(at_franz),yes)
 REPOHOST=fs1
 REPODIR=/storage1/franz/$(ARCH)
+else
+REPOHOST=$(shell hostname)
+REPODIR=/backup/rpms/$(ARCH)
+endif
 
 install-repo:
+ifdef ($(at_franz),yes)
 	ssh root@$(REPOHOST) "rm -f $(REPODIR)/maild-*"
-	scp RPMS/$(ARCH)/maild-$(version)-*.rpm root@$(REPOHOST):$(REPODIR)
+endif
+	scp -p RPMS/$(ARCH)/maild-$(version)-*.rpm root@$(REPOHOST):$(REPODIR)
 	ssh root@$(REPOHOST) "createrepo -q --update $(REPODIR)"
 
 ifeq ($(SUSE92),yes)
