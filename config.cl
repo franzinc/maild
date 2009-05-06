@@ -149,6 +149,10 @@
 ;; Bounce undeliverable messages after *bounce-days* days.
 (defparameter *bounce-days* 5)
 
+;; How many lines of the original message to include in bounces.  Set
+;; to nil for unlimited.
+(defparameter *bounce-max-original-msg-lines* 200)
+
 ;; Maximum number of "Received" headers that may be found in a message
 ;; before we assume there's a mail loop and bounce the message.
 (defparameter *maximum-hop-count* 17)

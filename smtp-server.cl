@@ -460,6 +460,9 @@ in the HELO command (~A) from client ~A"
 	 (let (res)
 	   (push (format nil "~a Hi there." (fqdn)) res)
 
+	   (if (and *maxmsgsize* (> *maxmsgsize* 0))
+	       (push (format nil "SIZE ~d" *maxmsgsize*) res))
+	   
 	   (if (and *ssl-support* (not (session-ssl sess)))
 	       (push "STARTTLS" res))
 
@@ -550,6 +553,65 @@ in the HELO command (~A) from client ~A"
   (reset-smtp-session sess)
   (outline (session-sock sess) "250 2.0.0 Reset state"))
 
+;; Should be compliant with RFC1869, except more liberal w/ spaces.
+(defun parse-mail-cmd-parameter (string)
+  (when (not (match-re "^\\s*$" string))
+    (multiple-value-bind (matched whole keyword equal value)
+	(match-re "^\\s*([a-zA-Z0-9][a-zA-Z0-9-]*)(=([^= ]*))?" string
+		  :return :index)
+      (declare (ignore equal))
+      (if* matched
+	 then (values t 
+		      (subseq string (car keyword) (cdr keyword))
+		      (subseq string (car value) (cdr value))
+		      (subseq string (cdr whole)))
+	 else :syntax))))
+  
+(defun parse-mail-cmd-parameters (string)
+  (let (res)
+    (loop
+      (multiple-value-bind (status keyword value rest)
+	  (parse-mail-cmd-parameter string)
+	(if (null status)
+	    (return))
+	(if (eq status :syntax)
+	    (return-from parse-mail-cmd-parameters :syntax))
+	(push (cons keyword value) res)
+	(setf string rest)))
+    (nreverse res)))
+
+;; Returns
+;; from (or nil if error)
+;; err string
+;; incoming message size (if supplied)
+(defun parse-mail-cmd (string)
+  (multiple-value-bind (matched whole from rest)
+      (match-re "^\\s+from:\\s*(\\S+)(.*)$" string :case-fold t)
+    (declare (ignore whole))
+
+    (if* (not matched)
+       then (return-from parse-mail-cmd
+	      (values nil "501 5.5.2 Syntax error in command")))
+    
+    ;; Now check for extension parameters which we support.
+    (let ((params (parse-mail-cmd-parameters rest))
+	  size)
+      (if* (eq params :syntax)
+	 then (values nil "501 5.5.2 Syntax error in command")
+	 else (dolist (param params)
+		(let ((keyword (car param))
+		      (value (cdr param)))
+		  (if* (equalp keyword "auth")
+		     then t ;; just ignore
+		   elseif (equalp keyword "size")
+		     then (setf size (ignore-errors (parse-integer value)))
+		     else (return-from parse-mail-cmd
+			    (values 
+			     nil 
+			     (format nil "555 5.5.4 ~a parameter unrecognized"
+				     keyword))))))
+	      (values from nil size)))))
+
 (defun smtp-mail (sess text)
   (block nil
     (let ((sock (session-sock sess)))
@@ -568,31 +630,42 @@ in the HELO command (~A) from client ~A"
 	(return))
       
       ;; parse the command line
-      (multiple-value-bind (matched whole addr auth)
-	  (match-regexp "^\\b+from:\\b*\\(\\B\\B*\\)\\b*\\(auth=\\B+\\|\\)$"
-			text :case-fold t)
-	(declare (ignore whole auth))
-	(when (not matched)
-	  (inc-checker-stat senders-rejected-permanently "command syntax checker")
-	  (outline sock "501 5.5.2 Syntax error in command")
+      (multiple-value-bind (addr errstring expected-size)
+	  (parse-mail-cmd text)
+	(when (null addr)
+	  (inc-checker-stat senders-rejected-permanently 
+			    "command syntax checker")
+	  (outline sock "~a" errstring)
+	  (maild-log "Client from ~a: Syntax error: MAIL ~a" text)
 	  (return))
-	(let ((addr (parse-email-addr addr :allow-null t)))
-	  (when (null addr)
-	    (inc-checker-stat senders-rejected-permanently "email address syntax checker")
-	    (outline sock "553 5.3.0 Invalid address")
-	    (maild-log "Client from ~a: MAIL ~A: Invalid address"
-		       (session-dotted sess) text)
-	    (return))
-	  
-	  (inc-smtp-stat transactions-started)
-	  
-	  ;; Call checkers
-	  (when (not *postpone-checkers*)
-	    (if (null (run-mail-from-checkers sock addr))
-		(return-from smtp-mail)))
+	
+	(setf addr (parse-email-addr addr :allow-null t))
 
-	  (setf (session-from sess) addr)
-	  (outline sock "250 2.1.0 ~A... Sender ok" (emailaddr-orig addr)))))))
+	(when (null addr)
+	  (inc-checker-stat senders-rejected-permanently 
+			    "email address syntax checker")
+	  (outline sock "553 5.3.0 Invalid address")
+	  (maild-log "Client from ~a: MAIL ~A: Invalid address"
+		     (session-dotted sess) text)
+	  (return))
+	
+	(when (and expected-size *maxmsgsize* 
+		   (> *maxmsgsize* 0) 
+		   (> expected-size *maxmsgsize*))
+	  (outline sock "~
+552 5.2.3 Message size exceeds fixed maximum message size (~d)" 
+		   *maxmsgsize*)
+	  (return))
+	
+	(inc-smtp-stat transactions-started)
+	
+	;; Call checkers
+	(when (not *postpone-checkers*)
+	  (if (null (run-mail-from-checkers sock addr))
+	      (return-from smtp-mail)))
+	
+	(setf (session-from sess) addr)
+	(outline sock "250 2.1.0 ~A... Sender ok" (emailaddr-orig addr))))))
 
 (defun run-mail-from-checkers (sock addr &key postponed)
   (dolist (checker *smtp-mail-from-checkers* t)
@@ -737,7 +810,8 @@ in the HELO command (~A) from client ~A"
   (declare (ignore text))
   (let* ((sock (session-sock sess))
 	 (dotted (session-dotted sess))
-	 q status headers err complaint)
+	 q status headers err complaint err-string smtp-size)
+    (declare (ignore-if-unused err-string))
     ;; Check for protocol violations.
     (if (null (session-from sess))
 	(return-from smtp-data 
@@ -756,7 +830,8 @@ in the HELO command (~A) from client ~A"
       (with-new-queue (q f err (session-from sess) (smtp-remote-host sock))
 	(outline sock "354 Enter mail, end with \".\" on a line by itself")
 	(handler-case 
-	    (multiple-value-setq (status headers complaint)
+	    (multiple-value-setq 
+		(status headers complaint err-string smtp-size)
 	      (read-message-stream sock f :smtp t))
 	  (socket-error (c)
 	    (if* (eq (stream-error-identifier c) :read-timeout)
@@ -782,7 +857,9 @@ in the HELO command (~A) from client ~A"
 	  (maild-log "~a: Message data rejected: ~a" dotted complaint)
 	  (return-from smtp-data))
 	
-	(queue-prefinalize q (session-to sess) headers :metoo *metoo*)
+	(queue-prefinalize q (session-to sess) headers
+			   :metoo *metoo*
+			   :smtp-size smtp-size)
 	
 	;; Run through smtp-specific checkers.
 	(dolist (checker *smtp-data-checkers*)

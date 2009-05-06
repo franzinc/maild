@@ -1,0 +1,15 @@
+*~
+autoloads.out
+/maild
+/check-mail-virus
+/diffs
+/diffs.txt
+*.tar.gz
+/sync-ext
+/maild-greylist.cl
+/maild.spec
+/maild-suse.spec
+/BUILD
+/RPMS
+/SRPMS
+/greyadmin/greyadmin

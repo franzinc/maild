@@ -75,8 +75,9 @@
     (let (q errstatus)
       (with-new-queue (q f errstatus fromaddr *localhost*)
 	;; body doesn't execute if datafile open failed.
-	(multiple-value-bind (status headers complaint)
+	(multiple-value-bind (status headers complaint err-string smtp-size)
 	    (read-message-stream *standard-input* f :dot dot)
+	  (declare (ignore err-string))
 	  (if (not (member status '(:eof :dot)))
 	      (error "got status ~s from read-message-stream" status))
 	
@@ -94,7 +95,9 @@
 	      (setf headers 
 		(append headers 
 			(list (make-x-auth-warning-header realuser fromaddr)))))
-	  (queue-prefinalize q recips headers :metoo metoo)
+	  (queue-prefinalize q recips headers 
+			     :metoo metoo
+			     :smtp-size smtp-size)
 
 	  ;; Run message checkers.
 	  (multiple-value-bind (res text checker)
@@ -173,8 +176,10 @@
 ;;  List of header lines
 ;;  Error keyword (or nil)
 ;;  Error string (or nil)
+;;  (Over)estimated message size (As it would be transmitted via SMTP).
 (defun read-message-stream-inner (s bodystream &key smtp dot)
   (let ((count 0)
+	(size 0) 
 	(doingheaders t)
 	(firstline t)
 	(buffer (make-string *maxdatalinelen*))
@@ -206,9 +211,11 @@
 		     nil
 		     (format nil "Message exceeds maximum fixed size (~D)"
 			     *maxmsgsize*)))
-	     else (return (values endpos (nreverse headers)))))
+	     else (return 
+		    (values endpos (nreverse headers) nil nil size))))
 	
 	(incf count endpos)
+	(incf size (+ endpos 2)) ;; +2 to account for CR/LF
 	
 	(if* doingheaders
 	   then 

@@ -42,6 +42,8 @@ Disk space checker.  Don't accept mails if the spool directory has
 less than 'x' blocks free.  The error message:
    452 4.4.5 Insufficient disk space; try again later  
  use (excl.osi:get-filesystem-free-space)
+Integrate this w/ the MAIL FROM SIZE= parameter as well (if supplied by the
+client)
 
 Limit the number of threads.  This is done for delivery threads, but
 not for SMTP threads.  Also add load average control.  If it gets past

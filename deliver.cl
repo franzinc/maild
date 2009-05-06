@@ -180,61 +180,73 @@
 
 (defun write-message-to-stream (stream q rewrite-type 
 				&key smtp noclose add-mbox-from
-				     escape-mbox-from)
+				     escape-mbox-from
+				     max-lines)
   (if (null (queue-headers q))
       (error "write-message-to-stream: queue-headers is null.  This can't be right"))
-  (with-socket-timeout (stream :write *datatimeout*)
-    (macrolet ((endline () `(if* smtp
-			       then (write-char #\return stream)
-				    (write-char #\linefeed stream)
-			       else (write-char #\newline stream))))
+  
+  (let ((line-count 0))
+    (with-socket-timeout (stream :write *datatimeout*)
+      (macrolet ((endline () 
+		   `(progn
+		      (if* smtp
+			 then (write-char #\return stream)
+			      (write-char #\linefeed stream)
+			 else (write-char #\newline stream))
+		      (if max-lines
+			  (incf line-count)))))
 
-      (when add-mbox-from
-	(format stream "From ~A  ~A" (emailaddr-orig (queue-from q)) (ctime))
-	(endline))
+	(when add-mbox-from
+	  (format stream "From ~A  ~A" (emailaddr-orig (queue-from q)) (ctime))
+	  (endline))
       
-      ;; headers might span lines.  Need to handle the EOL characters
-      ;; correctly.
-      (let (char)
-	(dolist (header (rewrite-headers (queue-headers q) rewrite-type))
-	  (dotimes (n (length header))
-	    (setf char (schar header n))
-	    (if (eq char #\newline)
-		(endline)
-	      (write-char char stream)))
-	  (endline)))
+	;; headers might span lines.  Need to handle the EOL characters
+	;; correctly.
+	(let (char)
+	  (dolist (header (rewrite-headers (queue-headers q) rewrite-type))
+	    (dotimes (n (length header))
+	      (setf char (schar header n))
+	      (if (eq char #\newline)
+		  (endline)
+		(write-char char stream)))
+	    (endline)))
 
-      ;; write the header boundary.
-      (endline)
+	;; write the header boundary.
+	(endline)
 
-      (with-open-file (f (queue-datafile q))
-	(let ((buf (make-array 1024 :element-type 'character))
-	      (freshline t)
-	      count got-eol)
-	  (declare (dynamic-extent buf))
-	  (loop 
-	    (multiple-value-setq (count got-eol)
-	      (get-line f buf))
-	    (if (null count)
-		(return))
-
-	    (when freshline
-	      (if (and escape-mbox-from (>= count 5) (prefixp "From " buf))
-		  (write-char #\> stream))
-	      (if (and smtp (>= count 1) (prefixp "." buf))
-		  (write-char #\. stream)))
+	(with-open-file (f (queue-datafile q))
+	  (let ((buf (make-array 1024 :element-type 'character))
+		(freshline t)
+		count got-eol)
+	    (declare (dynamic-extent buf))
+	    (loop 
+	      (multiple-value-setq (count got-eol)
+		(get-line f buf))
+	      (if (null count)
+		  (return))
+	      
+	      (if* (and max-lines (>= line-count max-lines))
+		 then (write-string "...Truncated..." stream)
+		      (endline)
+		      (return))
+	      
+	      (when freshline
+		(if (and escape-mbox-from (>= count 5) (prefixp "From " buf))
+		    (write-char #\> stream))
+		(if (and smtp (>= count 1) (prefixp "." buf))
+		    (write-char #\. stream)))
 	    
-	    (write-string buf stream :end count)
+	      (write-string buf stream :end count)
 
-	    (setf freshline got-eol)
+	      (setf freshline got-eol)
 	    
-	    (if freshline
-		(endline))))))
+	      (if freshline
+		  (endline))))))
 
-    (finish-output stream)
+      (finish-output stream)
 
-    (if (not (or smtp noclose))
-	(close stream :abort t)))) ;; EOF
+      (if (not (or smtp noclose))
+	  (close stream :abort t))))) ;; EOF
 
 
 (defun write-message-to-stream-async (async)

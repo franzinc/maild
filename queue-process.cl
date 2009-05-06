@@ -202,11 +202,18 @@
 ;; Called by queue-process-all
 (defun queue-process-single-thread (id &key verbose)
   (with-queue-process-thread ()
-    (handler-case (queue-process-single id :if-does-not-exist :ignore
-					:verbose verbose)
-      (error (c)
-	(maild-log "Got error ~A while processing queue id ~A"
-		   c id)))))
+    (handler-bind 
+	((error 
+	  #'(lambda (c)
+	      (maild-log "Got error ~A while processing queue id ~A"
+			 c id)
+	      (let ((backtrace (with-output-to-string (s) (zoom s))))
+		(dolist (line (delimited-string-to-list backtrace #\newline))
+		  (maild-log "  ~a" line))
+		(maild-log "End backtrace"))
+	      (return-from queue-process-single-thread))))
+      (queue-process-single id :if-does-not-exist :ignore :verbose verbose))))
+
 
 (defun queue-process-all (&key verbose (max *queue-max-threads*))
   (dolist (id (get-all-queue-ids))

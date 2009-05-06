@@ -1,3 +1,38 @@
+2009-05-06  Ahmon Dancy  <dancy@dancy>
+1.2.18 
+
+	Tweaks for bandwidth reduction in the face of large messages:
+	
+	* bounce.cl:  Only send the first
+	*bounce-max-original-msg-lines* (defaults to 300) lines of the
+	original message in bounces.  This helps prevent bounces from
+	bouncing if the original message was rejected for being too
+	large.
+
+	* config.cl:  New *bounce-max-original-msg-lines* parameter.
+
+	* deliver-smtp.cl: use EHLO and honor the server's reported
+	max message size (if any) to avoid wasting bandwidth
+	transmitting a message that will ultimately be rejected.
+	Likewise, supply the SIZE= parameter during MAIL FROM: if the
+	server supports it.
+
+	* deliver.cl: 
+
+	write-message-to-stream: Support new max-lines keyword
+	arg (used by bounce.cl).
+
+	read-message-from-stream:  Keep track of the "smtp byte count"
+	of messages as they are read in so we can use the information
+	when relaying via SMTP.  
+
+	* queue.cl: Added smtp-size slot to hold computed "smtp byte
+	count".
+
+	* smtp-server.cl: Report *maxmsgsize* (if set) in EHLO
+	response.  Support SIZE= parameter in MAIL FROM: command.
+
+	
 2008-08-18  Kevin Layer  <layer@relay.known.net>
 
 	* Makefile: more tweaks for non-franz building, of the rpm and

@@ -53,7 +53,10 @@
       (terpri f)
       
       (write-line "----- Original message follows -----" f)
-      (write-message-to-stream f oldq :norewrite :noclose t)
+      (write-message-to-stream f oldq :norewrite 
+			       ;; keyword args
+			       :noclose t
+			       :max-lines *bounce-max-original-msg-lines*)
       
       (finish-output f)
       (fsync f)

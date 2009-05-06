@@ -84,6 +84,8 @@
   (block nil
     (let ((buf (make-string *maxlinelen*))
 	  (sender (emailaddr-orig (rewrite-smtp-envelope-sender sender)))
+	  (msg-size (queue-smtp-size q))
+	  server-supports-size
 	  errmsg)
       (setf (queue-status q)
 	(format nil "Connecting to mail exchanger for ~a" domain))
@@ -123,14 +125,23 @@
 		  (return (values res response))))
 	      
 	      ;; HELO
-	      (multiple-value-bind (res response)
+	      (multiple-value-bind (res response supports-size max-size)
 		  (smtp-say-hello sock buf mxname :verbose verbose)
-		(if (not (eq res :ok))
-		    (return (values res response))))
-
+		(if* (eq res :ok)
+		   then (setf server-supports-size supports-size)
+			(if (and max-size msg-size (> msg-size max-size))
+			    (return 
+			      (values :fail 
+				      (format nil "~
+Message size exceeds recipient server's max (~d)" max-size))))
+		   else (return (values res response))))
+	      
 	      ;; MAIL FROM:
 	      (multiple-value-bind (res response)
-		  (smtp-send-mail-from sock buf mxname sender :verbose verbose)
+		  (smtp-send-mail-from sock buf mxname sender 
+				       (if (and server-supports-size msg-size)
+					   msg-size)
+				       :verbose verbose)
 		(if (not (eq res :ok))
 		    (return (values res response))))
 
@@ -237,15 +248,49 @@
   (smtp-tx-rx (format nil "RCPT TO:<~A>" to)
 	      sock buf *rcptcmdtimeout* mxname :verbose verbose))
 
-(defun smtp-send-mail-from (sock buf mxname sender &key verbose)
+(defun smtp-send-mail-from (sock buf mxname sender size &key verbose)
   (if (string= sender "<>")
       (setf sender ""))
-  (smtp-tx-rx (format nil "MAIL FROM:<~A>" sender)
-	      sock buf *mailcmdtimeout* mxname :verbose verbose))
+  (let ((cmd (format nil "MAIL FROM:<~A>" sender)))
+    (if size
+	(setf cmd (format nil "~a SIZE=~d" cmd size)))
+    (smtp-tx-rx cmd sock buf *mailcmdtimeout* mxname :verbose verbose)))
 
+;; Returns
+;;  t for ok, nil for not-okay
+;;  t or nil, to indicate if the server supports SIZE
+;;  server-reported max message size (or nil if not reported)
+(defun smtp-say-ehlo (sock buf mxname &key verbose)
+  (let (supports-size max-size)
+    (multiple-value-bind (res response)
+	(smtp-tx-rx (format nil "EHLO ~A" (fqdn)) 
+		    sock buf *greetingtimeout* mxname :verbose verbose)
+      (when (eq res :ok)
+	(multiple-value-bind (found whole value)
+	    (match-re "^250-SIZE(?: (\\d+))?" response :multiple-lines t)
+	  (declare (ignore whole))
+	  (when found
+	    (setf supports-size t)
+	    (if value
+		(setf max-size (parse-integer value)))))
+	(values t supports-size max-size)))))
+
+;; Returns
+;;   status keyword
+;;   response string (or nil if ok)
+;;   t if the server supports the SIZE extension
+;;   the max message size allowed (or nil if not reported)
 (defun smtp-say-hello (sock buf mxname &key verbose)
-  (smtp-tx-rx (format nil "HELO ~A" (fqdn)) 
-	      sock buf *greetingtimeout* mxname :verbose verbose))
+  ;; try EHLO first.
+  (multiple-value-bind (ok supports-size max-size)
+      (smtp-say-ehlo sock buf mxname :verbose verbose)
+    (when ok
+      (return-from smtp-say-hello (values :ok nil supports-size max-size))))
+  ;; No go on EHLO.  Revert to HELO
+  (multiple-value-bind (res response)
+      (smtp-tx-rx (format nil "HELO ~A" (fqdn)) 
+		  sock buf *greetingtimeout* mxname :verbose verbose)
+    (values res response)))
 
 (defun get-smtp-greeting (sock buf mxname &key verbose)
   (get-smtp-reply sock buf *greetingtimeout* mxname :verbose verbose))

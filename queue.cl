@@ -27,7 +27,12 @@
   recips ;; remaining recipients to be processed (list of recip structs)
   orig-recips ;; parsed email addrs, pre-alias expansion
   headers
-  valid) ;; not valid until the data file has been written
+  valid ;; not valid until the data file has been written
+
+  ;; Overestimate of how many bytes could be required to transmit this
+  ;; message via SMTP.  Accounts for CR/LF on every line.
+  smtp-size 
+  )
 
 (defmacro queue-filename-from-id (id)
   `(concatenate 'string *queuedir* "/qf" ,id))
@@ -118,7 +123,7 @@
   (locate-header header (queue-headers q)))
 
 ;; recips is a list of email addresses or recip structs
-(defun queue-prefinalize (q recips headers &key metoo)
+(defun queue-prefinalize (q recips headers &key metoo smtp-size)
   (let ((emailaddrs (if* (emailaddr-p (first recips))
 		       then recips
 		       else (mapcar #'recip-addr recips))))
@@ -126,6 +131,9 @@
     (setf (queue-orig-recips q) emailaddrs)
     (setf (queue-recips q) 
       (expand-addresses emailaddrs (queue-from q) :metoo metoo)))
+  
+  (if smtp-size
+      (setf (queue-smtp-size q) smtp-size))
   
   (setf (queue-headers q)
     (cons 
