@@ -271,8 +271,11 @@ Message size exceeds recipient server's max (~d)" max-size))))
 	  (declare (ignore whole))
 	  (when found
 	    (setf supports-size t)
-	    (if value
-		(setf max-size (parse-integer value)))))
+	    (when value
+	      (setf max-size (parse-integer value))
+	      ;; Some servers say "SIZE 0".
+	      (if (eq max-size 0)
+		  (setf max-size nil)))))
 	(values t supports-size max-size)))))
 
 ;; Returns

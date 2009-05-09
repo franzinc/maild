@@ -1,3 +1,10 @@
+2009-05-09  Ahmon Dancy  <dancy@dancy>
+1.2.19
+	
+	* deliver-smtp.cl: Some servers say "SIZE 0" during EHLO.
+	Interpret this to mean that it supports the SIZE extension,
+	but it doesn't have a fixed maximum message size.
+
 2009-05-06  Ahmon Dancy  <dancy@dancy>
 1.2.18 
 
