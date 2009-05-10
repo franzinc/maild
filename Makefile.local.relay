@@ -1,0 +1,6 @@
+
+lisp = /usr/local/acl81.64/mlisp
+
+REMOVE_PREVIOUS_VERSIONS=no
+REPOHOST=$(shell hostname)
+REPODIR=/backup/rpms/$(ARCH)
