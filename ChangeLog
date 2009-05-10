@@ -1,3 +1,12 @@
+2009-05-09  layer  <layer@relay.known.net>
+
+	* Makefile:
+	- look for and include Makefile.local, so predefined variables
+	  can be overridden
+	- use ?= in a bunch of places so Makefile.local can provide
+	  default values
+	- remove $(at_franz); use $(REMOVE_PREVIOUS_VERSIONS) instead
+
 2009-05-09  Ahmon Dancy  <dancy@dancy>
 1.2.19
 	

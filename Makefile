@@ -1,15 +1,20 @@
-# $Id: Makefile,v 1.61 2008/08/18 20:22:20 layer Exp $
+
+Makefile_local = \
+	$(shell if test -f Makefile.local; then echo Makefile.local; fi)
+
+ifneq ($(Makefile_local),)
+include $(Makefile_local)
+endif
 
 ARCH=$(shell uname -i)
 
+ifeq ($(ARCH),x86_64)
+lisp?=/fi/cl/8.1/bin/mlisp-64
+else
 preferred_lisp?=/fi/cl/8.1/bin/mlisp
 alt_lisp0=/usr/local/acl81/mlisp
 alt_lisp1=/storage1/acl81/mlisp
-
-ifeq ($(ARCH),x86_64)
-lisp:=/fi/cl/8.1/bin/mlisp-64
-else
-lisp:=$(shell if test -x $(preferred_lisp); then \
+lisp?=$(shell if test -x $(preferred_lisp); then \
 		echo $(preferred_lisp); \
 	     elif test -x $(alt_lisp0); then \
 		echo $(alt_lisp0); \
@@ -137,6 +142,9 @@ src-tarball: FORCE
 	rm -fr maild-$(version) maild-$(version).tar.gz
 	mkdir maild-$(version)
 	cp $(SRCFILES) $(DOCFILES) maild-$(version)
+	if test -f Makefile.local; then \
+	    cp Makefile.local maild-$(version); \
+	fi
 	mkdir maild-$(version)/greyadmin
 	(cd greyadmin && cp $(GREYADMINSRCFILES) ../maild-$(version)/greyadmin)
 	tar zcf maild-$(version).tar.gz maild-$(version)
@@ -166,18 +174,12 @@ redhat-rpm: maild.spec src-tarball rpm-setup
 		--define "release $(release)" \
 		-ba maild.spec
 
-at_franz = $(shell if test -d /fi/cl/8.1/acl; then echo yes; else echo no; fi)
-
-ifeq ($(at_franz),yes)
-REPOHOST=fs1
-REPODIR=/storage1/franz/$(ARCH)
-else
-REPOHOST=$(shell hostname)
-REPODIR=/backup/rpms/$(ARCH)
-endif
+REMOVE_PREVIOUS_VERSIONS ?= yes
+REPOHOST                 ?= fs1
+REPODIR                  ?= /storage1/franz/$(ARCH)
 
 install-repo:
-ifeq ($(at_franz),yes)
+ifeq ($(REMOVE_PREVIOUS_VERSIONS),yes)
 	ssh root@$(REPOHOST) "rm -f $(REPODIR)/maild-*"
 endif
 	scp -p RPMS/$(ARCH)/maild-$(version)-*.rpm root@$(REPOHOST):$(REPODIR)

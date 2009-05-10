@@ -13,3 +13,4 @@ autoloads.out
 /RPMS
 /SRPMS
 /greyadmin/greyadmin
+Makefile.local
