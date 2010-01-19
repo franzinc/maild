@@ -18,7 +18,10 @@
 
 
 (defun compile-sources (&key load)
-  (let ((excl::*break-on-warnings* t))
+  (let ((excl::*break-on-warnings* t)
+;;;;TODO: for 9.0 turn all the without-* calls into locks.
+	#+(version= 8 2)
+	(excl::*warn-smp-usage* nil))
     (with-compilation-unit ()
       (dolist (file *source-files*)
 	(compile-file-if-needed (concatenate 'string file ".cl"))

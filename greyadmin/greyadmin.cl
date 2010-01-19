@@ -562,6 +562,10 @@
 
 ;;;;;;;
 
+;;;;TODO: for 9.0 turn all the without-* calls into locks.
+#+(version= 8 2)
+(setq excl::*warn-smp-usage* nil)
+
 (defun build ()
   (handler-case (compile-file-if-needed "greyadmin.cl")
     (warning (c)
