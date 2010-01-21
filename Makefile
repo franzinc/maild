@@ -180,7 +180,7 @@ rpm-setup: FORCE
 		--define "release $(release)" \
 		-ba $<
 
-SIGN = --sign
+SIGN ?= --sign
 
 # This is the "normal" target (non-redhat 7.3, non-suse)
 redhat-rpm: maild.spec src-tarball rpm-setup
