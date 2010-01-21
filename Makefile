@@ -1,3 +1,4 @@
+at_franz = $(shell if test -d /fi/cl/8.2/acl; then echo t; else echo nil; fi)
 
 Makefile_local = \
 	$(shell if test -f Makefile.local; then echo Makefile.local; fi)
@@ -33,7 +34,13 @@ sbindir ?= $(prefix)/sbin
 
 version := $(shell grep 'allegro-maild-version' version.cl | sed -e 's,.*"v\([0-9.]*\)".*,\1,')
 
+ifeq ($(at_franz),t)
+release ?= $(shell . fi-apps-common/rpm-utils.sh && \
+	rpm_next_release_number \
+	   $$fs1/$(ARCH)/maild-$(version)-*.$(ARCH).rpm)
+else
 release ?= 1
+endif
 
 installer-package := maild-$(version)-installer.tar.gz
 
