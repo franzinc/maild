@@ -61,8 +61,19 @@ DOCFILES=ALIASES MAILERS.txt NOTES STATS greylist.sql greylist.sql.notes
 
 GREYADMINSRCFILES=Makefile greyadmin.cl login.clp menu.clp super.clp
 
-all: clean maild/maild
+ifeq ($(at_franz),t)
+ALL_EXTRA = repo_check
+endif
+
+all: $(ALL_EXTRA) clean maild/maild
 	(cd greyadmin; ACL=$(lisp) make)
+
+ifeq ($(at_franz),t)
+repo_check: FORCE
+	@if test ! -d fi-apps-common; then \
+	    git clone git:/repo/git/fi-apps-common; \
+	fi
+endif
 
 maild/maild: *.cl
 	rm -fr maild
