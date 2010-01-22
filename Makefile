@@ -7,7 +7,7 @@ ifneq ($(Makefile_local),)
 include $(Makefile_local)
 endif
 
-ARCH=$(shell uname -i)
+ARCH ?= $(shell uname -i)
 
 ifeq ($(ARCH),x86_64)
 lisp?=/fi/cl/8.2/bin/mlisp-64
