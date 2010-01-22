@@ -136,12 +136,12 @@ install-greyadmin: FORCE
 	(cd greyadmin; make install)
 
 clean: FORCE
+	rm -fr BUILD SPECS RPMS BUILDROOT SRPMS
 	rm -f *.fasl maild.tar.gz maild-*.tar.gz autoloads.out
 	rm -fr maild check-mail-virus
 	(cd greyadmin; make clean)
 
 realclean: clean
-	rm -fr RPMS BUILD SRPMS 
 	rm -f *~
 
 update: FORCE
@@ -178,7 +178,7 @@ rpm-setup: FORCE
 	rpmbuild --define "_sourcedir $(CURDIR)" \
 		--define "_topdir $(CURDIR)" \
 		--define "release $(release)" \
-		-ba $<
+		--target $(ARCH) -ba $<
 
 SIGN ?= --sign
 
@@ -190,7 +190,7 @@ redhat-rpm: maild.spec src-tarball rpm-setup
 		--define "_rpmdir $(CURDIR)/RPMS" \
 		--define "_srcrpmdir $(CURDIR)/SRPMS" \
 		--define "release $(release)" \
-		-ba maild.spec
+		--target $(ARCH) -ba maild.spec
 
 REMOVE_PREVIOUS_VERSIONS ?= yes
 REPOHOST                 ?= fs1
