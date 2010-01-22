@@ -194,7 +194,7 @@ redhat-rpm: maild.spec src-tarball rpm-setup
 
 REMOVE_PREVIOUS_VERSIONS ?= yes
 REPOHOST                 ?= fs1
-REPODIR                  ?= /storage1/franz/$(ARCH)
+REPODIR                  ?= /storage1/franz/common/$(ARCH)
 
 install-repo:
 ifeq ($(REMOVE_PREVIOUS_VERSIONS),yes)
