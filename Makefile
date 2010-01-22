@@ -10,11 +10,11 @@ endif
 ARCH=$(shell uname -i)
 
 ifeq ($(ARCH),x86_64)
-lisp?=/fi/cl/8.1/bin/mlisp-64
+lisp?=/fi/cl/8.2/bin/mlisp-64
 else
-preferred_lisp?=/fi/cl/8.1/bin/mlisp
-alt_lisp0=/usr/local/acl81/mlisp
-alt_lisp1=/storage1/acl81/mlisp
+preferred_lisp?=/fi/cl/8.2/bin/mlisp
+alt_lisp0=/usr/local/acl82/mlisp
+alt_lisp1=/storage1/acl82/mlisp
 lisp?=$(shell if test -x $(preferred_lisp); then \
 		echo $(preferred_lisp); \
 	     elif test -x $(alt_lisp0); then \
