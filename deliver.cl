@@ -214,7 +214,7 @@
 	;; write the header boundary.
 	(endline)
 
-	(with-open-file (f (queue-datafile q))
+	(with-open-file (f (queue-datafile q) :external-format :latin1)
 	  (let ((buf (make-array 1024 :element-type 'character))
 		(freshline t)
 		count got-eol)

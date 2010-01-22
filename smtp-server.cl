@@ -88,7 +88,8 @@
 	   (if (and queue-interval (> queue-interval 0))
 	       (queue-process-daemon queue-interval))
 	   (when *pid-file*
-	     (with-open-file (f *pid-file* 
+	     (with-open-file (f *pid-file*
+			      :external-format :latin1
 			      :direction :output
 			      :if-exists :supersede
 			      :if-does-not-exist :create)
@@ -163,7 +164,7 @@
 		 *stats-file*)
 		(setf *smtp-server-stats* (make-statistics))
 	   else
-		(with-open-file (f *stats-file*)
+		(with-open-file (f *stats-file* :external-format :latin1)
 		  (setf *smtp-server-stats* (read f))))
       ;; no file. start fresh
       (setf *smtp-server-stats* (make-statistics)))

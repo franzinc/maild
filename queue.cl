@@ -86,7 +86,8 @@
   (let ((filename (queue-filename queue))
 	(tmpfile (format nil "~A/tempqf~A" *queuedir* (queue-id queue)))
 	(*print-pretty* t)) ;; change to nil after debugging
-    (with-open-file (f tmpfile 
+    (with-open-file (f tmpfile
+		     :external-format :latin1
 		     :direction :output
 		     :if-does-not-exist :create)
       (fchmod f #o0600)
@@ -167,7 +168,7 @@
 
 ;; reads a queue file.  Doesn't lock.
 (defun queue-read (id)
-  (with-open-file (f (queue-filename-from-id id))
+  (with-open-file (f (queue-filename-from-id id) :external-format :latin1)
     (read f)))
 
 (defun queue-lock (id)

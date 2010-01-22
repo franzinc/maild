@@ -74,7 +74,7 @@
 
   (push filename files-seen)
   
-  (with-open-file (f filename)
+  (with-open-file (f filename :external-format :latin1)
     (let (ali)
       (while (setf ali (aliases-get-alias f))
 	(multiple-value-bind (alias expansion)
@@ -307,7 +307,7 @@
 ;: 
 (defun aliases-get-include-file (filename)
   (verify-security filename)
-  (with-open-file (f filename)
+  (with-open-file (f filename :external-format :latin1)
     (let (lines line)
       (while (setf line (aliases-get-good-line f))
 	;; Remove any comma and whitespace from end of string.
