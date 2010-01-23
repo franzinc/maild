@@ -26,7 +26,7 @@ version := $(shell grep 'allegro-maild-version' version.cl | sed -e 's,.*"v\([0-
 ifeq ($(FI_APPS_COMMON),t)
 release ?= $(shell . fi-apps-common/rpm-utils.sh && \
 	rpm_next_release_number \
-	   $$fs1/$(ARCH)/maild-$(version)-*.$(ARCH).rpm)
+	   /net/$(REPOHOST)$(REPOBASE)/$(ARCH)/maild-$(version)-*.$(ARCH).rpm)
 else
 release ?= 1
 endif
