@@ -34,7 +34,7 @@ sbindir ?= $(prefix)/sbin
 
 version := $(shell grep 'allegro-maild-version' version.cl | sed -e 's,.*"v\([0-9.]*\)".*,\1,')
 
-ifeq ($(at_franz),t)
+ifeq ($(FI_APPS_COMMON),t)
 release ?= $(shell . fi-apps-common/rpm-utils.sh && \
 	rpm_next_release_number \
 	   $$fs1/$(ARCH)/maild-$(version)-*.$(ARCH).rpm)
@@ -192,9 +192,11 @@ redhat-rpm: maild.spec src-tarball rpm-setup
 		--define "release $(release)" \
 		--target $(ARCH) -ba maild.spec
 
-REMOVE_PREVIOUS_VERSIONS ?= yes
+REMOVE_PREVIOUS_VERSIONS ?= no
 REPOHOST                 ?= fs1
-REPODIR                  ?= /storage1/franz/common/$(ARCH)
+REPOBASE                 ?= /storage1/franz/common/$(ARCH)
+
+REPODIR=$(REPOBASE)/$(ARCH)
 
 install-repo:
 ifeq ($(REMOVE_PREVIOUS_VERSIONS),yes)
