@@ -9,22 +9,11 @@ endif
 
 ARCH ?= $(shell uname -i)
 
-ifeq ($(ARCH),x86_64)
-lisp?=/fi/cl/8.2/bin/mlisp-64
-else
-preferred_lisp?=/fi/cl/8.2/bin/mlisp
-alt_lisp0=/usr/local/acl82/mlisp
-alt_lisp1=/storage1/acl82/mlisp
-lisp?=$(shell if test -x $(preferred_lisp); then \
-		echo $(preferred_lisp); \
-	     elif test -x $(alt_lisp0); then \
-		echo $(alt_lisp0); \
-	     elif test -x $(alt_lisp1); then \
-		echo $(alt_lisp1); \
-	     else \
-		echo mlisp; \
-	     fi)
+ifeq ($(at_franz),t)
+LISP ?= /fi/cl/8.2/bin/$(shell if [ $(ARCH) = x86_64 ]; then echo mlisp-64; else echo mlisp; fi)
 endif
+
+LISP ?= mlisp
 
 ROOT ?= /
 prefix ?= $(ROOT)/usr
@@ -66,7 +55,7 @@ ALL_EXTRA = repo_check
 endif
 
 all: $(ALL_EXTRA) clean maild/maild
-	(cd greyadmin; ACL=$(lisp) make)
+	(cd greyadmin; ACL=$(LISP) make)
 
 ifeq ($(at_franz),t)
 repo_check: FORCE
@@ -77,11 +66,11 @@ endif
 
 maild/maild: *.cl
 	rm -fr maild
-	$(lisp) -W -batch -L load.cl -e "(build)" -kill
+	$(LISP) -W -batch -L load.cl -e "(build)" -kill
 
 check-mail-virus/check-mail-virus: check-mail-virus.cl
 	rm -fr check-mail-virus
-	$(lisp) -batch -L check-mail-virus.cl -e '(build)' -kill
+	$(LISP) -batch -L check-mail-virus.cl -e '(build)' -kill
 
 install: install-system install-maild install-greyadmin
 
