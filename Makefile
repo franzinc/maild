@@ -26,7 +26,7 @@ version := $(shell grep 'allegro-maild-version' version.cl | sed -e 's,.*"v\([0-
 ifeq ($(FI_APPS_COMMON),t)
 release ?= $(shell . fi-apps-common/rpm-utils.sh && \
 	rpm_next_release_number \
-	   /net/$(REPOHOST)$(REPOBASE)/maild-$(version)-*.$(ARCH).rpm)
+	   /net/$(REPOHOST)$(REPOBASE)/$(ARCH)/maild-$(version)-*.$(ARCH).rpm)
 else
 release ?= 1
 endif
@@ -183,7 +183,7 @@ redhat-rpm: maild.spec src-tarball rpm-setup
 
 REMOVE_PREVIOUS_VERSIONS ?= no
 REPOHOST                 ?= fs1
-REPOBASE                 ?= /storage1/franz/common/$(ARCH)
+REPOBASE                 ?= /storage1/franz/common
 
 REPODIR=$(REPOBASE)/$(ARCH)
 
