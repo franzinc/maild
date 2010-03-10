@@ -192,7 +192,7 @@ ifeq ($(REMOVE_PREVIOUS_VERSIONS),yes)
 	ssh root@$(REPOHOST) "rm -f $(REPODIR)/maild-*"
 endif
 	scp -p RPMS/$(ARCH)/maild-$(version)-*.rpm root@$(REPOHOST):$(REPODIR)
-	ssh root@$(REPOHOST) "createrepo -q --update $(REPODIR)"
+	ssh root@$(REPOHOST) "createrepo -s sha -q --update $(REPODIR)"
 
 ifeq ($(SUSE92),yes)
 rpm: suse-rpm
