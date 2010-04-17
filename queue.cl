@@ -124,7 +124,7 @@
   (locate-header header (queue-headers q)))
 
 ;; recips is a list of email addresses or recip structs
-(defun queue-prefinalize (q recips headers &key metoo smtp-size)
+(defun queue-prefinalize (q recips headers &key metoo smtp-size helo)
   (let ((emailaddrs (if* (emailaddr-p (first recips))
 		       then recips
 		       else (mapcar #'recip-addr recips))))
@@ -138,7 +138,7 @@
   
   (setf (queue-headers q)
     (cons 
-     (make-received-header (queue-client-address q) (queue-id q))
+     (make-received-header (queue-id q) helo (queue-client-address q))
      (copy-list headers))))
 
 (defun queue-finalize (q recips headers &key date add-from from-gecos metoo)

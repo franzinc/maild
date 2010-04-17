@@ -400,9 +400,10 @@
 		 (fqdn))
 	(return))
 
+      (setf text (string-left-trim '(#\space) text))
+
       (when (and *helo-must-match-ip*
 		 (not (string= (session-dotted sess) "127.0.0.1")))
-	(setf text (string-left-trim '(#\space) text))
 	
 	(multiple-value-bind (first ttl rest flags)
 	    (dns-query text :search t :ignore-cache *ignore-dns-cache*)
@@ -860,7 +861,9 @@ in the HELO command (~A) from client ~A"
 	
 	(queue-prefinalize q (session-to sess) headers
 			   :metoo *metoo*
-			   :smtp-size smtp-size)
+			   :smtp-size smtp-size
+			   :helo (session-helo sess)
+			   )
 	
 	;; Run through smtp-specific checkers.
 	(dolist (checker *smtp-data-checkers*)

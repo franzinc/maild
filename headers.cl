@@ -131,15 +131,16 @@
        then "<none>"
        else (subseq h pos))))
 
-(defun make-received-header (cliaddr id)
+(defun make-received-header (id helo cliaddr)
   (let ((h (make-header)))
     (add-header-word h "Received:")
-    (add-header-word h "from")
-    (let ((hostname (ipaddr-to-hostname cliaddr)))
-      (if* hostname
-	 then (add-header-word h hostname)
-	      (add-header-word h (format nil "(~A)" (ipaddr-to-dotted cliaddr)))
-	 else (add-header-word h (ipaddr-to-dotted cliaddr))))
+    (when helo 
+      ;; Received via SMTP
+      (add-header-word h "from")
+      (add-header-word h helo)
+      (add-header-word h (format nil "(~@[~a ~][~a])" 
+				 (ipaddr-to-hostname cliaddr)
+				 (ipaddr-to-dotted cliaddr))))
     (add-header-word h "by")
     (add-header-word h (fqdn))
     (add-header-word h 
