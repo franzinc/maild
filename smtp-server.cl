@@ -638,7 +638,7 @@ in the HELO command (~A) from client ~A"
 	  (inc-checker-stat senders-rejected-permanently 
 			    "command syntax checker")
 	  (outline sock "~a" errstring)
-	  (maild-log "Client from ~a: Syntax error: MAIL ~a" text)
+	  (maild-log "Client from ~a: Syntax error: MAIL ~a" (session-dotted sess) text)
 	  (return))
 	
 	(setf addr (parse-email-addr addr :allow-null t))
