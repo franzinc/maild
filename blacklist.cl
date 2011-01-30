@@ -80,10 +80,30 @@
   ;; Never blacklist trusted clients
   (when (not (trusted-client-p ip))
     (let ((flipped (flip-ip ip)))
-      (dolist (domain *dns-blacklists* nil)
-	(if (socket:dns-query (concatenate 'string flipped "." domain)
-			      :ignore-cache *ignore-dns-cache*)
-	    (return domain))))))
+      (dolist (item *dns-blacklists* nil)
+	;; item == "hostname" or ("hostname" . ipaddr)
+	(let* ((check-return-code (and (consp item)
+				       (stringp (car item))
+				       (stringp (cdr item))))
+	       (domain (if* check-return-code
+			  then (car item)
+			  else item))
+	       (blacklist-result (when check-return-code
+				   (socket:dotted-to-ipaddr
+				    (cdr item)
+				    :errorp nil)))
+	       result)
+	  (when (and (or (not check-return-code)
+			 ;; If a blacklist result code was specified and it
+			 ;; didn't resolve, then ignore this dnsbl entry.
+			 blacklist-result)
+		     (setq result
+		       (socket:dns-query
+			(concatenate 'string flipped "." domain)
+			:ignore-cache *ignore-dns-cache*))
+		     (or (null blacklist-result)
+			 (eql blacklist-result result)))
+	    (return domain)))))))
 
 ;;; DNS Whitelisting (dnswl.org)
 

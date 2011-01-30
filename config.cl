@@ -73,17 +73,49 @@
 
 ;;;;; DNS-based blacklisting stuff
 
+;; A list of DNSBL hosts.  Can be a cons of
+;;   ("hostname" . "expected-result")
+;; where expected-result is the ipaddr of the expected result for
+;; blacklisting.  Some blacklists return different codes for different
+;; levels of blacklisting, and some even return codes for whitelisted IPs.
+;; For example, hostkarma.junkemailfilter.com returns 127.0.0.1 to mean
+;; the host is whitelisted (trusted nonspam).  See the example below.
+;;
 (defparameter *dns-blacklists* nil)
+#+ignore
+(setq *dns-blacklists*
+  '(
+;;;; http://wiki.junkemailfilter.com/index.php/Spam_DNS_Lists
+    ("hostkarma.junkemailfilter.com" . "127.0.0.2")
+    "psbl.surriel.com"
+    "noptr.spamrats.com"
+    "dyna.spamrats.com"
+    "spam.spamrats.com"
+;;;; http://www.spamhaus.org/zen/
+;;;; This probably makes zen == sbl; was getting false positives w/o it.
+    ("zen.spamhaus.org" . "127.0.0.2")
+;;;; http://bhnc.njabl.org/use.html - lots of 127.0.0.6 on legit emails
+    ("bhnc.njabl.org" . "127.0.0.4")
+    "truncate.gbudb.net"
+    "db.wpbl.info"
+    "bl.spamcop.net"))
+
 ;; can be :transient or :permanent
 (defparameter *dns-blacklisted-response-type* :transient)
+
+;; List of senders that are never subject to DNS blacklisting
+(defparameter *dns-blacklist-sender-exceptions* nil)
+
 ;; List of recipients that are never subject to DNS blacklisting
 (defparameter *dns-blacklist-recipient-exceptions* nil)
+
 ;; Message to give if connection is DNS blacklisted, when 
 ;; *dns-blacklisted-response-type* is :permanent.  The value should be a
 ;; string acceptable to `format', which takes one argument, a string which
 ;; was the host that blacklisted the connection.  A value of `nil' means
 ;; using the default of "Blacklisted by ~A".
 (defparameter *dns-blacklist-failure-response* nil)
+
 ;; Similar to *dns-blacklist-failure-response*, except used when 
 ;; *dns-blacklisted-response-type* is :transient.  
 (defparameter *dns-blacklist-temp-failure-response* nil)

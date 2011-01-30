@@ -134,6 +134,10 @@
       (dolist (string *dns-blacklist-recipient-exceptions*)
 	(if (equalp string orig)
 	    (return-from smtp-rcpt-to-dns-blacklist-checker :ok))))
+    (let ((orig (emailaddr-orig from)))
+      (dolist (string *dns-blacklist-sender-exceptions*)
+	(if (equalp string orig)
+	    (return-from smtp-rcpt-to-dns-blacklist-checker :ok))))
     
     (let ((domain (connection-dns-blacklisted-p ip)))
       (if (null domain)
