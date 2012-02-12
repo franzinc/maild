@@ -10,7 +10,8 @@ endif
 ARCH ?= $(shell uname -i)
 
 ifeq ($(at_franz),t)
-LISP ?= /fi/cl/8.2/bin/$(shell if [ $(ARCH) = x86_64 ]; then echo mlisp-64; else echo mlisp; fi)
+LISPROOT ?= /fi/cl/8.2
+LISP ?= $(LISPROOT)/bin/$(shell if [ $(ARCH) = x86_64 ]; then echo mlisp-64; else echo mlisp; fi)
 endif
 
 LISP ?= mlisp
