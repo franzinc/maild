@@ -71,16 +71,16 @@
 
 ;; Since with-stream-lock only locks out other processes, we need to
 ;; do internal locking as well.
-(defvar *file-delivery-locks* nil)
+(defvar *file-delivery-locks* (make-hash-table :test #'equal 
+					       :values nil))
 
 ;; Blocks until the lock is acquired.
 (defun get-file-delivery-lock (file)
-  (without-interrupts
-    (if (null *file-delivery-locks*)
-	(setf *file-delivery-locks* (make-hash-table :test #'equal 
-						     :values nil))))
   (loop
-    (without-interrupts
+    (#-smp-macros without-interrupts
+     #+smp-macros with-delayed-interrupts
+     ;;mm 2012-02 SMP-NOTE This will not be sufficient in smp.
+     ;;   Need to use a lock or wish for rfe10479.
       (if (null (gethash file *file-delivery-locks*))
 	  (progn
 	    (setf (gethash file *file-delivery-locks*) t)
@@ -88,7 +88,9 @@
     (sleep 1)))
 
 (defun put-file-delivery-lock (file)
-  (mp:without-scheduling
+  (#-smp-macros mp:without-scheduling
+   #+smp-macros with-delayed-interrupts
+   ;;mm 2012-02 The wrapper may be unnecessary since remhash is atomic.
     (remhash file *file-delivery-locks*)))
 
 (defmacro with-file-delivery-lock ((file) &body body)

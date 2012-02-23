@@ -60,19 +60,24 @@
 
 (defmacro inc-smtp-stat (slot)
   (let ((accessor (intern (format nil "~A-~A" 'statistics slot))))
+    #-smp-macros
     `(without-interrupts
-       (incf (,accessor *smtp-server-stats*)))))
+       (incf (,accessor *smtp-server-stats*)))
+    #+smp-macros `(incf-atomic (,accessor *smtp-server-stats*))
+    ))
 
 (defmacro get-smtp-stat (slot)
   (let ((accessor (intern (format nil "~A-~A" 'statistics slot))))
-    `(without-interrupts
-       (,accessor *smtp-server-stats*))))
+    `(,accessor *smtp-server-stats*)))
 
 (defmacro inc-checker-stat (slot checkername)
   (let ((tmp (gensym))
 	(checker (gensym))
 	(accessor (intern (format nil "~A-~A" 'statistics slot))))
-    `(without-interrupts
+    `(#-smp-macros without-interrupts 
+      #+smp-macros with-delayed-interrupts 
+      ;;mm 2012-02 SMP-NOTE This can only be done with a lock in smp
+      ;;           since we are basically doing a pushnew here.
        (let* ((,checker ,checkername)
 	      (,tmp (member ,checker (,accessor *smtp-server-stats*) :key #'first :test #'string=)))
 	 (if ,tmp
@@ -343,13 +348,10 @@
 	  (:ok
 	   ))))))
 
-(defparameter *smtp-stats-lock* nil)
+(defparameter *smtp-stats-lock* (mp:make-process-lock))
 
 ;; don't do this if we're running with -bs
 (defun update-smtp-stats ()
-  (without-interrupts 
-    (if (null *smtp-stats-lock*)
-	(setf *smtp-stats-lock* (mp:make-process-lock))))
   (mp:with-process-lock (*smtp-stats-lock*)
     (with-os-open-file (f *stats-file* (logior *o-wronly* *o-creat* *o-trunc*) 
 			  #o600)

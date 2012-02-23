@@ -21,7 +21,9 @@
 
 (defparameter *greylist-db* nil)
 
-(defparameter *greylist-lock* nil)
+(defvar *greylist-lock*
+  ;;mm 2012-02 We use defvar because this lock should only be created once.
+  (mp:make-process-lock :name "Greylist database lock"))
 
 
 (eval-when (compile load eval)
@@ -442,10 +444,6 @@
 ;; db stuff
 
 (defun ensure-greylist-db ()
-  (without-interrupts
-    (when (null *greylist-lock*)
-      (setf *greylist-lock* 
-	(mp:make-process-lock :name "Greylist database lock"))))
 
   (mp:with-process-lock (*greylist-lock*)
 

@@ -195,9 +195,14 @@
 (defparameter *queue-threads-running* 0)
 
 (defmacro with-queue-process-thread (() &body body)
-  `(without-interrupts
+  `(#-smp-macros without-interrupts
+    #+smp-macros with-delayed-interrupts
+    ;;mm 2012-02 SMP-NOTE A lock will be needed here in smp.
      (unwind-protect (progn ,@body)
-       (without-interrupts (decf *queue-threads-running*)))))
+       #-smp-macros 
+       (without-interrupts (decf *queue-threads-running*))
+       #+smp-macros (decf-atomic *queue-threads-running*)
+       )))
 
 ;; Called by queue-process-all
 (defun queue-process-single-thread (id &key verbose)
@@ -218,13 +223,27 @@
 (defun queue-process-all (&key verbose (max *queue-max-threads*))
   (dolist (id (get-all-queue-ids))
     ;; Wait for the thread count to drop below max.
-    (while (without-interrupts (>= *queue-threads-running* max))
-      (mp:process-sleep 10 "Queue thread limit reached.  Sleeping"))
-    (without-interrupts (incf *queue-threads-running*))
+    ;;mm 2012-02 SMP-NOTE This needs serious rework
+    ;;   with memory barriers and a lock in smp.
+    (loop
+     #-smp-macros
+     (without-interrupts
+      (when (< *queue-threads-running* max)
+	(incf *queue-threads-running*)
+	(return)))
+     #+smp-macros
+     (with-delayed-interrupts
+      (when (< *queue-threads-running* max)
+	(incf-atomic *queue-threads-running*)
+	(return)))
+     (mp:process-sleep 10 "Queue thread limit reached.  Sleeping"))
     (mp:process-run-function 
 	(format nil "Processing qf~a" id)
       #'queue-process-single-thread id :verbose verbose))
-  (while (without-interrupts (> *queue-threads-running* 0))
+  ;;mm 2012-02 SMP-NOTE A memory barrier is needed here to get 
+  ;;           a current value of *queue-threads-running*.
+  ;;   Also, it would be more efficient to wait on a gate.
+  (while (> *queue-threads-running* 0)
     (mp:process-sleep 10 "Waiting for remaining queue processing threads to complete")))
   
 
