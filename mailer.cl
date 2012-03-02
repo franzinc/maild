@@ -93,3 +93,11 @@
 	(emailaddr-orig (rewrite-local-envelope-sender (queue-from q)))
 	"-d"
 	(string-downcase (emailaddr-user (recip-addr recip)))))
+
+(defun test-deliver-local-command (recip q)
+  (declare (ignore recip q))
+  (list
+   ;; Yes, this is a build-time expansion of test/mailer.sh's pathname
+   #.(namestring (merge-pathnames "test/mailer.sh"))
+   *test-mode-mailbox*
+   ))

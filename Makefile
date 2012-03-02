@@ -208,4 +208,7 @@ rpm: redhat-rpm
 endif
 endif
 
+test: FORCE
+	test/test.sh
+
 FORCE:

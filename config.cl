@@ -254,6 +254,8 @@
 
 
 ;; See MAILERS.txt for information on mailers.
+;;;;;;NOTE: if you change the default value of this variable, please update
+;;;;;;      the setting of it in maild.cl:main for "test" mode.
 (defparameter *mailers*
     '((:local ;; keyword identifier
        "Unix mailbox" 
@@ -329,3 +331,7 @@
 (defparameter *rep-server-port* 9567)
 
 (defparameter *ignore-dns-cache* nil)
+
+(defparameter *test-mode* nil)
+
+(defparameter *test-mode-mailbox* nil)

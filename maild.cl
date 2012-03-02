@@ -42,16 +42,20 @@
     (if (null args)
 	(error "Recipient names must be specified"))
     (with-command-line-arguments 
-	(("F" :short fullname :required-companion)
+	( ;; keep sorted, please
+	 ("C" :short alt-config-file :required-companion)
+	 ("F" :short fullname :required-companion)
+	 ("b" :short runmode :required-companion)
 	 ("f" :short from :required-companion)
 	 ("i" :short ignoredot nil)
-	 ("b" :short runmode :required-companion)
-	 ("o" :short options :required-companion :allow-multiple-options)
-	 ("q" :short processqueue :optional-companion)
-	 ("v" :short verbose nil)
-	 ("t" :short grab-recips nil)
 	 ("m" :short metoo nil)
-	 ("C" :short alt-config-file :required-companion))
+	 ("o" :short options :required-companion :allow-multiple-options)
+	 ("p" :short port :required-companion)
+	 ("r" :short chroot :required-companion)
+	 ("q" :short processqueue :optional-companion)
+	 ("T" :short test-mode nil)
+	 ("t" :short grab-recips nil)
+	 ("v" :short verbose nil))
       (cmdline-recips :command-line-arguments args)
 
       (when alt-config-file
@@ -64,6 +68,41 @@
       (if (and (probe-file *configfile*) 
 	       (verify-root-only-file *configfile*))
 	  (load *configfile*))
+      
+      ;; Override port in config file
+      (when (and port
+		 (ignore-errors
+		  (setq port (parse-integer port :junk-allowed nil))))
+	(setq *smtp-port* port))
+      
+      (when (and chroot (not test-mode))
+	(error "-r can only be used in test mode."))
+      
+      (when test-mode
+	(let ((user (pwent-name (getpwuid (getuid)))))
+	  (setq *test-mode* t)
+	  (setq *test-mode-mailbox*
+	    (format nil "~a/var/spool/mail/~a" chroot user))
+	  (setq *mailers*
+	    `((:local ;; keyword identifier
+	       "Unix mailbox" 
+	       lookup-addr-in-passwd
+	       test-deliver-local-command
+	       ,user)))))
+      
+      ;; Chroot hack, for testing:
+      (when chroot
+	(or (probe-file chroot)
+	    (error "Chroot argument does not exist: ~a." chroot))
+	(or (file-directory-p chroot)
+	    (error "Chroot argument is not a directory: ~a." chroot))
+	(dolist (v '(*ssl-certificate-file* *ssl-key-file* *aliases-file*
+		     *stats-file* *queuedir* *pid-file*))
+	  (set v (concatenate 'simple-string
+		   chroot (symbol-value v)))
+	  (format t "debug: ~a=~a~%" v (symbol-value v)))
+;;;;more?????
+	)
 
       ;; sanity checks
       (if (not (probe-file *queuedir*))
@@ -100,6 +139,9 @@
 	  (exit 0 :quiet t)) ;; parent gets here.
 	 ((string= runmode "D")
 	  (verify-real-user-is-root)
+	  (setf *debug* t)
+	  (smtp-server-daemon :queue-interval processqueue))
+	 ((string= runmode "T")
 	  (setf *debug* t)
 	  (smtp-server-daemon :queue-interval processqueue))
 	 ((string= runmode "s")
@@ -141,6 +183,7 @@
 			     :metoo metoo
 			     :verbose verbose)
 	  (error "~a: No valid recipients specified." prgname))))))
+
 
 
 

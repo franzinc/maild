@@ -38,7 +38,8 @@
 
 (defun verify-root-only-file (file)
   (let ((sb (verify-security file)))
-    (if (/= 0 (stat-uid sb))
+    (if (and (/= 0 (stat-uid sb))
+	     (not *test-mode*))
 	(error "File ~A isn't owned by root.  Aborting for security reasons" 
 	       file))
     sb))
