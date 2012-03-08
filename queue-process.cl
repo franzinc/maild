@@ -192,6 +192,9 @@
 		      "")))
 	  (format t " Status: ~A~%" (queue-status q)))))))
 
+#+smp-macros
+(defvar-nonbindable *queue-threads-running* 0)
+#-smp-macros 
 (defparameter *queue-threads-running* 0)
 
 (defmacro with-queue-process-thread (() &body body)
