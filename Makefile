@@ -110,6 +110,7 @@ endif
 endif
 
 install-system: FORCE
+	mkdir -p $(ROOT)/etc
 ifeq ($(SUSE92),yes)
 	cp maild.init.suse9 $(ROOT)/etc/init.d/maild
 else
@@ -133,9 +134,6 @@ clean: FORCE
 
 realclean: clean
 	rm -f *~
-
-update: FORCE
-	cvs -q update -dP
 
 tarball: all
 	tar zcf maild.tar.gz maild
