@@ -214,7 +214,11 @@
     `(let ((,s ,sock))
        (block nil
 	 (handler-bind 
-	     ((socket-error 
+	     ((excl::ssl-error 
+	       #'(lambda (c)
+		   (maild-log "~a: ~a" (smtp-remote-dotted ,s) c)
+		   (return)))
+	      (socket-error 
 	       #'(lambda (c)
 		   (maild-log "~a: ~a" 
 			      (smtp-remote-dotted ,s) 
