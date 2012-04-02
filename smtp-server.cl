@@ -178,14 +178,20 @@
   
     (unwind-protect
 	(loop
-	  (let* ((ready (first (mp:wait-for-input-available sockets)))
-		 (newsock (ignore-errors (accept-connection ready))))
-	    (when newsock
-	      (mp:process-run-function "SMTP session" 
-		#'do-smtp 
-		newsock :ssl (eq ready sslsock)))))
-      (ignore-errors (close sock)
-		     (if sslsock (close sslsock))))))
+	  (let* ((ready (first (mp:wait-for-input-available sockets))))
+	    (multiple-value-bind (newsock err)
+		(ignore-errors (accept-connection ready))
+	      (if* newsock
+		 then (maild-log "accept-connection ~a fd ~a"
+				 newsock
+				 (excl::stream-input-handle newsock))
+		      (mp:process-run-function "SMTP session" 
+			#'do-smtp 
+			newsock :ssl (eq ready sslsock))
+		 else (maild-log "accept-connection failed: ~a" err)))))
+      ;; cleanup forms
+      (ignore-errors (close sock))
+      (if sslsock (ignore-errors (close sslsock))))))
 
 (defmacro smtp-remote-host (sock)
   (let ((socksym (gensym)))
@@ -245,8 +251,8 @@
     (maild-log "End backtrace")))
 
 (defun do-smtp (sock &key fork verbose ssl)
-  (unwind-protect
-      (with-smtp-err-handler (sock)
+  (with-smtp-err-handler (sock)
+    (unwind-protect
 	(with-socket-timeout (sock :write *datatimeout*)
 	  (let* ((dotted (smtp-remote-dotted sock))
 		 (sess (make-session :sock sock :dotted dotted
@@ -318,13 +324,15 @@
 		 (outline sock "500 Line too long."))
 		(t
 		 (if (eq (process-smtp-command sess cmd) :quit)
-		     (return :quit))))))))
-    ;; cleanup forms
-    (maild-log "Closing SMTP session with ~A" (smtp-remote-dotted sock))
-    (when (socketp sock)
-      (ignore-errors (update-smtp-stats)) ;; stats file dir might not exist
-      (ignore-errors (close sock))
-      (ignore-errors (close sock :abort t)))))
+		     (return :quit)))))))
+      ;; cleanup forms
+      (maild-log "Closing SMTP session with ~A (fd ~a)" 
+		 (smtp-remote-dotted sock)
+		 (excl::stream-input-handle sock))
+      (when (socketp sock)
+	(ignore-errors (update-smtp-stats)) ;; stats file dir might not exist
+	(ignore-errors (close sock))
+	(ignore-errors (close sock :abort t))))))
 
 ;; Returns 't' if accepted, nil if rejected.
 (defun run-connection-checkers (sock &key postponed)
