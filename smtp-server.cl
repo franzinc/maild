@@ -182,7 +182,8 @@
 	    (multiple-value-bind (newsock err)
 		(ignore-errors (accept-connection ready))
 	      (if* newsock
-		 then (maild-log "accept-connection ~a fd ~a"
+		 then #+ignore
+		      (maild-log "accept-connection ~a fd ~a"
 				 newsock
 				 (excl::stream-input-handle newsock))
 		      (mp:process-run-function "SMTP session" 
@@ -326,9 +327,8 @@
 		 (if (eq (process-smtp-command sess cmd) :quit)
 		     (return :quit)))))))
       ;; cleanup forms
-      (maild-log "Closing SMTP session with ~A (fd ~a)" 
-		 (smtp-remote-dotted sock)
-		 (excl::stream-input-handle sock))
+      (maild-log "Closing SMTP session with ~A)" 
+		 (smtp-remote-dotted sock))
       (when (socketp sock)
 	(ignore-errors (update-smtp-stats)) ;; stats file dir might not exist
 	(ignore-errors (close sock))
