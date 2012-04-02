@@ -89,6 +89,7 @@
     (with-open-file (f tmpfile
 		     :external-format :latin1
 		     :direction :output
+		     :if-exists :supersede
 		     :if-does-not-exist :create)
       (fchmod f #o0600)
       (write queue :stream f)
