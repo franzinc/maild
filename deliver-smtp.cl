@@ -109,13 +109,13 @@
 	  (maild-log-and-print verbose "~A" errmsg)
 	  (return (values :transient errmsg)))
 
-	(setf (queue-status q)
-	  (format nil "Communicating with ~a" mxname))
-	(update-queue-file q)
-	
 	;; Socket ready.
 	(unwind-protect
 	    (progn
+	      (setf (queue-status q)
+		(format nil "Communicating with ~a" mxname))
+	      (update-queue-file q)
+	      
 	      (multiple-value-bind (res response)
 		  (get-smtp-greeting sock buf mxname :verbose verbose)
 		(when (not (eq res :ok))
