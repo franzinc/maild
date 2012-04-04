@@ -327,7 +327,7 @@
 		 (if (eq (process-smtp-command sess cmd) :quit)
 		     (return :quit)))))))
       ;; cleanup forms
-      (maild-log "Closing SMTP session with ~A)" 
+      (maild-log "Closing SMTP session with ~A" 
 		 (smtp-remote-dotted sock))
       (when (socketp sock)
 	(ignore-errors (update-smtp-stats)) ;; stats file dir might not exist
