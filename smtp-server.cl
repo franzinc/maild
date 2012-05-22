@@ -37,7 +37,9 @@
   fork
   ssl
   auth-user
-  rcpt-to-delay)
+  rcpt-to-delay
+  esmtp ;; Did the client use EHLO
+  )
 
 (defstruct statistics
   (stats-start (get-universal-time))
@@ -473,6 +475,7 @@ in the HELO command (~A) from client ~A"
 	(:helo
 	 (outline sock "250 ~a Hi there." (fqdn)))
 	(:ehlo
+	 (setf (session-esmtp sess) t)
 	 (let (res)
 	   (push (format nil "~a Hi there." (fqdn)) res)
 
@@ -877,6 +880,9 @@ in the HELO command (~A) from client ~A"
 			   :metoo *metoo*
 			   :smtp-size smtp-size
 			   :helo (session-helo sess)
+			   :esmtp (session-esmtp sess)
+			   :auth-user (session-auth-user sess)
+			   :ssl (session-ssl sess)
 			   )
 	
 	;; Run through smtp-specific checkers.

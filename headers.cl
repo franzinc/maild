@@ -131,7 +131,7 @@
        then "<none>"
        else (subseq h pos))))
 
-(defun make-received-header (id helo cliaddr)
+(defun make-received-header (id helo cliaddr esmtp auth-user ssl)
   (let ((h (make-header)))
     (add-header-word h "Received:")
     (when helo 
@@ -145,6 +145,16 @@
     (add-header-word h (fqdn))
     (add-header-word h 
 		     (format nil "(Allegro Maild ~A)" *allegro-maild-version*))
+    (when (and esmtp (or auth-user ssl))
+      (add-header-word h "with")
+      (add-header-word h (if* (and ssl auth-user)
+			    then "ESMTPSA"
+			  elseif ssl
+			    then "ESMTPS"
+			  elseif auth-user
+			    then "ESMTPA"
+			    else (error "This can never happen"))))
+      
     (add-header-word h "id")
     (add-header-word h (format nil "~A;" id))
     (add-header-word h (datetime))
