@@ -1,4 +1,4 @@
-#! /fi/cl/9.0.beta/bin/mlisp -#C
+#! /fi/cl/9.0/bin/mlisp -#C
 
 (eval-when (compile eval load)
   (require :osi)
