@@ -1,4 +1,4 @@
-#! /fi/cl/9.0.beta/bin/mlisp -#!
+#! /fi/cl/9.0/bin/mlisp -#!
 
 (eval-when (compile eval load)
   (require :smtp)
