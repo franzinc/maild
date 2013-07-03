@@ -239,10 +239,12 @@
       (when (< *queue-threads-running* max)
 	(incf-atomic *queue-threads-running*)
 	(return)))
-     (mp:process-sleep 10 "Queue thread limit reached.  Sleeping"))
-    (mp:process-run-function 
-	(format nil "Processing qf~a" id)
-      #'queue-process-single-thread id :verbose verbose))
+      (mp:process-sleep 10 "Queue thread limit reached.  Sleeping"))
+    (let ((proc
+	   (mp:process-run-function 
+	       (format nil "Processing qf~a" id)
+	     #'queue-process-single-thread id :verbose verbose)))
+      (setf (mp:process-keeps-lisp-alive-p proc) nil)))
   ;;mm 2012-02 SMP-NOTE A memory barrier is needed here to get 
   ;;           a current value of *queue-threads-running*.
   ;;   Also, it would be more efficient to wait on a gate.
@@ -254,10 +256,11 @@
   ;; sanity check
   (if (or (null interval) (<= interval 0))
       (error "queue-process-daemon: Invalid interval: ~S" interval))
-  (mp:process-run-function "Queue daemon"
-    #'(lambda ()
-	(maild-log "Queue process interval: ~D seconds" interval)
-	(loop
-	  (queue-process-all)
-	  (sleep interval)))))
-
+  (let ((proc
+	 (mp:process-run-function "Queue daemon"
+	   #'(lambda ()
+	       (maild-log "Queue process interval: ~D seconds" interval)
+	       (loop
+		 (queue-process-all)
+		 (sleep interval))))))
+    (setf (mp:process-keeps-lisp-alive-p proc) nil)))    	 

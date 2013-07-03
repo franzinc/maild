@@ -74,6 +74,7 @@
     
     (let ((bounce-proc (mp:process-run-function "Sending bounce" 
 			 #'queue-process-single (queue-id q))))
+      (setf (mp:process-keeps-lisp-alive-p bounce-proc) nil)
       (if wait
 	  (wait-for-process 
 	   bounce-proc 

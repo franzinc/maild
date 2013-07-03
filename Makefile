@@ -207,6 +207,6 @@ endif
 endif
 
 test: FORCE
-	test/test.sh
+	time test/test.sh
 
 FORCE:

@@ -219,6 +219,7 @@
 		       #'queue-lock-refresher ,q)))
        (unwind-protect
 	   (progn
+	     (setf (mp:process-keeps-lisp-alive-p ,process) nil)
 	     ,@body)
 	 ;; cleanup
 	 (kill-and-reap-process ,process)))))

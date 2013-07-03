@@ -134,8 +134,10 @@
 	    :if-does-not-exist :create
 	    :if-exists :append))    
 
-    (mp:process-run-function "rep server"
-      'start-rep-server *rep-server-port* 'maild-log)
+    (let ((proc
+	   (mp:process-run-function "rep server"
+	     'start-rep-server *rep-server-port* 'maild-log)))
+      (setf (mp:process-keeps-lisp-alive-p proc) nil))
     (setq *rep-server-started* t))
   
   (parse-connections-blacklist)
@@ -188,9 +190,11 @@
 		      (maild-log "accept-connection ~a fd ~a"
 				 newsock
 				 (excl::stream-input-handle newsock))
-		      (mp:process-run-function "SMTP session" 
-			#'do-smtp 
-			newsock :ssl (eq ready sslsock))
+		      (let ((proc
+			     (mp:process-run-function "SMTP session" 
+			       #'do-smtp 
+			       newsock :ssl (eq ready sslsock))))
+			(setf (mp:process-keeps-lisp-alive-p proc) nil))
 		 else (maild-log "accept-connection failed: ~a" err)))))
       ;; cleanup forms
       (ignore-errors (close sock))
@@ -973,9 +977,11 @@ in the HELO command (~A) from client ~A"
 	    ;; parent.. just keep on truckin'
 	    )
 	;; else.. we must be running in daemon mode already..
-	(mp:process-run-function 
-	    (format nil "Processing id ~A" (queue-id q)) 
-	  #'queue-process-single (queue-id q))))))
+	(let ((proc
+	       (mp:process-run-function 
+		   (format nil "Processing id ~A" (queue-id q)) 
+		 #'queue-process-single (queue-id q))))
+	  (setf (mp:process-keeps-lisp-alive-p proc) nil))))))
 
 (defun run-pre-data-checkers (sock sess &key postponed)
   (dolist (checker *smtp-data-pre-checkers* t)

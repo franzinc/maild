@@ -34,9 +34,11 @@ WARNING: do not use :exit or (exit).  You will exit the entire process.
          Use ~s to quit.~&"
 			    '(quit))
 		    (force-output connection) 
-		    (mp:process-run-function
-		     "telnet session"
-		     'start-telnet-session connection from))
+		    (let ((proc
+			   (mp:process-run-function
+			       "telnet session"
+			     'start-telnet-session connection from)))
+		      (setf (mp:process-keeps-lisp-alive-p proc) nil)))
 		(error ()
 		  (ignore-errors (close connection))))))
 	(ignore-errors (close socket))))))

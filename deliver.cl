@@ -162,8 +162,9 @@
 				   :queue q
 				   :rewrite-type rewrite
 				   :add-mbox-from add-mbox-from))
-      (mp:process-run-function "message text generator"
-	#'write-message-to-stream-async async)
+      (let ((proc (mp:process-run-function "message text generator"
+		    #'write-message-to-stream-async async)))
+	(setf (mp:process-keeps-lisp-alive-p proc) nil))
       (multiple-value-bind (output errput status)
 	  (command-output
 	   prg
