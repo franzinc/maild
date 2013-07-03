@@ -63,8 +63,6 @@
       (setf *libdir* "")
       (setf *port* 2527))
     
-    (init-webserver)
-
     (let ((pid (if debug 0 (fork))))
       (cond
        ((not (numberp pid))
@@ -76,7 +74,11 @@
 	(loop (sleep 86400)))
        (t
 	;; parent
-	(exit 0 :quiet t))))))
+	(exit 0 :quiet t))))
+    
+    (handler-case (init-webserver)
+      (error (c)
+	(greyadmin-log "error initializing web server: ~a" c)))))
 
 (defun init-webserver ()
   (let ((pwent (getpwnam *run-as*)))
