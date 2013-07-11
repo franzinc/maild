@@ -70,15 +70,16 @@
        ((= pid 0)
 	;; child
 	(when (not debug)
-	  (detach-from-terminal))
-	(loop (sleep 86400)))
+	  (detach-from-terminal)))
        (t
 	;; parent
 	(exit 0 :quiet t))))
     
     (handler-case (init-webserver)
       (error (c)
-	(greyadmin-log "error initializing web server: ~a" c)))))
+	(greyadmin-log "error initializing web server: ~a" c)))
+    
+    (loop (sleep 86400))))
 
 (defun init-webserver ()
   (let ((pwent (getpwnam *run-as*)))
