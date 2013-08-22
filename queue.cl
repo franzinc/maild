@@ -21,6 +21,7 @@
 (defstruct queue 
   id
   (ctime (get-universal-time)) ;; when this message was queued
+  (mtime (get-universal-time)) ;; universal time of last update
   (status "Reading message data...")
   client-address
   from
@@ -92,6 +93,7 @@
 		     :if-exists :supersede
 		     :if-does-not-exist :create)
       (fchmod f #o0600)
+      (setf (queue-mtime queue) (get-universal-time))
       (write queue :stream f)
       (finish-output f)
       (fsync f))

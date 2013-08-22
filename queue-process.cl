@@ -19,6 +19,10 @@
 (in-package :user)
 
 
+; send-from-stdin, :operator
+; queue-processing-thread, :operator
+; smtp-data, :operator
+; bounce-inner, :operator
 (defun queue-process-single (id &key wait verbose (if-does-not-exist :error))
   (let ((res (with-locked-queue (q id :noexist)
 	       (queue-process-single-help q :wait wait :verbose verbose))))
@@ -182,6 +186,7 @@
 	  (if (not (probe-file (queue-datafile q)))
 	      (format t "Queue id ~A doesn't have a data file!~%" id))
 	  (format t " Date queued: ~A~%" (ctime (queue-ctime q)))
+	  (format t " Last update: ~a~%" (ctime (queue-mtime q)))
 	  (format t " Sender: ~A~%" (emailaddr-orig (queue-from q)))
 	  (format t " Remaining recips:~%")
 	  (dolist (recip (queue-recips q))
@@ -192,66 +197,71 @@
 		      "")))
 	  (format t " Status: ~A~%" (queue-status q)))))))
 
-#+smp-macros
-(defvar-nonbindable *queue-threads-running* 0)
-#-smp-macros 
-(defparameter *queue-threads-running* 0)
+(defstruct queue-processing-job
+  id
+  verbose
+  )
 
-(defmacro with-queue-process-thread (() &body body)
-  `(#-smp-macros without-interrupts
-    #+smp-macros with-delayed-interrupts
-    ;;mm 2012-02 SMP-NOTE A lock will be needed here in smp.
-     (unwind-protect (progn ,@body)
-       #-smp-macros 
-       (without-interrupts (decf *queue-threads-running*))
-       #+smp-macros (decf-atomic *queue-threads-running*)
-       )))
+(defstruct (queue-processor-state (:include synchronizing-structure))
+  (job-queue (make-instance 'mp:queue))
+  threads
+  )
 
-;; Called by queue-process-all
-(defun queue-process-single-thread (id &key verbose)
-  (with-queue-process-thread ()
-    (handler-bind 
-	((error 
-	  #'(lambda (c)
-	      (maild-log "Got error ~A while processing queue id ~A"
-			 c id)
-	      (let ((backtrace (with-output-to-string (s) (zoom s))))
-		(dolist (line (delimited-string-to-list backtrace #\newline))
-		  (maild-log "  ~a" line))
-		(maild-log "End backtrace"))
-	      (return-from queue-process-single-thread))))
-      (queue-process-single id :if-does-not-exist :ignore :verbose verbose))))
+(defparameter *queue-processor-state* (make-queue-processor-state))
 
-
-(defun queue-process-all (&key verbose (max *queue-max-threads*))
-  (dolist (id (get-all-queue-ids))
-    ;; Wait for the thread count to drop below max.
-    ;;mm 2012-02 SMP-NOTE This needs serious rework
-    ;;   with memory barriers and a lock in smp.
+;; start-queue-processing-threads, :operator
+(defun queue-processing-thread ()
+  (let ((job-queue (queue-processor-state-job-queue *queue-processor-state*)))
     (loop
-     #-smp-macros
-     (without-interrupts
-      (when (< *queue-threads-running* max)
-	(incf *queue-threads-running*)
-	(return)))
-     #+smp-macros
-     (with-delayed-interrupts
-      (when (< *queue-threads-running* max)
-	(incf-atomic *queue-threads-running*)
-	(return)))
-      (mp:process-sleep 10 "Queue thread limit reached.  Sleeping"))
-    (let ((proc
-	   (mp:process-run-function 
-	       (format nil "Processing qf~a" id)
-	     #'queue-process-single-thread id :verbose verbose)))
-      (setf (mp:process-keeps-lisp-alive-p proc) nil)))
-  ;;mm 2012-02 SMP-NOTE A memory barrier is needed here to get 
-  ;;           a current value of *queue-threads-running*.
-  ;;   Also, it would be more efficient to wait on a gate.
-  (while (> *queue-threads-running* 0)
-    (mp:process-sleep 10 "Waiting for remaining queue processing threads to complete")))
-  
+      (catch 'fail
+	(let* ((job (mp:dequeue job-queue :wait t :whostate "Waiting for work"))
+	       (id (queue-processing-job-id job))
+	       (verbose (queue-processing-job-verbose job)))
+	  (handler-bind 
+	      ((error 
+		#'(lambda (c)
+		    (maild-log "Got error ~A while processing queue id ~A"
+			       c id)
+		    (let ((backtrace (with-output-to-string (s) (zoom s))))
+		      (dolist (line (delimited-string-to-list backtrace #\newline))
+			(maild-log "  ~a" line))
+		      (maild-log "End backtrace"))
+		    (throw 'fail nil))))
 
+	    (queue-process-single id :if-does-not-exist :ignore :verbose verbose)))))))
+
+;; queue-process-all, :operator
+(defun start-queue-processing-threads (count)
+  "Safe to call multiple times"
+  (with-locked-structure (*queue-processor-state*)
+    (when (null (queue-processor-state-threads *queue-processor-state*))
+      (let (threads)
+	(dotimes (n count)
+	  (let* ((name (format nil "Queue processor ~a" n))
+		 (proc (mp:process-run-function name #'queue-processing-thread)))
+	    (setf (mp:process-keeps-lisp-alive-p proc) nil)
+	    
+	    (push proc threads)))
+	
+	(setf (queue-processor-state-threads *queue-processor-state*) threads)))))
+
+;; (:internal queue-process-daemon 0), :operator
+;; main, :operator
+(defun queue-process-all (&key verbose (max *queue-max-threads*))
+  (start-queue-processing-threads max)
+  
+  (let ((job-queue (queue-processor-state-job-queue *queue-processor-state*)))
+    
+    ;; Queue up all the work
+    (dolist (id (get-all-queue-ids))
+      (mp:enqueue job-queue (make-queue-processing-job :id id :verbose verbose)))
+    
+    ;; Now wait for the job queue to drain.
+    
+    (while (not (mp:queue-empty-p job-queue))
+      (mp:process-sleep 10 "Waiting for remaining queue processing threads to complete"))))
+
+;; (flet smtp-server-daemon startup), :operator
 (defun queue-process-daemon (interval)
   ;; sanity check
   (if (or (null interval) (<= interval 0))
@@ -262,5 +272,6 @@
 	       (maild-log "Queue process interval: ~D seconds" interval)
 	       (loop
 		 (queue-process-all)
-		 (sleep interval))))))
+		 (mp:process-sleep interval "Waiting for next queue processing interval")
+		 )))))
     (setf (mp:process-keeps-lisp-alive-p proc) nil)))    	 
