@@ -301,6 +301,7 @@
 (defparameter *smtp-port* 25) 
 (defparameter *smtps-port* 465)
 (defparameter *smtp-ip* nil) ;; address to bind socket
+(defparameter *smtp-max-connections-per-client* 10)
 ;; Max SMTP command line length.  including CR, but not LF
 (defparameter *maxlinelen* 2048) 
 (defparameter *maxrecips* 100)

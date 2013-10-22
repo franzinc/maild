@@ -1,9 +1,3 @@
-maild -q -v can take a long time to terminate, even when the last
-delivery has been performed.  This is probably due to the infrequent
-checking done in the queue thread count limiting code
-(queue-process-all function in queue-process.cl).  See if semaphores
-can be used to make things more snappy.
-
 Improve logging.
  * Output should be in a more consistent format.  
   * All messages related to a particular queue id should be prefixed.
@@ -52,3 +46,4 @@ from command line.
 
 Pass some useful environment variables to program aliases (like
 postfix does).
+

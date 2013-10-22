@@ -123,6 +123,10 @@
 
 (defvar *rep-server-started* nil)
 
+;; key is dotted ip address string
+(defparameter *smtp-connection-tracker* (make-hash-table :test #'equal))
+(defparameter *smtp-connection-tracker-lock* (mp:make-process-lock :name " *smtp-connection-tracker-lock*"))
+
 (defun smtp-server ()
   (when (and *rep-start-server*
 	     (not *rep-server-started*))
@@ -259,86 +263,101 @@
 
 (defun do-smtp (sock &key fork verbose ssl)
   (with-smtp-err-handler (sock)
-    (unwind-protect
-	(with-socket-timeout (sock :write *datatimeout*)
-	  (let* ((dotted (smtp-remote-dotted sock))
-		 (sess (make-session :sock sock :dotted dotted
-				     :ssl ssl
-				     :fork fork :verbose verbose
-				     :rcpt-to-delay
-				     *rcpt-to-negative-initial-delay*
-				     ))
-		 cmd)
+    ;; 'dotted' is used in the unwind-protect.
+    (let ((dotted (smtp-remote-dotted sock)))
+      (unwind-protect
+	  (with-socket-timeout (sock :write *datatimeout*)
+	    (let* ((sess (make-session :sock sock :dotted dotted
+				       :ssl ssl
+				       :fork fork :verbose verbose
+				       :rcpt-to-delay
+				       *rcpt-to-negative-initial-delay*
+				       ))
+		   cmd)
 
-	    (if ssl
-		(setf sock (start-tls-common sess)))
+	      (if ssl
+		  (setf sock (start-tls-common sess)))
+
+	      (maild-log "~ASMTP connection from ~A" 
+			 (if ssl "SSL " "")
+			 dotted)
 	      
-	    (maild-log "~ASMTP connection from ~A" 
-		       (if ssl "SSL " "")
-		       dotted)
-	      
-	    (inc-smtp-stat num-connections)
-	      
-	    (parse-connections-blacklist)
-	      
-	    ;; Run through checkers.
-	    (when (not *postpone-checkers*)
-	      (if (null (run-connection-checkers sock))
+	      (inc-smtp-stat num-connections)
+
+	      (parse-connections-blacklist)
+
+	      (let (ok)
+		(mp:with-process-lock (*smtp-connection-tracker-lock*)
+		  ;; The unwind-protect cleanup formes will decf the count.
+		  (let ((count (incf (gethash dotted *smtp-connection-tracker* 0))))
+		    (setf ok (<= count *smtp-max-connections-per-client*))))
+		
+		(when (not ok)
+		  (maild-log "Connection max (~a) reached for ~a" *smtp-max-connections-per-client* dotted)
+		  (outline sock "421 Too many connections from your host")
 		  (return-from do-smtp)))
 	      
-	    (inc-smtp-stat connections-accepted)
-
-	    (when (and *greet-pause* 
-		       (not (trusted-client-p (smtp-remote-host sock))))
-	      (sleep *greet-pause*)
-	      (when (and (listen sock) (peek-char nil sock nil))
-		;; Pre-greeting traffic received.
-		(let ((strict nil))
-		  (if* (not strict)
-		     then (maild-log "Pre-greeting traffic from ~a" dotted)
-		     else (maild-log "Dropping connection from ~a due to pre-greeting traffic" dotted)
-			  (outline sock "554 Terminating connection due to protocol violation")
-			  ;; RFC2821 says that we must wait continue to respond
-			  ;; to commands until the client says QUIT.  But if the
-			  ;; client is going to violate the protocol, so are we.
-			  (return-from do-smtp)))))
+	      ;; Run through checkers.
+	      (when (not *postpone-checkers*)
+		(if (null (run-connection-checkers sock))
+		    (return-from do-smtp)))
 	      
-	    ;; Greet
-	    (outline sock "220 ~A Allegro Maild ~A ready" 
-		     (fqdn) *allegro-maild-version*)
+	      (inc-smtp-stat connections-accepted)
 
-	    (loop
-	      ;; bug17189.
-	      ;; Make sure that 'sock' always has the correct current
-	      ;; socket.  The STARTTLS command might change it.
-	      (setf sock (session-sock sess))
+	      (when (and *greet-pause* 
+			 (not (trusted-client-p (smtp-remote-host sock))))
+		(sleep *greet-pause*)
+		(when (and (listen sock) (peek-char nil sock nil))
+		  ;; Pre-greeting traffic received.
+		  (let ((strict nil))
+		    (if* (not strict)
+		       then (maild-log "Pre-greeting traffic from ~a" dotted)
+		       else (maild-log "Dropping connection from ~a due to pre-greeting traffic" dotted)
+			    (outline sock "554 Terminating connection due to protocol violation")
+			    ;; RFC2821 says that we must wait continue to respond
+			    ;; to commands until the client says QUIT.  But if the
+			    ;; client is going to violate the protocol, so are we.
+			    (return-from do-smtp)))))
 	      
-	      (setf cmd 
-		(smtp-get-line (session-sock sess) (session-buf sess) 
-			       *cmdtimeout*))
-	      (case cmd
-		(:timeout 
-		 (maild-log "Closing idle SMTP connection from ~A" dotted)
+	      ;; Greet
+	      (outline sock "220 ~A Allegro Maild ~A ready" 
+		       (fqdn) *allegro-maild-version*)
 
-		 (outline sock "421 Control connection idle for too long")
-		 (return :timeout)) 
-		(:eof
-		 ;; client closed the connection or something.
-		 (return :eof))
-		(:longline
-		 (maild-log "SMTP client ~A sent excessively long command"
-			    dotted)
-		 (outline sock "500 Line too long."))
-		(t
-		 (if (eq (process-smtp-command sess cmd) :quit)
-		     (return :quit)))))))
-      ;; cleanup forms
-      (maild-log "Closing SMTP session with ~A" 
-		 (smtp-remote-dotted sock))
-      (when (socketp sock)
-	(ignore-errors (update-smtp-stats)) ;; stats file dir might not exist
-	(ignore-errors (close sock))
-	(ignore-errors (close sock :abort t))))))
+	      (loop
+		;; bug17189.
+		;; Make sure that 'sock' always has the correct current
+		;; socket.  The STARTTLS command might change it.
+		(setf sock (session-sock sess))
+	      
+		(setf cmd 
+		  (smtp-get-line (session-sock sess) (session-buf sess) 
+				 *cmdtimeout*))
+		(case cmd
+		  (:timeout 
+		   (maild-log "Closing idle SMTP connection from ~A" dotted)
+
+		   (outline sock "421 Control connection idle for too long")
+		   (return :timeout)) 
+		  (:eof
+		   ;; client closed the connection or something.
+		   (return :eof))
+		  (:longline
+		   (maild-log "SMTP client ~A sent excessively long command"
+			      dotted)
+		   (outline sock "500 Line too long."))
+		  (t
+		   (if (eq (process-smtp-command sess cmd) :quit)
+		       (return :quit)))))))
+	;; cleanup forms
+	(mp:with-process-lock (*smtp-connection-tracker-lock*)
+	  (decf (gethash dotted *smtp-connection-tracker*)))
+	
+	(maild-log "Closing SMTP session with ~A" 
+		   (smtp-remote-dotted sock))
+	(when (socketp sock)
+	  (ignore-errors (update-smtp-stats)) ;; stats file dir might not exist
+	  (ignore-errors (close sock))
+	  (ignore-errors (close sock :abort t)))))))
 
 ;; Returns 't' if accepted, nil if rejected.
 (defun run-connection-checkers (sock &key postponed)
