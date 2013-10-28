@@ -577,7 +577,21 @@ in the HELO command (~A) from client ~A"
 
       (multiple-value-bind (user pass)
 	  (funcall mechfunc sess initial)
-	(when (or (null user) (not (authenticate-user user pass)))
+	(when (null user)
+	  ;; Some encoding problem happened in mechfunc.  It already
+	  ;; sent a suitable response on the socket so 
+	  ;; we can just bail.
+	  (return))
+	
+	(when (not (stringp user)) 
+	  
+	  ;; smtp-get-line problem.  Just return :quit since neither
+	  ;; process-smtp-command nor do-smtp are equipped to process
+	  ;; any other keyword return in a special way.
+	  
+	  (return :quit))
+	
+	(when (not (authenticate-user user pass))
 	  (maild-log "~a: Auth failure (user=~a)"
 		     (session-dotted sess) user)
 	  (sleep 5)

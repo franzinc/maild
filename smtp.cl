@@ -22,6 +22,7 @@
 
 ;; handles Newline or CR/LF EOL convention.
 (defun smtp-get-line (sock buf timeout)
+  "Returns a keyword if something went wrong. Otherwise returns a string"
   (let ((pos 0)
 	longline
 	lastchar

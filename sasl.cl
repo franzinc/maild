@@ -10,6 +10,10 @@
   
 
 (defun sasl-login-mech (sess initial)
+  "If successful, returns username and password strings.
+   Otherwise, returns:
+      NIL: base64 decoding problem.
+      <keyword>: smtp-get-line problem."
   (declare (ignore initial))
   (block nil
     (let ((sock (session-sock sess))
@@ -38,6 +42,10 @@
       (values username password))))
 
 (defun sasl-plain-mech (sess initial)
+  "If successful, returns username and password strings.
+   Otherwise, returns:
+      NIL: base64 decoding problem.
+      <keyword>: smtp-get-line problem."
   (block nil
     (let ((sock (session-sock sess))
 	  (buf (session-buf sess))
