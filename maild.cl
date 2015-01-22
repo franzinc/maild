@@ -29,6 +29,11 @@
 
   ;; Ensure sane umask.
   (excl.osi:umask #o22)
+
+  ;; Ensure that all streams are processed with single-byte :latin1
+  ;; external-format.
+  (setf *locale* (find-locale "C"))
+  (assert (eq (find-external-format :latin1) (find-external-format :default)))
   
   (let ((prgname (pop args)))
     (when (string= (basename prgname) "mailq")
