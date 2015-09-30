@@ -10,7 +10,6 @@
 # config: /etc/maild.cl
 
 # This script stolen from redhat's sendmail script
-# $Id: maild.init,v 1.5 2006/03/02 00:54:42 dancy Exp $
 
 # Source function library.
 . /etc/rc.d/init.d/functions
@@ -24,9 +23,6 @@ GREYADMIN_CONF=/etc/greyadmin.cl
 if [ -r /etc/sysconfig/maild ]; then
     . /etc/sysconfig/maild
 fi
-
-# Check that networking is up.
-[ ${NETWORKING} = "no" ] && exit 0
 
 RETVAL=0
 prog="maild"
