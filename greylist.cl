@@ -97,7 +97,6 @@
     (push (parse-addr ip) *greylist-ip-whitelist-parsed*)))
   
 (defun ensure-greylist-db ()
-
   (mp:with-process-lock (*greylist-lock*)
     ;; See if we have a broken connection.
     (when (and *greylist-db* 
@@ -165,8 +164,14 @@
     (error (c)
       (maild-log "Failed to establish connection to greylist database: ~A"
 		 c)
-      (values :transient "Please try again later"))))
-  
+      ;; Use this if you want to disallow mail flow if there are greylist
+      ;; database connection problems.
+      #+ignore
+      (values :transient "Please try again later")
+      ;; Use this if you want to act as if greylist is disabled when
+      ;; there are datbase connection problems.
+      #-ignore
+      :skip)))
 
 ;; Should return
 ;; :ok -- ready to check greylist
