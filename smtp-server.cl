@@ -685,6 +685,9 @@ in the HELO command (~A) from client ~A"
 	(outline sock "530 Authentication required")
 	(return))
       
+      ;; Temporary for debugging
+      (maild-log "DEBUG: Client from ~a: MAIL ~a" (session-dotted sess) text)
+      
       ;; parse the command line
       (multiple-value-bind (addr errstring expected-size)
 	  (parse-mail-cmd text)

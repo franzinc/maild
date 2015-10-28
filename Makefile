@@ -10,7 +10,7 @@ endif
 ARCH ?= $(shell uname -i)
 
 ifeq ($(at_franz),t)
-LISPROOT ?= /fi/cl/9.0
+LISPROOT ?= /fi/cl/10.0
 LISP ?= $(LISPROOT)/bin/$(shell if [ $(ARCH) = x86_64 ]; then echo mlisp-64-smp; else echo mlisp-smp; fi)
 endif
 
