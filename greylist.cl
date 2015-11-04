@@ -31,6 +31,12 @@
 ;; :opt-in or :opt-out.  
 (defparameter *greylist-operation-mode* :opt-out)
 (defparameter *greylist-ip-whitelist* '("127.0.0.1"))
+;; How many seconds to wait before giving up trying to connect
+;; to the greylist database.
+(defparameter *greylist-db-connect-timeout* 30)
+;; How many seconds to wait before trying a greylist database
+;; connection after a failure.
+(defparameter *greylist-db-error-wait* (* 5 60))
 
 
 ;; times are in seconds
@@ -108,11 +114,15 @@
     
     (when (null *greylist-db*)
       (maild-log "greylist: Establishing mysql connection")
-      (setf *greylist-db* 
-	(dbi.mysql:connect :database *greylist-db-name*
-			   :host *greylist-db-host*
-			   :user *greylist-db-user*
-			   :password *greylist-db-password*)))))
+      (mp:with-timeout (*greylist-db-connect-timeout* 
+			;; Timeout body
+			(error "Failed to connect to the greylist database within ~:d seconds" 
+			       *greylist-db-connect-timeout*))
+	(setf *greylist-db* 
+	  (dbi.mysql:connect :database *greylist-db-name*
+			     :host *greylist-db-host*
+			     :user *greylist-db-user*
+			     :password *greylist-db-password*))))))
 
 
 (defun greylist-check-common (now ip from to)
@@ -157,15 +167,32 @@
       
       :ok)))
 
-;; FIXME: Cache failures for a configurable amount of time to avoid
-;; repeated logging of database connection failures.
+(defparameter *last-greylist-db-init-error-time* nil)
+
 (defun greylist-db-init ()
-  "Called ensure-greylist-db while wrapped in an error handler.  
+  "Calls ensure-greylist-db while wrapped in an error handler.  
   
    If successful, returns :ok.  Otherwise, logs the
    error and returns :skip.  Callers can use the return
    value to determine whether or not to bother trying to 
-   use the database."
+   use the database.
+
+   If there was an error connecting to the database the last time
+   this function was called, a new connection to the database will
+   not be attempted until *greylist-db-error-wait* seconds have
+   elapsed since the last error.  This avoids repeatedly waiting on
+   a database that is unavailable for an extended period of time."
+  
+  (when *last-greylist-db-init-error-time*
+    (let* ((now (get-universal-time))
+	   (time-since-last-error (- now *last-greylist-db-init-error-time*)))
+      (when (< time-since-last-error *greylist-db-error-wait*)
+	;; Not enough time has elapsed since the last error.  Don't bother
+	#+ignore
+	(format t "not retrying db connection.  Only ~:d seconds have elapsed since the last error.~%"
+		time-since-last-error)
+	(return-from greylist-db-init :skip))))
+  
   (handler-case
       (progn
 	(ensure-greylist-db)
@@ -173,6 +200,7 @@
     (error (c)
       (maild-log "Failed to establish connection to greylist database: ~A"
 		 c)
+      (setf *last-greylist-db-init-error-time* (get-universal-time))
       ;; Use this if you want to disallow mail flow if there are greylist
       ;; database connection problems.
       #+ignore
