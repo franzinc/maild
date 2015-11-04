@@ -65,9 +65,7 @@
 
 (defparameter *greylist-db* nil)
 
-(defvar *greylist-lock*
-  ;;mm 2012-02 We use defvar because this lock should only be created once.
-  (mp:make-process-lock :name "Greylist database lock"))
+(defvar *greylist-lock* (mp:make-process-lock :name "Greylist database lock"))
 
 (defparameter *greylist-ip-whitelist-parsed* nil)
 
@@ -95,8 +93,11 @@
   (setf *greylist-ip-whitelist-parsed* nil)
   (dolist (ip *greylist-ip-whitelist*)
     (push (parse-addr ip) *greylist-ip-whitelist-parsed*)))
-  
+
+;;;greylist-db-init, :operator
 (defun ensure-greylist-db ()
+  "Don't call this directly.  Use greylist-db-init which has
+   error handling."
   (mp:with-process-lock (*greylist-lock*)
     ;; See if we have a broken connection.
     (when (and *greylist-db* 
@@ -156,7 +157,15 @@
       
       :ok)))
 
+;; FIXME: Cache failures for a configurable amount of time to avoid
+;; repeated logging of database connection failures.
 (defun greylist-db-init ()
+  "Called ensure-greylist-db while wrapped in an error handler.  
+  
+   If successful, returns :ok.  Otherwise, logs the
+   error and returns :skip.  Callers can use the return
+   value to determine whether or not to bother trying to 
+   use the database."
   (handler-case
       (progn
 	(ensure-greylist-db)
@@ -315,20 +324,20 @@
 
 ;; Duration should be in seconds.  from/to/source are strings
 (defun whitelist (from to duration source)
-  (ensure-greylist-db)
-  ;; Remove any existing stuff
-  (greysql (format nil "~
+  (when (eq (greylist-db-init) :ok)
+    ;; Remove any existing stuff
+    (greysql (format nil "~
 delete from whitelist where sender=~S and receiver=~S and source=~S"
-		   (dbi.mysql:mysql-escape-sequence from)
-		   (dbi.mysql:mysql-escape-sequence to)
-		   (dbi.mysql:mysql-escape-sequence source)))
-  ;; Add record
-  (greysql (format nil "~
+		     (dbi.mysql:mysql-escape-sequence from)
+		     (dbi.mysql:mysql-escape-sequence to)
+		     (dbi.mysql:mysql-escape-sequence source)))
+    ;; Add record
+    (greysql (format nil "~
 insert into whitelist (sender,receiver,source,expire) values (~S,~S,~S,~S)"
-		   (dbi.mysql:mysql-escape-sequence from)
-		   (dbi.mysql:mysql-escape-sequence to)
-		   (dbi.mysql:mysql-escape-sequence source)
-		   (+ (get-universal-time) duration))))
+		     (dbi.mysql:mysql-escape-sequence from)
+		     (dbi.mysql:mysql-escape-sequence to)
+		     (dbi.mysql:mysql-escape-sequence source)
+		     (+ (get-universal-time) duration)))))
 
 
 ;;;;;;;; DB stuff
