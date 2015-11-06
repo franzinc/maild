@@ -102,7 +102,8 @@
 (defun make-date-header ()
   (concatenate 'string "Date: " (datetime)))
 
-;; It is okay for gecos to be nil..
+;; It is okay for gecos to be nil.
+;; Called by queue-finalize
 (defun make-from-header (addr gecos)
   (let ((h (make-header))
 	(addr (if* (emailnullp addr) 

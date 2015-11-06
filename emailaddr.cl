@@ -21,7 +21,13 @@
 (defstruct emailaddr
   user
   domain
-  orig) ;; without angle brackets
+  
+  ;; Note that in many cases this is not the actual string that was
+  ;; supplied, but one constructed from previously parsed elements.
+  ;; A better name for this slot would be "string" or something like
+  ;; that.
+  orig ;; Without angle brackets.
+  )
   
 (defstruct addrspec 
   userprecomments
@@ -68,6 +74,7 @@
 	   (pop tokens)) 
     (nreverse res)))
 
+;; addrspec-to-emailaddr, :operator
 (defun printable-from-addrspec (addr)
   (if (null (addrspec-user addr))
       (if (null (addrspec-domain addr))
@@ -75,7 +82,7 @@
 	(format nil "@~A" (addrspec-domain addr)))
     (if (null (addrspec-domain addr))
 	(addrspec-user addr)
-      (format nil "~A@~A" (addrspec-user addr) (addrspec-domain addr)))))
+      (format nil "~A@~A" (quote-if-necessary (addrspec-user addr)) (addrspec-domain addr)))))
 
 (defun mailbox-to-addrspec (mailbox)
   (let ((thing (second mailbox)))
@@ -87,26 +94,37 @@
      (t
       (error "Unexpected mailbox subtype: ~S" thing)))))
 
+;; mailbox-to-emailaddr, :operator
 (defun addrspec-to-emailaddr (addr)
   (make-emailaddr :user (addrspec-user addr)
 		  :domain (addrspec-domain addr)
 		  :orig (printable-from-addrspec addr)))
 
+;;;parse-email-addr, :operator
+;;;make-recip-from-mailbox, :operator
 (defun mailbox-to-emailaddr (mailbox)
   (addrspec-to-emailaddr (mailbox-to-addrspec mailbox)))
 
 ;; only accepts mailbox style addresses
+;; Called by many functions.
 (defun parse-email-addr (string &key (pos 0) allow-null)
+  "Parses a mailbox style address (local-port@domain)
+   and returns an emailaddr struct.  Returns nil
+   if the address is unparseable."
   (multiple-value-bind (mb remaining-tokens)
       (parse-mailbox (emailaddr-lex string :pos pos))
     (when (and mb (null remaining-tokens))
       (let ((addr (mailbox-to-emailaddr mb)))
-	(if (or
-	     (and (null (emailaddr-user addr)) (null (emailaddr-domain addr))
-		  (not allow-null))
-	     (and (null (emailaddr-user addr)) (emailaddr-domain addr)))
-	    nil
-	  addr)))))
+	(if* (or
+	      ;; <> address but allow-null not true
+	      (and (null (emailaddr-user addr)) (null (emailaddr-domain addr))
+		   (not allow-null))
+	      ;; empty user part but domain specified (@domain.com).  Bogus
+	      (and (null (emailaddr-user addr)) (emailaddr-domain addr)))
+	   then ;; Reject
+		nil
+	   else ;; Good to go.  Return the emailaddr struct.
+		addr)))))
 
 
 ;; stuff from RFC 2822
@@ -154,10 +172,14 @@
 (defparameter *cfws* '(:one-or-more (:or *fws* *comment*)))
 
 ;; Characters that are allowed in a user name or domain name.
+;; Note that this doesn't include ".".
 (defun atext-char-p (char)
   (or (alphanumericp char)
       (member char '(#\! #\# #\$ #\% #\& #\' #\* #\+ #\- #\/ #\= #\?
 		     #\^ #\_ #\` #\{ #\| #\} #\~))))
+
+(defun dot-atom-char-p (char)
+  (or (atext-char-p char) (char= char #\.)))
 
 (defparameter *atom* '(:one-or-more (:char-predicate atext-char-p)))
 
@@ -425,6 +447,9 @@
 ;; the local part or the domain part to be missing.  Higher level
 ;; code will need to complain when necessary.
 (defun parse-addr-spec (tokens)
+  "If TOKENS can successfully be parsed as an addr-spec,
+   returns an addrspec struct and any remaining tokens.
+   Otherwise, returns nil"
   (block nil
     (let ((spec (make-addrspec)))
       ;; collect any comments/whitespace.
@@ -563,6 +588,12 @@
 
 ;; mailbox = name-addr / addr-spec
 (defun parse-mailbox (tokens)
+  "If TOKENS can successfully be parsed as a mailbox,
+   returns either 
+     (:mailbox nameaddr-struct) and remaining tokens
+       or
+     (:mailbox addrspec-struct) and remaining tokens.
+   Otherwise returns nil."
   (block nil
     (multiple-value-bind (nameaddr newtokens)
 	(parse-nameaddr tokens)
@@ -762,9 +793,14 @@
 	(replace-regexp string "\\b+$" "")
       string)))
 
+;; Called by make-from-header and printable-from-addrspec
 (defun quote-if-necessary (string)
+  "If STRING consists entirely of a combination of dot-atom 
+   and space characters, then it is returned unmolested.
+   Otherwise returns a version of STRING which is surrounded
+   by double quotes."
   (if* (every #'(lambda (char)
-		  (or (atext-char-p char) (excl::whitespace-char-p char)))
+		  (or (dot-atom-char-p char) (excl::whitespace-char-p char)))
 	      string)
      then string
      else (format nil "~s" string)))

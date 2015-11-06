@@ -637,7 +637,7 @@ in the HELO command (~A) from client ~A"
     (nreverse res)))
 
 ;; Returns
-;; from (or nil if error)
+;; from string (or nil if error)
 ;; err string
 ;; incoming message size (if supplied)
 (defun parse-mail-cmd (string)

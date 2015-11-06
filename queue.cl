@@ -24,7 +24,7 @@
   (mtime (get-universal-time)) ;; universal time of last update
   (status "Reading message data...")
   client-address
-  from
+  from ;; an emailaddr struct
   recips ;; remaining recipients to be processed (list of recip structs)
   orig-recips ;; parsed email addrs, pre-alias expansion
   headers
